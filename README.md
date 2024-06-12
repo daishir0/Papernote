@@ -42,8 +42,8 @@ Papernote is a web application that manages PDF files and their associated notes
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
-```
 
+---
 
 # Papernote
 
