@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summar2</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.gantt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .mermaid {
+            margin-top: 20px;
+        }
+        .button-link {
+            display: inline-block;
+            margin-left: 10px;
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+        .button-link:hover {
+            background-color: #0056b3;
+        }
+        .edit-link {
+            background-color: #28a745;
+        }
+        .edit-link:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/template" id="markdown-content">
+{{ content['markdown'] | safe }}
+</script>
+        
+
+<div id="content"></div>
+
+<script>
+    mermaid.initialize({startOnLoad: false}); // レンダリングの自動開始を無効化
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const markdownText = document.getElementById('markdown-content').innerText;
+        const renderer = new marked.Renderer();
+        renderer.code = function(code, infostring) {
+            if (infostring === "mermaid") {
+                return `<div class="mermaid">${code}</div>`;
+            } else if (infostring === "gantt") {
+                return `<div class="gantt">${code}</div>`;
+            } else {
+                return `<pre><code>${code}</code></pre>`;
+            }
+        };
+
+        // markedをカスタマイズしたレンダラーで初期化
+        marked.setOptions({ renderer });
+
+        // MarkdownをHTMLに変換してcontentにセット
+        document.getElementById('content').innerHTML = marked.parse(markdownText);
+
+        // Mermaid図をレンダリング
+        mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+
+        mermaid.ganttConfig = {
+            axisFormatter: [
+                ["%Y-%m-%d", (d) => {
+                    return d.getDay() === 1;
+                }]
+            ]
+        };
+        mermaid.init(undefined, document.querySelectorAll('.gantt'));
+    });
+</script>
+{% if authenticated %}
+<a href="/edit_summary2/{{ content['filename'] }}" class="button-link edit-link">編集する</a>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,20 @@
+basic_auth:
+  username: 'admin'
+  password: 'PLEASE SET YOUR OWN PASSWORD'
+
+allowed_extensions:
+  - 'jpg'
+  - 'jpeg'
+  - 'png'
+  - 'gif'
+  - 'txt'
+  - 'pdf'
+  - 'docx'
+  - 'xlsx'
+  - 'xls'
+
+exclude_string: 'EXCLUDE STRING'
+
+twitter:
+  site: "@XXXXXX"
+  creator: "@XXXXXX"

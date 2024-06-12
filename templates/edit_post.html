@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Edit post</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        textarea {
+            font-size: 16px; /* フォントサイズを16px以上に設定 */
+            flex-grow: 1; /* 残りのスペースを占める */
+            width: 100%; /* 横幅を100%に設定 */
+            margin-bottom: 0; /* 余白をなくす */
+        }
+        .fixed-bottom-btn {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+        .btn-toolbar .btn {
+           margin-right: 2px; /* 各ボタンの右側に5ピクセルの余白を設定 */
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const contentTextArea = document.getElementById('content');
+            if (contentTextArea) {
+                contentTextArea.value = contentTextArea.value.replace(/\\n/g, '\n');
+            }
+
+            autoSaveContent();
+
+            document.addEventListener('keydown', function(event) {
+                if (event.ctrlKey && event.key === 'Enter') {
+                    event.preventDefault();
+                    const submitButton = document.querySelector('input[type="submit"]');
+                    if (submitButton) {
+                        submitButton.click();
+                    }
+                }
+            });
+
+            const copyButton = document.getElementById('copyButton');
+            if (copyButton) {
+                copyButton.addEventListener('click', copyToClipboardWithFetch);
+            }
+
+            const fetchTextButton = document.getElementById('fetchTextButton');
+            if (fetchTextButton) {
+                fetchTextButton.addEventListener('click', async () => {
+                    const text = await fetchText();
+                    const paperContent = document.getElementById('paperContent');
+                    if (paperContent) {
+                        paperContent.value = text;
+                    }
+                });
+            }
+
+            const pasteMermaidButton = document.getElementById('pasteMermaidButton');
+            if (pasteMermaidButton) {
+                pasteMermaidButton.addEventListener('click', () => {
+                    insertTextAtCursor(contentTextArea, '\n```mermaid\n\n```');
+                });
+            }
+
+            const buttons = [
+                { id: 'insertHashButton', text: '#' },
+                { id: 'insertDashButton', text: '-' },
+                { id: 'insertStarButton', text: '*' },
+                { id: 'insertSpaceButton', text: ' ' },
+                { id: 'insertTabButton', text: '    ' },
+                { id: 'insert1Button', text: '1. ', multiLine: true },
+                { id: 'insertNewLineButton', text: '\n' },
+                { id: 'insertPreButton', text: '    ', multiLine: true },
+                { id: 'insertQuoteButton', text: '> ', multiLine: true }
+            ];
+
+            buttons.forEach(button => {
+                const btnElement = document.getElementById(button.id);
+                if (btnElement) {
+                    btnElement.addEventListener('click', () => {
+                        if (button.multiLine) {
+                            insertTextAtLineStart(contentTextArea, button.text);
+                        } else {
+                            insertTextAtCursor(contentTextArea, button.text);
+                        }
+                    });
+                }
+            });
+
+            contentTextArea.addEventListener('paste', handlePaste);
+
+        });
+
+        function insertTextAtCursor(textArea, text) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const end = textArea.selectionEnd;
+            const value = textArea.value;
+
+            textArea.value = value.slice(0, start) + text + value.slice(start);
+            textArea.selectionStart = textArea.selectionEnd = start + text.length;
+            textArea.focus();
+            console.log('Inserted Text:', text); // ここで確認
+        }
+
+        function insertTextAtLineStart(textArea, text) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const end = textArea.selectionEnd;
+            const value = textArea.value;
+
+            const before = value.slice(0, start);
+            const selected = value.slice(start, end);
+            const after = value.slice(end);
+
+            if (selected) {
+                const newText = selected.split('\n').map(line => text + line).join('\n');
+                textArea.value = before + newText + after;
+                textArea.selectionStart = start;
+                textArea.selectionEnd = start + newText.length;
+            } else {
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const lineEnd = value.indexOf('\n', start);
+                const line = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+                const newLine = text + line;
+                textArea.value = value.slice(0, lineStart) + newLine + value.slice(lineEnd === -1 ? value.length : lineEnd);
+                textArea.selectionStart = textArea.selectionEnd = start + text.length;
+            }
+
+            textArea.focus();
+            console.log('Inserted Text at Line Start:', text); // ここで確認
+        }
+
+        async function handlePaste(event) {
+            const items = (event.clipboardData || window.clipboardData).items;
+            for (let item of items) {
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        try {
+                            const response = await fetch('/attach_upload', {  // ここを修正
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            if (response.ok) {
+                                const result = await response.json();
+                                const smallImageUrl = result.url.replace(/\/([^\/]+)$/, '/s_$1');
+                                const markdownLink = result.isImage 
+                                    ? `[![${result.filename}](${smallImageUrl})](${result.url})` 
+                                    : `[${result.filename}](${result.url})`;
+                                insertTextAtCursor(document.getElementById('content'), markdownLink);
+                            } else {
+                                alert('ファイルのアップロードに失敗しました。');
+                            }
+                        } catch (error) {
+                            console.error('アップロード中にエラーが発生しました:', error);
+                            alert('ファイルのアップロードに失敗しました。');
+                        }
+                    }
+                    event.preventDefault();
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+<a href="/post" class="mb-2"><< post一覧へ</a>
+
+    <form method="post" class="container" style="margin-left: 0px; margin-right: 0px; max-width: 100%">
+        <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+            <div class="btn-group mr-2" role="group" aria-label="First group">
+<!--                <button id="insertHashButton" type="button" class="btn btn-primary">#</button>
+                <button id="insertStarButton" type="button" class="btn btn-primary">*</button>
+                <button id="insertNewLineButton" type="button" class="btn btn-primary">↓</button>-->
+                <button id="insertDashButton" type="button" class="btn btn-primary">-</button>
+                <button id="insertSpaceButton" type="button" class="btn btn-primary">Sp</button>
+                <button id="insertTabButton" type="button" class="btn btn-primary">Ta</button>
+                <button id="insert1Button" type="button" class="btn btn-primary">1.</button>
+                <button id="insertPreButton" type="button" class="btn btn-primary">Pre</button>
+                <button id="insertQuoteButton" type="button" class="btn btn-primary">&gt;</button>
+                <button id="pasteMermaidButton" type="button" class="btn btn-primary">M</button>
+                <button id="uploadFileButton" type="button" class="btn btn-primary">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+            </div>
+        </div>
+        <input type="file" id="fileInput" style="display:none;">
+
+        行1:タイトル(#限定公開、##非公開)　行2:タグ
+        <textarea id="content" name="content" class="form-control" rows="10">{{ content|safe }}</textarea>
+        <div class="fixed-bottom-btn">
+            <input type="submit" value="Save" class="btn btn-success mt-2 btn-block">
+        </div>
+    </form>
+
+<script defer src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+<script defer src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<script src="/static/scripts.js"></script>
+<script src="/static/upload.js"></script> 
+
+</body>
+</html>

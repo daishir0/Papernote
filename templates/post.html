@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ content['title'] }}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .mermaid {
+            margin-top: 20px;
+        }
+        .button-link {
+            display: inline-block;
+            margin-left: 10px;
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+        .button-link:hover {
+            background-color: #0056b3;
+        }
+        .edit-link {
+            background-color: #28a745;
+        }
+        .edit-link:hover {
+            background-color: #218838;
+        }
+        .tweet-link {
+            background-color: #1da1f2;
+        }
+        .tweet-link:hover {
+            background-color: #0d95e8;
+        }
+        @media print {
+            .tweet-link,
+            a[href="/post"],
+            button[onclick^="editPost('"] {
+                display: none;
+            }
+        }
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+    </style>
+</head>
+<body>
+
+<div class="post-header">
+<a href="/post"><< post一覧へ</a>
+{% if request.authorization %}
+<button class="btn btn-success btn-sm" onclick="editPost('{{ content.filename }}')">
+    <i class="fas fa-edit"></i>
+</button>
+{% endif %}
+</div>
+
+<template id="markdown-content">
+{{ content['markdown'] | safe }}
+</template>
+
+<div id="content"></div>
+
+<script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const markdownText = document.getElementById('markdown-content').content.textContent;
+
+        const renderer = new marked.Renderer();
+        renderer.code = function(code, language) {
+            // console.log({code});
+
+            if (language === 'mermaid') {
+                return `<div class="mermaid">${code}</div>`;
+            } else if (language === '') {
+                return `<pre><code>${code}</code></pre>`;
+            } else {
+                return `<pre><plain>${code}</plain></pre>`;
+            }
+        };
+
+        renderer.image = function(href, title, text) {
+            if (typeof href === 'object' && href !== null) {
+                href = href.href || 'default-image-path.jpg'; // オブジェクトからhrefを取り出す
+            } else if (typeof href !== 'string') {
+                console.error('Invalid href:', href);
+                href = 'default-image-path.jpg'; // デフォルトの画像パスを設定
+            }
+            text = text || 'default alt text'; // デフォルトのaltテキストを設定
+            return `<img loading="lazy" src="${href}" alt="${text}">`;
+        };
+
+        marked.setOptions({
+            renderer: renderer,
+            sanitize: true
+        });
+
+        const html = marked.parse(markdownText);
+        document.getElementById('content').innerHTML = html;
+
+        mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+    });
+    function editPost(filename) {
+        // 現在のスクロール位置を保存
+        var scrollPosition = window.scrollY || document.documentElement.scrollTop;
+        localStorage.setItem('scrollPosition', scrollPosition);
+
+        // 編集ページに遷移
+        location.href = '/edit_post/' + filename;
+    }
+</script>
+<script defer src="/static/postx.js"></script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Edit Memo</title>
+    <style>
+        /* 既存のスタイルはそのまま使用します */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        h1 {
+            margin: 0 0 10px 0;
+            text-align: center;
+        }
+        textarea {
+            flex-grow: 0.7;
+            margin: 0 0 10px 0;
+            padding: 10px;
+        }
+        input[type="submit"] {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+    </style>
+    <script>
+        // JavaScriptで自動保存機能を実装
+        document.addEventListener('DOMContentLoaded', () => {
+            let lastContent = document.querySelector('textarea').value; // 最後に保存した内容を保持
+            setInterval(() => { // 1分ごとに関数を実行
+                let currentContent = document.querySelector('textarea').value;
+                if (currentContent !== lastContent) { // 前回の内容と比較
+                    // 内容が異なる場合、ここに非同期保存の処理を書く
+                    fetch(window.location.href, { // 現在のページのURLを使用
+                        method: 'POST', // フォームの送信方法に合わせて 'POST'
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded', // コンテントタイプを適切に設定
+                        },
+                        body: `content=${encodeURIComponent(currentContent)}` // 送信するデータ。'content'はサーバーで期待されるフィールド名に合わせて変更してください
+                    }).then(response => {
+                        if (response.ok) {
+                            console.log('保存成功!');
+                            return response.text(); // レスポンスの内容に応じて変更が必要かもしれません
+                        } else {
+                            throw new Error('保存に失敗しました');
+                        }
+                    }).catch(error => {
+                        console.error('保存中にエラーが発生しました:', error);
+                    });
+                    
+                    console.log('変更を保存中...'); // 実際にはここでサーバーへの非同期通信を行う
+                    lastContent = currentContent; // 最後に保存した内容を更新
+                }
+            }, 60000); // 60000ミリ秒（1分）ごと
+
+            // URLからIDを抽出してプレビューボタンのリンクを設定
+            const previewButton = document.querySelector('.preview-button');
+            if (previewButton) {
+                const currentUrl = window.location.href;
+                const idMatch = currentUrl.match(/edit_memo\/([a-f0-9]+)/);
+                if (idMatch) {
+                    previewButton.href = `/${idMatch[1]}`;
+                }
+            }
+
+            // Ctrl+EnterでSubmitのボタンを押下する機能を追加
+            document.addEventListener('keydown', function(event) {
+                if (event.ctrlKey && event.key === 'Enter') {
+                    event.preventDefault(); // ブラウザのデフォルト動作をキャンセル
+                    document.querySelector('input[type="submit"]').click(); // Submitボタンをクリック
+                }
+            });
+        });
+
+        
+    </script>
+</head>
+<body>
+    <form method="post">
+        <h1>Edit</h1>
+        <div>※1行目はタイトル、2行目はタグ(半角スペース区切り)です</div>
+        <textarea name="content">{{ content }}</textarea>
+        <input type="submit" value="Save">
+    </form>
+</body>
+</html>
+

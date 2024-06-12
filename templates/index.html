@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Papernote*</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        h2 {
+            margin-top: 5px; /* 上部マージンを減らす */
+            margin-bottom: 5px; /* 下部マージンを減らす */
+            font-size: 12px; /* フォントサイズを小さくする */
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin-left: 0px  !important;
+            padding-left: 0px  !important;
+        }
+        li {
+            background-color: #f0f0f0;
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        a {
+            text-decoration: none;
+            color: #333;
+        }
+        a:hover {
+            color: #007bff;
+        }
+        .date {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .button-link {
+            border: none;
+            display: inline-block;
+            margin-left: 10px;
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-left: 0px;
+        }
+        .button-link:hover {
+            background-color: #0056b3;
+        }
+        .edit-link {
+            background-color: #28a745;
+        }
+        .edit-link:hover {
+            background-color: #218838;
+        }
+        .delete-link {
+            background-color: #dc3545; /* 赤色 */
+        }
+        .delete-link:hover {
+            background-color: #c82333; /* ホバー時の赤色を少し濃く */
+        }
+        .memo-content {
+        background-color: #f9f9f9; /* 薄い背景色 */
+        border: 1px solid #ddd; /* 枠線 */
+        padding: 10px; /* 内側の余白 */
+        margin-top: 10px; /* 上部の余白 */
+        }
+        .tag {
+            color: #007bff; /* 青色 */
+            font-size: 0.8em; /* 小文字 */
+        }
+
+        /* ツールチップのカスタムスタイル */
+        .tooltip-inner {
+            max-width: 800px !important; /* ツールチップの最大幅を設定 */
+            white-space: pre-wrap !important; /* 改行を保持 */
+            text-align: left !important; /* テキストを左寄せ */
+            background-color: #ffffff !important; /* 背景色 */
+            color: #000000 !important; /* 黒いテキスト色 */
+            border: 1px solid #ddd !important; /* 枠線の色 */
+            opacity: 1 !important; /* 透過を無効にする */
+        }
+        .tooltip-arrow {
+            border-top-color: #ffffff !important; /* 矢印の色を背景色と一致させる */
+        }
+        .no-underline {
+            text-decoration: none;
+        }
+        .no-underline:hover {
+            text-decoration: underline;
+        }
+    </style>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js" integrity="sha384-eMNCOe7tC1doHpGoWe/6oMVemdAVTMs2xqW4mwXrXsW0L84Iytr2wi5v2QjrP/xp" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+    <script src="/static/scripts.js"></script>
+
+
+
+</head>
+<body>
+
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><a class="no-underline" href="/" id="title">Papernote*</a></h1>
+            <div>
+                &gt;<a href="/post" id="post" >Post*</a>
+            </div>
+        </div>
+
+        {% if authenticated %}
+        <div class="mb-2">
+            <a href="/upload" id="upload" class="button-link no-underline">Upload PDF</a>
+            <!-- <button id="openAllLinks" class="button-link">全て開く(注)</button> -->
+        </div>
+        {% endif %}
+
+        <form method="get" action="/">
+            <div class="input-group mb-3">
+              <input type="text" class="form-control" placeholder="タイトル、タグ検索..." name="search" lang="en" autocapitalize="none">
+              <div class="input-group-append">
+                <button class="btn btn-outline-secondary" type="submit" id="button-addon2">本文まで含めて検索</button>
+              </div>
+            </div>
+        
+        <!-- 検索結果の件数を表示 -->
+        {% if pdf_files %}
+            <p id="result-count">{{ pdf_files|length }}件の結果</p>
+        {% endif %}
+
+        <ul>
+            {% for pdf in pdf_files %}
+                <li>
+                    {% if authenticated %}
+                    <a href="{{ pdf['url'] }}" class="button-link pdf"><i class="fa fa-file-pdf"></i></a>
+                    <button class="button-link copy-text-link" data-url="/clean_text/{{ pdf['pdf_id'] }}.pdf">
+                        <i class="fa fa-copy"></i>
+                    </button>
+                    {% endif %}
+                    <a class="paper" href="{{ pdf['pdf_id'] }}">・{{ pdf['memo1_title'] }}</a>
+                    <span class="tag">{{ pdf['memo2_content'][0] }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+
+    <script>
+        $(document).ready(function() {
+    
+            // URLからクエリパラメータを取得し、検索フィールドに設定
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchKeyword = urlParams.get('search'); // 'search'パラメータの値を取得
+            if(searchKeyword) {
+                $('input[name="search"]').val(decodeURIComponent(searchKeyword.replace(/\+/g, ' ')));
+            }
+    
+            // エンターキーで検索を実行
+            $('input[name="search"]').on('keypress', function(e) {
+                if (e.which == 13) { // Enterキーのキーコードは13
+                    $('form').submit();
+                }
+            });
+    
+            // 「/」キーで検索ボックスをアクティブにする
+            $(document).on('keydown', function(e) {
+                if (e.key === '/') {
+                    e.preventDefault(); // ブラウザのデフォルトの挙動を防ぐ
+                    $('input[name="search"]').focus().select();
+                }
+            });
+    
+            // リストの最初のリンクにフォーカスを設定
+            const links = $('a.paper:not([id])');
+            if (links.length > 0) {
+                $(links[0]).focus();
+            }
+    
+            $(document).keydown(function(e) {
+                // 表示されているリンクのみを選択
+                const visibleLinks = $('a.paper[href]').filter(function() {
+                    return $(this).closest('li').is(':visible');
+                });
+    
+                // 現在フォーカスされているリンクを取得
+                const focused = $(':focus');
+                const index = visibleLinks.index(focused);
+    
+                switch (e.key) {
+                    case 'j': // 次のリンクに移動
+                        if (index >= 0 && index < visibleLinks.length - 1) {
+                            $(visibleLinks[index + 1]).focus();
+                        }
+                        break;
+                    case 'k': // 前のリンクに移動
+                        if (index > 0) {
+                            $(visibleLinks[index - 1]).focus();
+                        }
+                        break;
+                }
+            });
+            
+            $('input[name="search"]').on('input', function() {
+                // 入力された検索キーワードを小文字で取得し、スペースで分割して配列にする
+                var searchKeywords = $(this).val().toLowerCase().split(' ');
+    
+                // 表示されているリストアイテムの数をカウントする変数
+                var count = 0;
+    
+                // リスト内の各アイテムをループ処理
+                $('ul li').each(function() {
+                    // 各リストアイテム内のaタグとタグ(span.tag)からテキストを取得し、小文字に変換
+                    var title = $(this).find('a.paper').first().text().toLowerCase();
+                    var tagText = $(this).find('.tag').text().toLowerCase(); // タグのテキストも取得
+    
+                    // タイトルまたはタグがすべての検索キーワードを含んでいるかどうかをチェック
+                    var allKeywordsFound = searchKeywords.every(function(keyword) {
+                        return title.indexOf(keyword) !== -1 || tagText.indexOf(keyword) !== -1;
+                    });
+    
+                    if (allKeywordsFound) {
+                        $(this).show(); // すべての検索キーワードを含んでいればリストアイテムを表示
+                        count++; // 表示されたアイテムの数をカウントアップ
+                    } else {
+                        $(this).hide(); // そうでなければリストアイテムを非表示
+                    }
+                });
+    
+                // 「〇件の結果」を更新
+                if ($('#result-count').length === 0) {
+                    // 結果数を表示する要素がまだなければ作成する
+                    $('form').after('<p id="result-count"></p>');
+                }
+                $('#result-count').text(count + '件の結果'); // 表示されているアイテムの数に基づいてテキストを更新
+            });
+    
+            // タグを角括弧で囲む処理
+            $('.tag').each(function() {
+                var tags = $(this).text().split(' ').filter(tag => tag.trim() !== ''); // 空白だけのタグを除外
+                if (tags.length > 0) {
+                    var formattedTags = tags.map(function(tag) {
+                        tag = tag.replace(/\s/g, ""); //半角空白を削除
+                        return '[' + tag + ']'; // 各タグを角括弧で囲む
+                    }).join(' '); // すべてのタグを空で結合
+                    $(this).text(formattedTags); // 新しいフォーマットでテキストを置き換え
+                } else {
+                    $(this).remove(); // テキストが空の場合はタグ要素自体を削除
+                }
+            });
+    
+            $('.copy-text-link').click(function(event) {
+                event.preventDefault(); // デフォルトの動作（ページのリロード）を防止
+                const url = $(this).data('url');
+        
+                // データを取得してクリップボードにコピー
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url, false); // 同期リクエストに変更
+                xhr.send();
+    
+                if (xhr.status === 200) {
+                    // 取得したデータをクリップボードにコピー
+                    navigator.clipboard.writeText(xhr.responseText).then(function() {
+                        showTemporaryMessage("コピーしました");
+                    }).catch(function(err) {
+                        console.error('クリップボードへのコピーに失敗しました: ', err);
+                        showTemporaryMessage("コピーに失敗しました: " + err);
+                    });
+                } else {
+                    console.error('Failed to copy: ', xhr.statusText);
+                }
+            });
+    
+            // ツールチップの設定
+            $('a.pdf').hover(function() {
+                const link = $(this);
+                const pdfId = link.attr('href').replace('.pdf', '').replace('/pdfs/', '');
+                const tooltipUrl = `/memo/${pdfId}.txt`;
+    
+                // title属性を一時的にdata-original-titleに保存して削除
+                link.attr('data-original-title', link.attr('title'));
+                link.removeAttr('title');
+    
+                $.get(tooltipUrl, function(data) {
+                    // 改行を<br>に置き換えてツールチップに表示
+                    const formattedData = data.replace(/\n/g, '<br>');
+                    link.attr('data-bs-original-title', formattedData);
+                    link.tooltip({ html: true }).tooltip('show');
+                });
+            }, function() {
+                const link = $(this);
+                link.tooltip('hide');
+    
+                // カスタムツールチップを隠した後、元のtitle属性を復元
+                link.attr('title', link.attr('data-original-title'));
+                link.removeAttr('data-original-title');
+            });
+        });
+        </script>
+
+        
+</body>
+</html>

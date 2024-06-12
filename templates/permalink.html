@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="{{ config['twitter']['site'] }}">
+    <meta name="twitter:creator" content="{{ config['twitter']['creator'] }}">
+    <meta name="twitter:title" content="{{ pdf['memo1_title'] }}">
+    <meta name="twitter:description" content="{{ pdf['memo_text'] }}">
+    <meta name="twitter:image" content="/tw/{{ pdf['twittercard_url'] }}">
+    <title>{{ pdf['memo1_title'] }}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <style>
+        h1 {
+            font-size: 2em; /* デフォルトのフォントサイズ */
+        }
+
+        @media (max-width: 1000px) {
+            h1 {
+                font-size: 1.25em; /* スマホ画面用のフォントサイズ */
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/"><< TOPへ</a>
+
+    <h1>
+        {{ pdf['memo1_title'] }}
+    </h1>
+
+    <div class="buttons-container">
+        <a href="/summary2/{{ pdf['summary_url'] }}" class="button-link"><i class="fa fa-list"></i> 要点</a>
+        <a href="/summary/{{ pdf['summary_url'] }}" class="button-link"><i class="fa fa-file-alt"></i> 要約</a>
+        <a href="https://www.google.com/search?q={{ pdf['memo1_title']|urlencode }}" class="button-link"><i class="fa fa-search"></i> Google</a>
+
+    {% if authenticated %}
+        <a href="javascript:void(0);" class="button-link copy-text-link" data-url="/clean_text/{{ pdf['pdf_id'] }}.pdf"><i class="fa fa-copy"></i></a>
+        <a href="{{ pdf['url'] }}" class="button-link"><i class="fa fa-file-pdf"></i></a>
+    {% endif %}
+    </div>
+
+    <div class="image-wrapper">
+        <img src="/tw/{{ pdf['twittercard_url'] }}">
+    </div>
+
+    {% if authenticated %}
+    <div class="buttons-container">
+        <a href="/edit_memo/{{ pdf['pdf_id'] }}.pdf" class="button-link edit-link"><i class="fa fa-edit"></i> 編集する</a>
+            {% for file in attach_files %}
+                [<a href="/pdfsattach/{{ file }}">添付{{ file.split('_')[1] }}</a>]
+            {% endfor %}
+    </div>
+    {% endif %}
+
+<template id="markdown-content">
+{% for line in pdf['memo2_content'][1:] %}
+{{ line | safe }}
+{% endfor %}
+</template>
+
+<div class="content"></div>
+
+{% if authenticated %}
+    <div class="buttons-container">
+    <a href="/move_to_top/{{ pdf['pdf_id'] }}" class="button-link delete-link move-to-top-link"><i class="fa fa-arrow-up"></i> 論文をトップへ移動する</a>
+    <a href="javascript:void(0);" class="button-link delete-link" data-filename="{{ pdf['pdf_id'] }}.pdf">ページを削除する</a>
+    </div>
+{% endif %}
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Markdownテキストをテンプレートから取得
+    const markdownText = document.getElementById('markdown-content').content.textContent;
+
+    // marked.Rendererをカスタマイズ
+    const renderer = new marked.Renderer();
+    renderer.code = function(code, language) {
+        // console.log({code});
+
+        if (language === 'mermaid') {
+            return `<div class="mermaid">${code}</div>`;
+        } else if (language === '') {
+            return `<pre><code>${code}</code></pre>`;
+        } else {
+            return `<pre><plain>${code}</plain></pre>`;
+        }
+    };
+
+    renderer.image = function(href, title, text) {
+        return `<img loading="lazy" src="${href}" alt="${text}">`;
+    };
+
+    // markedのオプション設定
+    marked.setOptions({
+        renderer: renderer,
+        sanitize: true
+    });
+
+    // MarkdownをHTMLに変換
+    const html = marked.parse(markdownText);
+
+    // HTMLをDOMに挿入
+    $('.content').html(html);
+
+    // Mermaidの初期化
+    mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+
+    // 既存の処理を保持
+    $('.delete-link').click(function() {
+        const filename = $(this).data('filename');
+        if (confirm('本当に削除してよいですか？')) {
+            $.post('/delete', {filename: filename}, function(data) {
+                alert(data.message);
+                // 必要に応じてページをリロードまたは更新
+            });
+        }
+    });
+
+    $('.copy-text-link').click(function(event) {
+        event.preventDefault(); // デフォルトの動作（ページのリロード）を防止
+        const url = $(this).data('url');
+
+        // データを取得してクリップボードにコピー
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, false); // 同期リクエストに変更
+        xhr.send();
+
+        if (xhr.status === 200) {
+            // 取得したデータをクリップボードにコピー
+            navigator.clipboard.writeText(xhr.responseText).then(function() {
+                showTemporaryMessage("コピーしました");
+            }, function(err) {
+                showTemporaryMessage("コピーに失敗しました");
+            });
+        } else {
+            console.error('Failed to copy: ', xhr.statusText);
+        }
+    });
+
+    // トップへ移動の確認ダイアログを追加
+    $('.move-to-top-link').click(function() {
+        if (confirm('本当にトップへ移動させますか？')) {
+            window.location.href = $(this).attr('href');
+        }
+        return false; // デフォルトの動作を防止
+    });
+});
+</script>
+
+<!-- その他のスクリプトは</body>の直前に配置 -->
+<script src="/static/scripts.js"></script>
+<script src="/static/postx.js"></script>
+
+</body>
+</html>

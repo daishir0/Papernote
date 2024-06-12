@@ -1,0 +1,298 @@
+/* 既存のスタイルはそのまま使用します */
+body, html {
+    font-family: "YakuHanJPs", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+    margin: 10px;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+form {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+/* textareaの設定 */
+textarea { 
+    height: 200px;
+    flex-grow: 1;  /* flex-growを増やして、より多くのスペースを確保 */
+    margin: 0 0 10px 0;
+    padding: 10px;
+    overflow: auto; /* オーバーフロー時にスクロールバーを表示 */
+}
+input[type="submit"] {
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+input[type="submit"]:hover {
+    background-color: #45a049;
+}
+/* ボタンのスタイリング */
+#copyButton, #fetchTextButton {
+    max-width: 200px; /* ボタンの最大幅をウィンドウ幅に合わせる */
+    margin: 10px 0; /* 上下に10ピクセルのマージンを設る */
+    display: block; /* ブロックレベル要素として表示 */
+}
+/* プロンプトのテキストエリアのスタイリングを変更 */
+#prompt {
+    width: 100%; /* 横幅いっぱいに広がるように設定 */
+    height: auto; /* 高さは自動調整 */
+    overflow: auto; /* オーバーフロー時にスクロールバーを表示 */
+    white-space: pre-wrap; /* 改行文字を尊重して表示 */
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+a {
+    text-decoration: none;
+    color: #333;
+}
+a:hover {
+    color: #007bff;
+}
+.date {
+    color: #666;
+    font-size: 0.9em;
+}
+.button-link {
+    display: inline-block;
+    margin-left: 10px;
+    background-color: #007bff;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    text-decoration: none;
+    max-width: 200px; /* ボタンの最大幅を設定 */
+    margin: 10px auto; /* 上下にマージンを設定し、左右は自動で中央揃え */
+    display: block; /* ブロックレベル要素として表示 */
+}
+.button-link:hover {
+    background-color: #0056b3;
+}
+.edit-link {
+    background-color: #28a745;
+}
+.edit-link:hover {
+    background-color: #218838;
+}
+.delete-link {
+    background-color: #dc3545; /* 赤色 */
+}
+.delete-link:hover {
+    background-color: #c82333; /* ホバー時の赤色を少し濃く */
+}
+.memo-content {
+background-color: #f9f9f9; /* 薄い背景色 */
+border: 1px solid #ddd; /* 枠線 */
+padding: 10px; /* 内側の余白 */
+margin-top: 10px; /* 上部の余白 */
+}
+.image-wrapper {
+text-align: center; /* 画像を中央揃えにする */
+margin: 5px 0; /* 上下のマージンを設定 */
+}
+
+.image-wrapper img {
+    max-width: 100%; /* 画像の最大幅を設定（画像が大きすぎる場合に備えて） */
+    height: auto; /* 画像の高さを自動調整 */
+    border: 2px solid #ddd; /* 画像の枠線を設定 */
+    border-radius: 10px; /* 画像の角を丸くする */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* 画像に影を追加 */
+}
+
+.copy-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    z-index: 9999;
+}
+.buttons-container {
+    flex-direction: row; /* 子要素を横方向に並べる */
+    justify-content: flex-start; /* 子要素をコンテナの左端から配置 */
+    flex-wrap: wrap; /* 必要に応じて複数行に折り返し */
+}
+.button-link {
+    display: inline-block; /* ボタンをインラインブロック要素として表示 */
+}
+
+.content {
+  border: 1px solid gray; /* 灰色の枠を少し太くする */
+  border-radius: 5px; /* 角を少し丸くする */
+  padding: 10px; /* 内側の余白 */
+}
+
+/* postのスタイル */
+#content {
+  font-family: "YakuHanJPs", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  font-size: var(--font-size-body-1);
+  line-height: var(--line-height-body);
+  color: var(--color-highEmphasis);
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+#content h1::before,
+#content h2::before,
+#content h3::before,
+#content h4::before,
+#content h5::before,
+#content h6::before {
+  content: "■"; /* 表題っぽいシンプルなマークを追加 */
+}
+
+#content h1,
+#content h2,
+#content h3,
+#content h4,
+#content h5,
+#content h6 {
+  font-weight: bold;
+  font-feature-settings: "palt";
+  margin-top: 30px; /* 上のマージンを設定 */
+}
+
+#content h1 {
+  font-size: 2em;
+  border-bottom: solid;
+  margin-top: 50px; /* 上のマージンを設定 */
+  margin-bottom: 20px; /* 下のマージンを設定 */
+}
+
+#content h2 {
+  font-size: 1.5em;
+}
+
+#content h3 {
+  font-size: 1.25em;
+}
+
+#content h4 {
+  font-size: 1.2em;
+}
+
+#content h5 {
+  font-size: 1.1em;
+}
+
+#content h6 {
+  font-size: 1.0em;
+}
+
+
+#content p {
+  margin: 16px 0;
+}
+
+
+#content pre plain {
+  padding: 16px;
+  display: block;
+  border-radius: 4px;
+  font-size: inherit;
+  font-family: inherit;
+  overflow-x: auto;
+  border: 1px solid #d3d3d3; /* 灰色の枠を追加 */
+}
+
+#content pre code {
+  background-color: #1c1b1b;
+  color: #f8f8f2;
+  padding: 16px;
+  display: block;
+  border-radius: 4px;
+  font-size: inherit;
+  font-family: inherit;
+  overflow-x: auto;
+}
+
+
+#content strong {
+  font-weight: bold;
+}
+
+#content em {
+  font-style: italic;
+}
+
+#content del {
+  text-decoration: line-through;
+}
+
+
+#content blockquote {
+  color: var(--color-mediumEmphasis);
+  padding: 8px 16px;
+  position: relative;
+  margin: 24px 0;
+}
+
+blockquote {
+    color: #666666;
+    margin: 0;
+    padding-left: 10px;
+    border-left: 0.5em #eee solid;
+  }
+
+#content ul,
+#content ol {
+  padding-left: 1.5em;
+  margin: 16px 0;
+}
+
+#content ul {
+  list-style-type: disc;
+}
+
+#content ol {
+  list-style-type: decimal;
+}
+
+#content img {
+  background-color: var(--color-gray0);
+  border: 2px solid #d3d3d3; /* 薄いグレーの枠を追加 */
+  max-width: 100%;
+}
+
+#content table {
+  border-collapse: collapse;
+  margin: 16px 0;
+  max-width: 100%;
+}
+
+#content th {
+  font-weight: bold;
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+  border-right: 1px solid var(--color-divider);
+  padding: 4px 12px;
+}
+
+#content td {
+  border-bottom: 1px solid var(--color-divider);
+  border-right: 1px solid var(--color-divider);
+  padding: 4px 12px;
+  max-width: 600px;
+}
+
+#content hr {
+  height: 2px;
+}
+
+p code {
+  background-color: #f5f5f5; /* 灰色の背景色 */
+  border-radius: 3px; /* 角を少し丸くする */
+  padding: 0.2em 0.4em; /* 内側の余白 */
+  font-family: 'Courier New', Courier, monospace; /* プログラムコードっぽいフォント */
+  font-size: 0.95em; /* 文字サイズを少し小さくする */
+}

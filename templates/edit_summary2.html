@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Edit summary2</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/scripts.js"></script>
+    <script>
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 自動保存機能
+            autoSaveContent();
+
+            // Ctrl+EnterでSubmitのボタンを押下する機能を追加
+            document.addEventListener('keydown', function(event) {
+                if (event.ctrlKey && event.key === 'Enter') {
+                    event.preventDefault(); // ブラウザのデフォルト動作をキャンセル
+                    document.querySelector('input[type="submit"]').click(); // Submitボタンをクリック
+                }
+            });
+
+            // プロンプト+本文をコピー機能
+            document.getElementById('copyButton').addEventListener('click', copyToClipboardWithFetch);
+
+            // 本文を取得機能
+            document.getElementById('fetchTextButton').addEventListener('click', async () => {
+                const text = await fetchText(); // fetchText関数を実行してテキストを取得
+                document.getElementById('paperContent').value = text; // 取得したテキストをpaperContentテキストエリアに設定
+            });
+        });
+
+        
+    </script>
+</head>
+<body>
+    <form method="post">
+        
+        <h1>Edit</h1>
+
+        <textarea id="content" name="content">{{ content }}</textarea>
+
+        <input type="submit" value="Save">
+
+    </form>
+
+<button id="fetchTextButton" type="button">本文を取得</button>
+<textarea id="paperContent" contenteditable="false" style="width: 100%; height: 20px;">
+</textarea>
+
+<button id="copyButton">プロンプト+本文をコピー</button>
+<textarea id="prompt" contenteditable="true" style="width: 100%; height: 180px;">
+# あなたはトップジャーナルの論文査読者です。以下の論文について、新規性、言及されている全ての関連研究との相違点、有効性、信頼性を、日本語を使って、まとめてください。
+# コードスニペットで出力してください
+
+
+{テンプレート}=
+# 新規性
+- 内容
+# 言及されている全ての関連研究との相違点
+- 内容
+# 有効性
+- 内容
+# 信頼性
+- 内容
+
+{論文テキスト}=
+</textarea>
+
+</body>
+</html>
+
+
+
+
