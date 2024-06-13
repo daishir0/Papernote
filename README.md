@@ -1,6 +1,6 @@
 # Papernote
 
-日本語のREADMEは英語のREADMEの記載されています。
+日本語のREADMEは英語のREADMEに記載されています。
 
 ## Overview
 Papernote is a web application that manages PDF files and their associated notes and summaries. It includes features like authentication, file upload, text extraction, and file search.
