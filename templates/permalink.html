@@ -61,7 +61,7 @@
 {% endfor %}
 </template>
 
-<div class="content"></div>
+<div id="content" class="content"></div>
 
 {% if authenticated %}
     <div class="buttons-container">
@@ -72,28 +72,37 @@
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 
 <script>
 $(document).ready(function() {
-    // Markdownテキストをテンプレートから取得
     const markdownText = document.getElementById('markdown-content').content.textContent;
 
-    // marked.Rendererをカスタマイズ
     const renderer = new marked.Renderer();
     renderer.code = function(code, language) {
-        // console.log({code});
+        const codeText = (typeof code === 'string' ? code : code.text).trim();
+        // スマホはcode.langがundefinedでPCはcode.langがstringであるため対処
+        const lang = (language === undefined) ? code.lang : language;
 
-        if (language === 'mermaid') {
-            return `<div class="mermaid">${code}</div>`;
-        } else if (language === '') {
-            return `<pre><code>${code}</code></pre>`;
+        if (lang === undefined) {
+            return `<pre>${codeText}</pre>`;
+        }
+
+        if (lang === 'mermaid') {
+            return `<div class="mermaid">${codeText}</div>`;
         } else {
-            return `<pre><plain>${code}</plain></pre>`;
+            return `<pre><code>${codeText}</code></pre>`;
         }
     };
 
     renderer.image = function(href, title, text) {
+        if (typeof href === 'object' && href !== null) {
+            href = href.href || 'default-image-path.jpg'; // オブジェクトからhrefを取り出す
+        } else if (typeof href !== 'string') {
+            console.error('Invalid href:', href);
+            href = 'default-image-path.jpg'; // デフォルトの画像パスを設定
+        }
+        text = text || 'default alt text'; // デフォルトのaltテキストを設定
         return `<img loading="lazy" src="${href}" alt="${text}">`;
     };
 
@@ -154,7 +163,6 @@ $(document).ready(function() {
 });
 </script>
 
-<!-- その他のスクリプトは</body>の直前に配置 -->
 <script src="/static/scripts.js"></script>
 <script src="/static/postx.js"></script>
 

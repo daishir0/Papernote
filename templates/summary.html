@@ -5,9 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Summary</title>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -45,19 +43,30 @@
 
 <div id="content"></div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+
 <script>
     mermaid.initialize({startOnLoad: false}); // レンダリングの自動開始を無効化
 
     document.addEventListener('DOMContentLoaded', function() {
         const markdownText = document.getElementById('markdown-content').innerText;
         const renderer = new marked.Renderer();
-        renderer.code = function(code, infostring) {
-            if (infostring === "mermaid") {
-                return `<div class="mermaid">${code}</div>`;
-            } else if (infostring === "gantt") {
-                return `<div class="gantt">${code}</div>`;
+
+        renderer.code = function(code, language) {
+            const codeText = (typeof code === 'string' ? code : code.text).trim();
+            // スマホはcode.langがundefinedでPCはcode.langがstringであるため対処
+            const lang = (language === undefined) ? code.lang : language;
+            
+            if (lang === undefined) {
+                return `<pre>${codeText}</pre>`;
+            }
+
+            if (lang === 'mermaid') {
+                return `<div class="mermaid">${codeText}</div>`;
             } else {
-                return `<pre><code>${code}</code></pre>`;
+                return `<pre><code>${codeText}</code></pre>`;
             }
         };
 

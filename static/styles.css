@@ -147,7 +147,7 @@ margin: 5px 0; /* 上下のマージンを設定 */
 #content h4::before,
 #content h5::before,
 #content h6::before {
-  content: "■"; /* 表題っぽいシンプルなマークを追加 */
+  content: "■";
 }
 
 #content h1,
@@ -194,14 +194,14 @@ margin: 5px 0; /* 上下のマージンを設定 */
 }
 
 
-#content pre plain {
+#content pre {
   padding: 16px;
   display: block;
   border-radius: 4px;
   font-size: inherit;
   font-family: inherit;
   overflow-x: auto;
-  border: 1px solid #d3d3d3; /* 灰色の枠を追加 */
+  border: 1px solid #d3d3d3; /* 灰色の枠 */
 }
 
 #content pre code {
@@ -215,6 +215,9 @@ margin: 5px 0; /* 上下のマージンを設定 */
   overflow-x: auto;
 }
 
+#content pre:has(> code) {
+  padding: 0; /* pre内にcodeがある場合のpaddingを0に設定 */
+}
 
 #content strong {
   font-weight: bold;

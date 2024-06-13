@@ -72,22 +72,26 @@
 
 <script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const markdownText = document.getElementById('markdown-content').content.textContent;
-
         const renderer = new marked.Renderer();
-        renderer.code = function(code, language) {
-            // console.log({code});
 
-            if (language === 'mermaid') {
-                return `<div class="mermaid">${code}</div>`;
-            } else if (language === '') {
-                return `<pre><code>${code}</code></pre>`;
+        renderer.code = function(code, language) {
+            const codeText = (typeof code === 'string' ? code : code.text).trim();
+            // スマホはcode.langがundefinedでPCはcode.langがstringであるため対処
+            const lang = (language === undefined) ? code.lang : language;
+            
+            if (lang === undefined) {
+                return `<pre>${codeText}</pre>`;
+            }
+
+            if (lang === 'mermaid') {
+                return `<div class="mermaid">${codeText}</div>`;
             } else {
-                return `<pre><plain>${code}</plain></pre>`;
+                return `<pre><code>${codeText}</code></pre>`;
             }
         };
 
@@ -109,9 +113,9 @@
 
         const html = marked.parse(markdownText);
         document.getElementById('content').innerHTML = html;
-
         mermaid.init(undefined, document.querySelectorAll('.mermaid'));
     });
+
     function editPost(filename) {
         // 現在のスクロール位置を保存
         var scrollPosition = window.scrollY || document.documentElement.scrollTop;
