@@ -35,6 +35,30 @@
         .btn-toolbar .btn {
            margin-right: 2px; /* 各ボタンの右側に5ピクセルの余白を設定 */
         }
+        .form-control{
+            margin-bottom: 52px;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .dialog {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%; /* 画面の幅いっぱいに広げる */
+        }
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -105,6 +129,47 @@
 
             contentTextArea.addEventListener('paste', handlePaste);
 
+            // LINEボタンの機能追加
+            const lineButton = document.getElementById('lineButton');
+            const overlay = document.getElementById('overlay');
+            const lineTextInput = document.getElementById('lineTextInput');
+            const lineAttachButton = document.getElementById('lineAttachButton');
+
+            lineButton.addEventListener('click', () => {
+                overlay.style.display = 'flex';
+                lineTextInput.focus(); // オーバーレイが表示されたときにフォーカスを設定
+            });
+
+            let isComposing = false;
+
+            lineTextInput.addEventListener('compositionstart', () => {
+                isComposing = true;
+            });
+
+            lineTextInput.addEventListener('compositionend', () => {
+                isComposing = false;
+            });
+
+            lineTextInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !isComposing) {
+                    event.preventDefault();
+                    const text = '\n' + lineTextInput.value;
+                    insertTextAtCursor(contentTextArea, text);
+                    lineTextInput.value = ''; // テキストボックスをクリア
+                    lineTextInput.focus();
+                }
+            });
+
+            lineAttachButton.addEventListener('click', () => {
+                document.getElementById('uploadFileButton').click(); 
+            });
+
+            overlay.addEventListener('click', (event) => {
+                if (event.target === overlay) {
+                    overlay.style.display = 'none';
+                }
+            });
+
         });
 
         function insertTextAtCursor(textArea, text) {
@@ -112,11 +177,16 @@
             const start = textArea.selectionStart;
             const end = textArea.selectionEnd;
             const value = textArea.value;
-
             textArea.value = value.slice(0, start) + text + value.slice(start);
             textArea.selectionStart = textArea.selectionEnd = start + text.length;
             textArea.focus();
-            console.log('Inserted Text:', text); // ここで確認
+
+            // カーソル位置までスクロール
+            const cursorPosition = textArea.selectionStart;
+            const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
+            const scrollTop = textArea.scrollTop;
+            const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
+            textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
         }
 
         function insertTextAtLineStart(textArea, text) {
@@ -157,7 +227,7 @@
                         formData.append('file', file);
 
                         try {
-                            const response = await fetch('/attach_upload', {  // ここを修正
+                            const response = await fetch('/attach_upload', {
                                 method: 'POST',
                                 body: formData
                             });
@@ -166,8 +236,9 @@
                                 const result = await response.json();
                                 const smallImageUrl = result.url.replace(/\/([^\/]+)$/, '/s_$1');
                                 const markdownLink = result.isImage 
-                                    ? `[![${result.filename}](${smallImageUrl})](${result.url})` 
-                                    : `[${result.filename}](${result.url})`;
+                                    ? `\n[![${result.filename}](${smallImageUrl})](${result.url})\n` 
+                                    : `\n[${result.filename}](${result.url})\n`;
+                                console.log(markdownLink);
                                 insertTextAtCursor(document.getElementById('content'), markdownLink);
                             } else {
                                 alert('ファイルのアップロードに失敗しました。');
@@ -189,9 +260,6 @@
     <form method="post" class="container" style="margin-left: 0px; margin-right: 0px; max-width: 100%">
         <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
             <div class="btn-group mr-2" role="group" aria-label="First group">
-<!--                <button id="insertHashButton" type="button" class="btn btn-primary">#</button>
-                <button id="insertStarButton" type="button" class="btn btn-primary">*</button>
-                <button id="insertNewLineButton" type="button" class="btn btn-primary">↓</button>-->
                 <button id="insertDashButton" type="button" class="btn btn-primary">-</button>
                 <button id="insertSpaceButton" type="button" class="btn btn-primary">Sp</button>
                 <button id="insertTabButton" type="button" class="btn btn-primary">Ta</button>
@@ -201,6 +269,9 @@
                 <button id="pasteMermaidButton" type="button" class="btn btn-primary">M</button>
                 <button id="uploadFileButton" type="button" class="btn btn-primary">
                     <i class="fas fa-paperclip"></i>
+                </button>
+                <button id="lineButton" type="button" class="btn btn-primary">
+                    <i class="fas fa-comment-dots"></i>
                 </button>
             </div>
         </div>
@@ -212,6 +283,15 @@
             <input type="submit" value="Save" class="btn btn-success mt-2 btn-block">
         </div>
     </form>
+
+    <div id="overlay" class="overlay">
+        <div class="dialog">
+            <input type="text" id="lineTextInput" class="form-control" placeholder="Enter text">
+            <button id="lineAttachButton" class="btn btn-secondary">
+                <i class="fas fa-paperclip"></i>
+            </button>
+        </div>
+    </div>
 
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>

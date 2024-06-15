@@ -22,8 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
                 const smallImageUrl = result.url.replace(/\/([^\/]+)$/, '/s_$1');
                 const markdownLink = result.isImage 
-                    ? `[![${result.filename}](${smallImageUrl})](${result.url})` 
-                    : `[${result.filename}](${result.url})`;
+                    ? `\n[![${result.filename}](${smallImageUrl})](${result.url})\n` 
+                    : `\n[${result.filename}](${result.url})\n`;
                 insertTextAtCursor(contentTextArea, markdownLink);
             } else {
                 alert('ファイルのアップロードに失敗しました。');
@@ -32,14 +32,3 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.value = null;
     });
 });
-
-function insertTextAtCursor(textArea, text) {
-    if (!textArea) return;
-    const start = textArea.selectionStart;
-    const end = textArea.selectionEnd;
-    const value = textArea.value;
-
-    textArea.value = value.slice(0, start) + text + value.slice(start);
-    textArea.selectionStart = textArea.selectionEnd = start + text.length;
-    textArea.focus();
-}
