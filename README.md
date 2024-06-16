@@ -1,9 +1,9 @@
 # Papernote
 
-日本語のREADMEは英語のREADMEに記載されています。
+日本語のREADMEは、英語のREADMEの後に記載されています。
 
 ## Overview
-Papernote is a web application that manages PDF files and their associated notes and summaries. It includes features like authentication, file upload, text extraction, and file search.
+Papernote is a web application that manages PDF files and their associated notes and summaries. It includes features like file upload, text extraction, and file search.
 
 ## Installation
 1. Clone the repository:
@@ -50,7 +50,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 # Papernote
 
 ## 概要
-PapernoteはPDFファイルとそれに関連するメモや要約を管理するウェブアプリケーションです。認証、ファイルアップロード、テキスト抽出、ファイル検索などの機能を含んでいます。
+PapernoteはPDFファイルとそれに関連するメモや要約を管理するウェブアプリケーションです。ファイルアップロード、テキスト抽出、ファイル検索などの機能を含んでいます。
 
 ## インストール方法
 1. リポジトリをクローンします：
