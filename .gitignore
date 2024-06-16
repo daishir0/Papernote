@@ -19,6 +19,9 @@ pdfs-target/*
 !post/.gitkeep
 post/*
 
+!post/bk/.gitkeep
+post/bk/*
+
 !summary/.gitkeep
 summary/*
 

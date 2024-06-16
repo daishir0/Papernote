@@ -108,7 +108,7 @@ def index():
 
 @app.route('/<filename>')
 def permalink(filename):
-    pdf_filename = filename + '.pdf'
+    pdf_filename = secure_filename(filename + '.pdf')
     path = os.path.join('./pdfs', pdf_filename)
     if not os.path.exists(path):
         abort(404)  # ファイルが存在しない場合は404エラーを返す
@@ -155,9 +155,9 @@ def permalink(filename):
 @app.route('/pdfsattach/<filename>')
 def pdfsattach(filename):
     if basic_auth.authenticate():
-        file_path = os.path.join('./pdfs-attach', filename)
+        file_path = os.path.join('./pdfs-attach', secure_filename(filename))
         if os.path.exists(file_path):
-            return send_from_directory('./pdfs-attach', filename)
+            return send_from_directory('./pdfs-attach', secure_filename(filename))
         else:
             abort(404)  # ファイルが存在しない場合は404エラーを返す
     else:
@@ -258,8 +258,7 @@ def attach_upload():
 
 @app.route('/attach/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
-
+    return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
 
 @basic_auth.required
@@ -428,7 +427,7 @@ def cleantextize_pdfs_async(pdf_files):
 @app.route('/pdfs/<filename>')
 def pdf_file(filename):
     if basic_auth.authenticate():
-        return send_from_directory('./pdfs', filename)
+        return send_from_directory('./pdfs', secure_filename(filename))
     else:
         abort(403)  # Forbiddenアクセス拒否
 
@@ -436,7 +435,7 @@ def pdf_file(filename):
 @app.route('/tw/<path:filename>')
 def tw(filename):
     directory = './static/tw'
-    response = send_from_directory(directory, filename)
+    response = send_from_directory(directory, secure_filename(filename))
     
     # ファイル名からMIMEタイプを決定
     mime_type, _ = mimetypes.guess_type(filename)
@@ -444,7 +443,7 @@ def tw(filename):
         response.headers.set('Content-Type', mime_type)
     
     # Content-Dispositionヘッダーを設定
-    response.headers.set('Content-Disposition', f'inline; filename="{filename}"')
+    response.headers.set('Content-Disposition', f'inline; filename="{secure_filename(filename)}"')
     
     # その他必要なヘッダーをここで追加
     response.headers.set('Cache-Control', 'no-cache')
@@ -454,7 +453,7 @@ def tw(filename):
 
 @app.route('/edit_memo/<filename>', methods=['GET', 'POST'])
 def edit_memo(filename):
-    txt_filename = filename.replace('.pdf', '.txt')
+    txt_filename = secure_filename(filename.replace('.pdf', '.txt'))
     txt_path = os.path.join('./memo', txt_filename)
     
     if request.method == 'POST':
@@ -474,7 +473,7 @@ def edit_memo(filename):
 
 @app.route('/memo/<filename>')
 def memo(filename):
-    txt_path = os.path.join('./memo', filename)
+    txt_path = os.path.join('./memo', secure_filename(filename))
     
     if not os.path.exists(txt_path):
         abort(404)  # ファイルが存在しない場合は404エラーを返す
@@ -491,12 +490,12 @@ def delete_file():
 
     # 削除するファイルのパスを構築
     paths = {
-        'PDF File': os.path.join('./pdfs', filename),
-        'Clean Text File': os.path.join('./clean_text', filename.replace('.pdf', '.txt')),
-        'Memo File': os.path.join('./memo', filename.replace('.pdf', '.txt')),
-        'Summary File': os.path.join('./summary', filename.replace('.pdf', '.txt')),
-        'Secondary Summary File': os.path.join('./summary2', filename.replace('.pdf', '.txt')),
-        'Twitter Card Image': os.path.join('./tw', filename.replace('.pdf', '.png'))
+        'PDF File': os.path.join('./pdfs', secure_filename(filename)),
+        'Clean Text File': os.path.join('./clean_text', secure_filename(filename.replace('.pdf', '.txt'))),
+        'Memo File': os.path.join('./memo', secure_filename(filename.replace('.pdf', '.txt'))),
+        'Summary File': os.path.join('./summary', secure_filename(filename.replace('.pdf', '.txt'))),
+        'Secondary Summary File': os.path.join('./summary2', secure_filename(filename.replace('.pdf', '.txt'))),
+        'Twitter Card Image': os.path.join('./tw', secure_filename(filename.replace('.pdf', '.png')))
     }
 
     # 各ファイルの存在を確認し、存在する場合は削除
@@ -514,13 +513,13 @@ def delete_file():
 
 @app.route('/clean_text/<filename>')
 def clean_text_file(filename):
-    txt_filename = filename.replace('.pdf', '.txt')
+    txt_filename = secure_filename(filename.replace('.pdf', '.txt'))
     print(txt_filename)
     return send_from_directory('./clean_text', txt_filename)
     
 @app.route('/move_to_top/<filename>', methods=['GET'])
 def move_to_top(filename):
-    pdf_path = os.path.join('./pdfs', filename + '.pdf')
+    pdf_path = os.path.join('./pdfs', secure_filename(filename + '.pdf'))
     if os.path.exists(pdf_path):
         # os.utime()を使用してファイルのタイムスタンプを更新
         current_time = time.time()
@@ -601,7 +600,7 @@ def post_index():
 @app.route('/post/<filename>')
 def post(filename):
     authenticated = basic_auth.authenticate()
-    path = os.path.join('./post', filename)
+    path = os.path.join('./post', secure_filename(filename))
     if not os.path.exists(path):
         auth = request.authorization
         if auth:
@@ -633,7 +632,7 @@ def post(filename):
 
 @app.route('/postdata/<filename>')
 def postdata(filename):
-    path = os.path.join('./post', filename)
+    path = os.path.join('./post', secure_filename(filename))
     if not os.path.exists(path):
         abort(404)
 
@@ -659,7 +658,7 @@ def postdata(filename):
 @app.route('/edit_post/<filename>', methods=['GET', 'POST'])
 @basic_auth.required
 def edit_post(filename):
-    post_path = os.path.join('./post', filename)
+    post_path = os.path.join('./post', secure_filename(filename))
     backup_dir = './post/bk'
     os.makedirs(backup_dir, exist_ok=True)
     
@@ -698,8 +697,8 @@ def rename_post():
     old_filename = request.form['old_filename']
     new_filename = request.form['new_filename'] + '.txt'
     
-    old_path = os.path.join('./post', old_filename)
-    new_path = os.path.join('./post', new_filename)
+    old_path = os.path.join('./post', secure_filename(old_filename))
+    new_path = os.path.join('./post', secure_filename(new_filename))
     
     if os.path.exists(old_path):
         if os.path.exists(new_path):
@@ -725,7 +724,7 @@ def add_post():
 @basic_auth.required
 def delete_post():
     filename = request.form['filename']
-    file_path = os.path.join('./post', filename)
+    file_path = os.path.join('./post', secure_filename(filename))
     
     if os.path.exists(file_path):
         try:
@@ -739,7 +738,7 @@ def delete_post():
 
 @app.route('/summary/<filename>')
 def summary(filename):
-    path = os.path.join('./summary', filename)
+    path = os.path.join('./summary', secure_filename(filename))
     if not os.path.exists(path):
         auth = request.authorization
         if auth:
@@ -764,7 +763,7 @@ def summary(filename):
 @app.route('/edit_summary/<filename>', methods=['GET', 'POST'])
 @basic_auth.required  # Add this decorator
 def edit_summary(filename):
-    txt_path = os.path.join('./summary', filename)
+    txt_path = os.path.join('./summary', secure_filename(filename))
     
     if request.method == 'POST':
         content = request.form['content']
@@ -785,7 +784,7 @@ def edit_summary(filename):
 
 @app.route('/summary2/<filename>')
 def summary2(filename):
-    path = os.path.join('./summary2', filename)
+    path = os.path.join('./summary2', secure_filename(filename))
     if not os.path.exists(path):
         auth = request.authorization
         if auth:
@@ -810,7 +809,7 @@ def summary2(filename):
 @app.route('/edit_summary2/<filename>', methods=['GET', 'POST'])
 @basic_auth.required  # Add this decorator
 def edit_summary2(filename):
-    txt_path = os.path.join('./summary2', filename)
+    txt_path = os.path.join('./summary2', secure_filename(filename))
     
     if request.method == 'POST':
         content = request.form['content']
