@@ -846,8 +846,5 @@ def youtube():
     return render_template('youtube.html')
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5555, debug=True)
-
-
-
-
+    port = config['server']['port']
+    app.run(host='0.0.0.0', port=port, debug=True)

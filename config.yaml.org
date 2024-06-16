@@ -18,3 +18,6 @@ exclude_string: 'EXCLUDE STRING'
 twitter:
   site: "@XXXXXX"
   creator: "@XXXXXX"
+
+server:
+  port: 5555
