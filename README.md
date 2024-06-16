@@ -28,6 +28,8 @@ Papernote is a web application that manages PDF files and their associated notes
    - `twitter`: Contains Twitter metadata for the site and creator.
      - `site`: The Twitter handle of the site.
      - `creator`: The Twitter handle of the content creator.
+   - `server`: Contains port.
+     - `port`: Server port.
 
 ## Usage
 1. Start the application:
@@ -73,6 +75,8 @@ PapernoteはPDFファイルとそれに関連するメモや要約を管理す�
    - `twitter`: サイトとクリエイターのためのTwitterメタデータを含みます。
      - `site`: サイトのTwitterハンドル。
      - `creator`: コンテンツクリエイターのTwitterハンドル。
+   - `Server`: ポート番号を含みます。
+     - `port`: サーバーのポート番号。
 
 ## 使い方
 1. アプリケーションを開始します：
