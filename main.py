@@ -600,7 +600,12 @@ def post_index():
 @app.route('/post/<filename>')
 def post(filename):
     authenticated = basic_auth.authenticate()
-    path = os.path.join('./post', secure_filename(filename))
+    
+    # ファイル名の安全性を手動で確認
+    if not re.match(r'^[\w\[\]\-]+\.txt$', filename):
+        abort(400)  # 無効なファイル名の場合は400エラーを返す
+
+    path = os.path.join('./post', filename)
     if not os.path.exists(path):
         auth = request.authorization
         if auth:
@@ -632,7 +637,11 @@ def post(filename):
 
 @app.route('/postdata/<filename>')
 def postdata(filename):
-    path = os.path.join('./post', secure_filename(filename))
+    # ファイル名の安全性を手動で確認
+    if not re.match(r'^[\w\[\]\-]+\.txt$', filename):
+        abort(400)  # 無効なファイル名の場合は400エラーを返す
+
+    path = os.path.join('./post', filename)
     if not os.path.exists(path):
         abort(404)
 
@@ -658,7 +667,11 @@ def postdata(filename):
 @app.route('/edit_post/<filename>', methods=['GET', 'POST'])
 @basic_auth.required
 def edit_post(filename):
-    post_path = os.path.join('./post', secure_filename(filename))
+    # ファイル名の安全性を手動で確認
+    if not re.match(r'^[\w\[\]\-]+\.txt$', filename):
+        abort(400)  # 無効なファイル名の場合は400エラーを返す
+
+    post_path = os.path.join('./post', filename)
     backup_dir = './post/bk'
     os.makedirs(backup_dir, exist_ok=True)
     
@@ -697,8 +710,14 @@ def rename_post():
     old_filename = request.form['old_filename']
     new_filename = request.form['new_filename'] + '.txt'
     
-    old_path = os.path.join('./post', secure_filename(old_filename))
-    new_path = os.path.join('./post', secure_filename(new_filename))
+    # ファイル名の安全性を手動で確認
+    if not re.match(r'^[\w\[\]\-]+\.txt$', old_filename):
+        return jsonify({'error': '無効な元のファイル名です。'}), 400
+    if not re.match(r'^[\w\[\]\-]+\.txt$', new_filename):
+        return jsonify({'error': '無効な新しいファイル名です。'}), 400
+
+    old_path = os.path.join('./post', old_filename)
+    new_path = os.path.join('./post', new_filename)
     
     if os.path.exists(old_path):
         if os.path.exists(new_path):
@@ -712,11 +731,11 @@ def rename_post():
 @basic_auth.required
 def add_post():
     date_string = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
-    filename = f"{date_string}.txt"
+    filename = f"[__]{date_string}.txt"
     file_path = os.path.join('./post', filename)
     
     with open(file_path, 'w') as new_file:
-        new_file.write("##名無しさん\n\n")
+        new_file.write("##タイトル未設定\n\n")
     
     return redirect(url_for('post_index'))
 
@@ -724,7 +743,11 @@ def add_post():
 @basic_auth.required
 def delete_post():
     filename = request.form['filename']
-    file_path = os.path.join('./post', secure_filename(filename))
+    # ファイル名の安全性を手動で確認
+    if not re.match(r'^[\w\[\]\-]+\.txt$', filename):
+        return jsonify({'error': '無効なファイル名です。'}), 400
+
+    file_path = os.path.join('./post', filename)
     
     if os.path.exists(file_path):
         try:
@@ -733,7 +756,7 @@ def delete_post():
         except Exception as e:
             return jsonify({'error': f'ファイルの削除に失敗しました: {str(e)}'}), 500
     else:
-        return jsonify({'error': 'ファイルが存在しません。'}), 404
+        return jsonify({'error': f'ファイルが存在しません。{filename}'}), 404
     
 
 @app.route('/summary/<filename>')
