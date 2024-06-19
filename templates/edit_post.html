@@ -79,22 +79,6 @@
                 }
             });
 
-            const copyButton = document.getElementById('copyButton');
-            if (copyButton) {
-                copyButton.addEventListener('click', copyToClipboardWithFetch);
-            }
-
-            const fetchTextButton = document.getElementById('fetchTextButton');
-            if (fetchTextButton) {
-                fetchTextButton.addEventListener('click', async () => {
-                    const text = await fetchText();
-                    const paperContent = document.getElementById('paperContent');
-                    if (paperContent) {
-                        paperContent.value = text;
-                    }
-                });
-            }
-
             const pasteMermaidButton = document.getElementById('pasteMermaidButton');
             if (pasteMermaidButton) {
                 pasteMermaidButton.addEventListener('click', () => {
@@ -103,25 +87,32 @@
             }
 
             const buttons = [
-                { id: 'insertHashButton', text: '#' },
-                { id: 'insertDashButton', text: '-' },
-                { id: 'insertStarButton', text: '*' },
-                { id: 'insertSpaceButton', text: ' ' },
-                { id: 'insertTabButton', text: '    ' },
-                { id: 'insert1Button', text: '1. ', multiLine: true },
-                { id: 'insertNewLineButton', text: '\n' },
-                { id: 'insertPreButton', text: '    ', multiLine: true },
-                { id: 'insertQuoteButton', text: '> ', multiLine: true }
+                { id: 'insertStarButton', text: '*', option: 'wrap' },
+                { id: 'insertSpaceButton', text: ' ', option: 'lineStart' },
+                { id: 'insertHashButton', text: '# ', option: 'lineStart' },
+                { id: 'insertDashButton', text: '- ', option: 'lineStart' },
+                { id: 'insert1Button', text: '1. ', option: 'lineStart' },
+                { id: 'insertQuoteButton', text: '> ', option: 'lineStart' },
+                { id: 'insertBoldButton', text: '**', option: 'wrap' }
             ];
-
+            
             buttons.forEach(button => {
                 const btnElement = document.getElementById(button.id);
                 if (btnElement) {
                     btnElement.addEventListener('click', () => {
-                        if (button.multiLine) {
-                            insertTextAtLineStart(contentTextArea, button.text);
-                        } else {
-                            insertTextAtCursor(contentTextArea, button.text);
+                        switch (button.option) {
+                            case 'lineStart':
+                                console.log("AtStart");
+                                insertTextAtLineStart(contentTextArea, button.text);
+                                break;
+                            case 'wrap':
+                                console.log("Wrap");
+                                wrapSelectedTextWith(contentTextArea, button.text);
+                                break;
+                            case 'cursor':
+                                console.log("Cursor");
+                                insertTextAtCursor(contentTextArea, button.text);
+                                break;
                         }
                     });
                 }
@@ -170,15 +161,30 @@
                 }
             });
 
+            // ESCキーが押されたときにオーバーレイを非表示にする
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    overlay.style.display = 'none';
+                }
+            });
         });
 
-        function insertTextAtCursor(textArea, text) {
+        function wrapSelectedTextWith(textArea, text) {
             if (!textArea) return;
             const start = textArea.selectionStart;
             const end = textArea.selectionEnd;
             const value = textArea.value;
-            textArea.value = value.slice(0, start) + text + value.slice(start);
-            textArea.selectionStart = textArea.selectionEnd = start + text.length;
+
+            // 選択部分の前後にテキストを挿入
+            if (text === '**') {
+                textArea.value = value.slice(0, start) + ' ' + text + value.slice(start, end) + text + ' ' + value.slice(end);
+                textArea.selectionStart = start + text.length + 1; // 前後のスペースを考慮
+                textArea.selectionEnd = end + text.length + 1;
+            } else {
+                textArea.value = value.slice(0, start) + text + value.slice(start, end) + text + value.slice(end);
+                textArea.selectionStart = start + text.length;
+                textArea.selectionEnd = end + text.length;
+            }
             textArea.focus();
 
             // カーソル位置までスクロール
@@ -195,27 +201,38 @@
             const end = textArea.selectionEnd;
             const value = textArea.value;
 
-            const before = value.slice(0, start);
-            const selected = value.slice(start, end);
-            const after = value.slice(end);
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = value.indexOf('\n', end);
+            const before = value.slice(0, lineStart);
+            const after = value.slice(lineEnd === -1 ? value.length : lineEnd);
 
-            if (selected) {
-                const newText = selected.split('\n').map(line => text + line).join('\n');
-                textArea.value = before + newText + after;
-                textArea.selectionStart = start;
-                textArea.selectionEnd = start + newText.length;
-            } else {
-                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-                const lineEnd = value.indexOf('\n', start);
-                const line = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
-                const newLine = text + line;
-                textArea.value = value.slice(0, lineStart) + newLine + value.slice(lineEnd === -1 ? value.length : lineEnd);
-                textArea.selectionStart = textArea.selectionEnd = start + text.length;
-            }
+            const selectedLines = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+            const newText = selectedLines.split('\n').map(line => text + line).join('\n');
+
+            textArea.value = before + newText + after;
+            textArea.selectionStart = lineStart;
+            textArea.selectionEnd = lineStart + newText.length;
 
             textArea.focus();
             console.log('Inserted Text at Line Start:', text); // ここで確認
         }
+
+        function insertTextAtCursor(textArea, text) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const end = textArea.selectionEnd;
+            const value = textArea.value;
+            textArea.value = value.slice(0, start) + text + value.slice(start);
+            textArea.selectionStart = textArea.selectionEnd = start + text.length;
+            textArea.focus();
+
+            // カーソル位置までスクロール
+            const cursorPosition = textArea.selectionStart;
+            const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
+            const scrollTop = textArea.scrollTop;
+            const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
+            textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
+                }
 
         async function handlePaste(event) {
             const items = (event.clipboardData || window.clipboardData).items;
@@ -252,6 +269,7 @@
                 }
             }
         }
+
     </script>
 </head>
 <body>
@@ -260,12 +278,12 @@
     <form method="post" class="container" style="margin-left: 0px; margin-right: 0px; max-width: 100%">
         <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
             <div class="btn-group mr-2" role="group" aria-label="First group">
+                <button id="insertHashButton" type="button" class="btn btn-primary">#</button>
                 <button id="insertDashButton" type="button" class="btn btn-primary">-</button>
-                <button id="insertSpaceButton" type="button" class="btn btn-primary">Sp</button>
-                <button id="insertTabButton" type="button" class="btn btn-primary">Ta</button>
                 <button id="insert1Button" type="button" class="btn btn-primary">1.</button>
-                <button id="insertPreButton" type="button" class="btn btn-primary">Pre</button>
                 <button id="insertQuoteButton" type="button" class="btn btn-primary">&gt;</button>
+                <button id="insertSpaceButton" type="button" class="btn btn-primary">Sp</button>
+                <button id="insertBoldButton" type="button" class="btn btn-primary">B</button>
                 <button id="pasteMermaidButton" type="button" class="btn btn-primary">M</button>
                 <button id="uploadFileButton" type="button" class="btn btn-primary">
                     <i class="fas fa-paperclip"></i>
