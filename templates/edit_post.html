@@ -167,6 +167,24 @@
                     overlay.style.display = 'none';
                 }
             });
+
+            // YYボタンとHHボタンのイベントリスナーを追加
+            const insertDateButton = document.getElementById('insertDateButton');
+            const insertTimeButton = document.getElementById('insertTimeButton');
+
+            if (insertDateButton) {
+                insertDateButton.addEventListener('click', () => {
+                    const currentDate = getCurrentDate();
+                    insertTextAtCursor(contentTextArea, currentDate);
+                });
+            }
+
+            if (insertTimeButton) {
+                insertTimeButton.addEventListener('click', () => {
+                    const currentTime = getCurrentTime();
+                    insertTextAtCursor(contentTextArea, currentTime);
+                });
+            }
         });
 
         function wrapSelectedTextWith(textArea, text) {
@@ -232,7 +250,23 @@
             const scrollTop = textArea.scrollTop;
             const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
             textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
-                }
+        }
+
+        function getCurrentDate() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}${month}${day}`;
+        }
+
+        function getCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            return `${hours}${minutes}${seconds}`;
+        }
 
         async function handlePaste(event) {
             const items = (event.clipboardData || window.clipboardData).items;
@@ -253,8 +287,8 @@
                                 const result = await response.json();
                                 const smallImageUrl = result.url.replace(/\/([^\/]+)$/, '/s_$1');
                                 const markdownLink = result.isImage 
-                                    ? `\n[![${result.filename}](${smallImageUrl})](${result.url})\n` 
-                                    : `\n[${result.filename}](${result.url})\n`;
+                                    ? `[![${result.filename}](${smallImageUrl})](${result.url})\n` 
+                                    : `[${result.filename}](${result.url})\n`;
                                 console.log(markdownLink);
                                 insertTextAtCursor(document.getElementById('content'), markdownLink);
                             } else {
@@ -291,6 +325,8 @@
                 <button id="lineButton" type="button" class="btn btn-primary">
                     <i class="fas fa-comment-dots"></i>
                 </button>
+                <button id="insertDateButton" type="button" class="btn btn-primary">YY</button>
+                <button id="insertTimeButton" type="button" class="btn btn-primary">HH</button>
             </div>
         </div>
         <input type="file" id="fileInput" style="display:none;">
