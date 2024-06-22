@@ -602,7 +602,7 @@ def post(filename):
     authenticated = basic_auth.authenticate()
     
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-]+\.txt$', filename):
+    if not re.match(r'^[\w\[\]\-\u4e00-\u9fa5\u3040-\u30ff]+\.txt$', filename):
         abort(400)  # 無効なファイル名の場合は400エラーを返す
 
     path = os.path.join('./post', filename)
@@ -638,7 +638,7 @@ def post(filename):
 @app.route('/postdata/<filename>')
 def postdata(filename):
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-]+\.txt$', filename):
+    if not re.match(r'^[\w\[\]\-\u4e00-\u9fa5\u3040-\u30ff]+\.txt$', filename):
         abort(400)  # 無効なファイル名の場合は400エラーを返す
 
     path = os.path.join('./post', filename)
@@ -668,7 +668,7 @@ def postdata(filename):
 @basic_auth.required
 def edit_post(filename):
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-]+\.txt$', filename):
+    if not re.match(r'^[\w\[\]\-\u4e00-\u9fa5\u3040-\u30ff]+\.txt$', filename):
         abort(400)  # 無効なファイル名の場合は400エラーを返す
 
     post_path = os.path.join('./post', filename)
@@ -744,7 +744,7 @@ def add_post():
 def delete_post():
     filename = request.form['filename']
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-]+\.txt$', filename):
+    if not re.match(r'^[\w\[\]\-\u4e00-\u9fa5\u3040-\u30ff]+\.txt$', filename):
         return jsonify({'error': '無効なファイル名です。'}), 400
 
     file_path = os.path.join('./post', filename)

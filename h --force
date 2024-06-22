@@ -1,0 +1,148 @@
+[33mcommit 49cd2e64421d71267018f58e0ac03648ac483e20[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sun Jun 23 08:02:20 2024 +0900
+
+    Save changes before rebase
+
+[33mcommit f79891b475c94991ac042a252ff370fb79b72a53[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sun Jun 23 07:45:34 2024 +0900
+
+    fix secure filename
+
+[33mcommit e9fa3728bb9bb1ee0e1bbf86763cf77bc7fae7c0[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sat Jun 22 09:02:00 2024 +0900
+
+    chanege task done message
+
+[33mcommit 65d3beec362ee388c24c9cb1d70e5ac49bfc78ff[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Thu Jun 20 16:23:54 2024 +0900
+
+    add yyyymmdd and hhmmss button
+
+[33mcommit 0bd3fd51e308db1c4287863a120d60737dce0a83[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Wed Jun 19 14:59:21 2024 +0900
+
+    improve edit button functions
+
+[33mcommit b71bb647ec2a55c1aabf0103209bcd52281f0f6c[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Mon Jun 17 17:37:55 2024 +0900
+
+    fix bug (secure_filename)
+
+[33mcommit 445bee16017cfbb6b8306ce633454f6dcc16139e[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sun Jun 16 17:00:19 2024 +0900
+
+    fix typo
+
+[33mcommit f92ee5df91535d347469ee2d27f579b03587afa8[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sun Jun 16 14:56:02 2024 +0900
+
+    improve seurity for using securefilename
+
+[33mcommit e61d1a3db49c2df4b63900524021069a85828554[m
+Author: daishir0 <daishiro.hirashima@gmail.com>
+Date:   Sun Jun 16 12:45:14 2024 +0900
+
+    Update README.md
+
+[33mcommit 39482a7420a2219c3760a9c7127225be44c74c0e[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sun Jun 16 12:19:42 2024 +0900
+
+    add port number to config.yaml
+
+[33mcommit cd74245d78ca60aae0207439a8b28be06031fd7d[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sun Jun 16 05:17:01 2024 +0900
+
+    add line fuction (continuous text and image input function)
+
+[33mcommit b7a163d03d158e2acbcc842c5344ddff69a34412[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sat Jun 15 21:56:43 2024 +0900
+
+    remove *
+
+[33mcommit 5ee918547578fa6984b1d6ebbab1561b4f45c6e3[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sat Jun 15 21:55:28 2024 +0900
+
+    remove * (system name)
+
+[33mcommit d7823b485e5baabb40fabdcf00691990be093cfb[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Sat Jun 15 07:29:54 2024 +0900
+
+    remove defer and updatre LICENSE
+
+[33mcommit 6b09ea43c7febbc7bcedc085004a44404f7d2e4d[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Fri Jun 14 09:08:56 2024 +0900
+
+    add LICENSE
+
+[33mcommit 316ba8b9c11fe2a0ab07d81b6599f8cf371c4887[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Fri Jun 14 09:04:29 2024 +0900
+
+    update .gitignore
+
+[33mcommit 31e1a9069a9839027b937fb16653b3f448e08af8[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Thu Jun 13 18:48:01 2024 +0900
+
+    markdown bug fix
+
+[33mcommit 65cc120780fbdf3806fd6b9fa79a63cf8552b4b5[m
+Merge: 22876ce 4190f35
+Author: daishir0 <daishiro.hirashima@gmail.com>
+Date:   Thu Jun 13 23:07:07 2024 +0900
+
+    Merge pull request #1 from shigeonakane/patch-1
+    
+    README.md を更新
+
+[33mcommit 4190f35acae5b41e9543892e2433e1b5e3a5ccc6[m
+Author: Shigeo Nakane <45679815+shigeonakane@users.noreply.github.com>
+Date:   Thu Jun 13 23:00:03 2024 +0900
+
+    README.md を更新
+    
+    「READMEの」となっていたのがおかしかったので、「に」に変えました。
+
+[33mcommit 22876ce06ffc56d5cdfe13ffbc20a5bf03923695[m
+Author: daishir0 <daishiro.hirashima@gmail.com>
+Date:   Thu Jun 13 06:51:08 2024 +0900
+
+    README.md を更新
+
+[33mcommit b3dbcd9cfdb27bed755321a804a64c13fb32ea6c[m
+Author: daishir0 <daishiro.hirashima@gmail.com>
+Date:   Thu Jun 13 06:50:32 2024 +0900
+
+    README.md を更新
+
+[33mcommit a31938b752952d2bacaaecd6b31b12ed145cd3a6[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Wed Jun 12 23:13:37 2024 +0900
+
+    modify README.md
+
+[33mcommit ff19da546baad4d04d5d9894c635ceb8e85f8de6[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Wed Jun 12 23:11:55 2024 +0900
+
+    add README.md
+
+[33mcommit f0cff3a56a619efb25623e04254558042c83d2ec[m
+Author: daishiro <daishiro.hirashima@gmail.com>
+Date:   Wed Jun 12 22:59:58 2024 +0900
+
+    Initial commit
