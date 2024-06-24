@@ -597,12 +597,23 @@ def post_index():
     # ファイル名のリストをテンプレートに渡す
     return render_template('post_index.html', post_files=sorted_post_files_info, authenticated=authenticated)
 
+def is_valid_filename(filename):
+    # ファイル名がディレクトリトラバーサルを含まないかチェック
+    if '..' in filename or filename.startswith('/'):
+        return False
+    
+    # ファイル名が有効な文字のみを含むかチェック
+    if not re.match(r'^[^/\\:*?"<>|]+\.txt$', filename):
+        return False
+    
+    return True
+
 @app.route('/post/<filename>')
 def post(filename):
     authenticated = basic_auth.authenticate()
     
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-\u4e00-\u9fa5\u3040-\u30ff]+\.txt$', filename):
+    if not is_valid_filename(filename):
         abort(400)  # 無効なファイル名の場合は400エラーを返す
 
     path = os.path.join('./post', filename)
@@ -638,7 +649,7 @@ def post(filename):
 @app.route('/postdata/<filename>')
 def postdata(filename):
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-\u4e00-\u9fa5\u3040-\u30ff]+\.txt$', filename):
+    if not is_valid_filename(filename):
         abort(400)  # 無効なファイル名の場合は400エラーを返す
 
     path = os.path.join('./post', filename)
@@ -668,7 +679,7 @@ def postdata(filename):
 @basic_auth.required
 def edit_post(filename):
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-\u4e00-\u9fa5\u3040-\u30ff]+\.txt$', filename):
+    if not is_valid_filename(filename):
         abort(400)  # 無効なファイル名の場合は400エラーを返す
 
     post_path = os.path.join('./post', filename)
@@ -711,10 +722,11 @@ def rename_post():
     new_filename = request.form['new_filename'] + '.txt'
     
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-]+\.txt$', old_filename):
+    if not is_valid_filename(old_filename):
         return jsonify({'error': '無効な元のファイル名です。'}), 400
-    if not re.match(r'^[\w\[\]\-]+\.txt$', new_filename):
+    if not is_valid_filename(new_filename):
         return jsonify({'error': '無効な新しいファイル名です。'}), 400
+
 
     old_path = os.path.join('./post', old_filename)
     new_path = os.path.join('./post', new_filename)
@@ -744,7 +756,7 @@ def add_post():
 def delete_post():
     filename = request.form['filename']
     # ファイル名の安全性を手動で確認
-    if not re.match(r'^[\w\[\]\-\u4e00-\u9fa5\u3040-\u30ff]+\.txt$', filename):
+    if not is_valid_filename(filename):
         return jsonify({'error': '無効なファイル名です。'}), 400
 
     file_path = os.path.join('./post', filename)
