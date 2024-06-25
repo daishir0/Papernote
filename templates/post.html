@@ -45,6 +45,12 @@
             button[onclick^="editPost('"] {
                 display: none;
             }
+            a {
+                pointer-events: none; /* リンクのクリックイベントを無効化 */
+            }
+            a::after {
+                content: ""; /* リンク先のURLを空にする */
+            }
         }
         .post-header {
             display: flex;
@@ -124,6 +130,20 @@
         // 編集ページに遷移
         location.href = '/edit_post/' + filename;
     }
+
+    window.addEventListener('beforeprint', function() {
+        document.querySelectorAll('a').forEach(function(link) {
+            link.setAttribute('data-href', link.getAttribute('href'));
+            link.removeAttribute('href');
+        });
+    });
+
+    window.addEventListener('afterprint', function() {
+        document.querySelectorAll('a').forEach(function(link) {
+            link.setAttribute('href', link.getAttribute('data-href'));
+            link.removeAttribute('data-href');
+        });
+    });
 </script>
 <script src="/static/postx.js"></script>
 </body>
