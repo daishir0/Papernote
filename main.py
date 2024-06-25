@@ -246,7 +246,7 @@ def attach_upload():
                 pass
 
             small_image = image.copy()
-            small_image.thumbnail((400, 400), Image.Resampling.LANCZOS)
+            small_image.thumbnail((500, 500), Image.Resampling.LANCZOS)
             small_filename = f"s_{new_filename}"
             small_file_path = os.path.join(UPLOAD_FOLDER, small_filename)
             small_image.save(small_file_path)
