@@ -12,7 +12,8 @@ allowed_extensions:
   - 'docx'
   - 'xlsx'
   - 'xls'
-
+  - 'zip'
+  
 exclude_string: 'EXCLUDE STRING'
 
 twitter:

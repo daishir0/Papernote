@@ -34,6 +34,7 @@ app = Flask(__name__)
 app.config['BASIC_AUTH_USERNAME'] = config['basic_auth']['username']
 app.config['BASIC_AUTH_PASSWORD'] = config['basic_auth']['password']
 basic_auth = BasicAuth(app)
+processing = False
 
 UPLOAD_FOLDER = './attach'
 ALLOWED_EXTENSIONS = set(config['allowed_extensions'])
@@ -865,18 +866,25 @@ def edit_summary2(filename):
 
 @app.route('/youtube', methods=['GET', 'POST'])
 def youtube():
+    global processing
     if request.method == 'POST':
+        if processing:
+            return jsonify({"status": "processing"}), 202
+        
         youtube_url = request.form['youtube_url']
         interval_sec = request.form.get('interval_sec', 10)
         
-        # create_youtubemd.pyを実行
-        process = Popen(['python', 'create_youtubemd.py', youtube_url, str(interval_sec)], stdout=PIPE, stderr=PIPE)
-        stdout, stderr = process.communicate()
+        def run_process():
+            global processing
+            process = Popen(['python', 'create_youtubemd.py', youtube_url, str(interval_sec)], stdout=PIPE, stderr=PIPE)
+            stdout, stderr = process.communicate()
+            processing = False
+            if process.returncode != 0:
+                print(f"Error: {stderr.decode('utf-8')}")
         
-        if process.returncode == 0:
-            return redirect(url_for('post_index'))
-        else:
-            return f"Error: {stderr.decode('utf-8')}", 500
+        processing = True
+        threading.Thread(target=run_process).start()
+        return jsonify({"status": "started"}), 202
 
     return render_template('youtube.html')
 
