@@ -124,11 +124,12 @@ def permalink(filename):
     memo1_title = ""
     memo2_content = ""
     if memo_exists:
-        with open(os.path.join('./memo', filename + '.txt'), 'r') as memo_file:
+        with open(os.path.join('./memo', filename + '.txt'), 'r', encoding='utf-8') as memo_file:
             memo1_title = memo_file.readline().strip()
             lines = memo_file.readlines()
             authenticated = basic_auth.authenticate()
-            memo2_content = [line for line in lines if EXCLUDE_STRING not in line]
+            memo2_content = [line.strip() for line in lines if EXCLUDE_STRING not in line]
+
 
     pdf_info = {
         'url': os.path.join('/pdfs', pdf_filename),

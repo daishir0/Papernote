@@ -299,3 +299,38 @@ p code {
   font-family: 'Courier New', Courier, monospace; /* プログラムコードっぽいフォント */
   font-size: 0.95em; /* 文字サイズを少し小さくする */
 }
+
+/* GitHub風のテーブルスタイル */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+table, th, td {
+  border: 2px solid #333; /* 境界線を太くして色を濃くする */
+}
+
+th, td {
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #d3d3d3; /* タイトル行の背景色をライトグレーに変更 */
+  color: black; /* タイトル行の文字色 */
+  font-weight: bold; /* タイトル行のフォントを太字に */
+  text-align: center; /* タイトル行のテキストを中央揃えに */
+}
+
+tr:nth-child(even) {
+  background-color: #f6f8fa;
+}
+
+/* テーブルのタイトル行のスタイル */
+table thead tr {
+  background-color: #87ceeb; /* スカイブルー */
+  color: black; /* タイトル行の文字色 */
+  font-weight: bold; /* タイトル行のフォントを太字に */
+  text-align: center; /* タイトル行のテキストを中央揃えに */
+}

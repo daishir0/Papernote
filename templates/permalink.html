@@ -56,9 +56,9 @@
     {% endif %}
 
 <template id="markdown-content">
-{% for line in pdf['memo2_content'][1:] %}
+{% for line in pdf['memo2_content'][1:] -%}
 {{ line | safe }}
-{% endfor %}
+{% endfor -%}
 </template>
 
 <div id="content" class="content"></div>
@@ -106,10 +106,13 @@ $(document).ready(function() {
         return `<img loading="lazy" src="${href}" alt="${text}">`;
     };
 
+    
     // markedのオプション設定
     marked.setOptions({
         renderer: renderer,
-        sanitize: true
+        sanitize: true,
+        gfm: true,
+        tables: true
     });
 
     // MarkdownをHTMLに変換
