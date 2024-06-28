@@ -36,7 +36,7 @@
            margin-right: 2px; /* 各ボタンの右側に5ピクセルの余白を設定 */
         }
         .form-control{
-            margin-bottom: 52px;
+            margin-bottom: 5px;
         }
         .overlay {
             position: fixed;
@@ -333,9 +333,7 @@
 
         行1:タイトル(#限定公開、##非公開)　行2:タグ
         <textarea id="content" name="content" class="form-control" rows="10">{{ content|safe }}</textarea>
-        <div class="fixed-bottom-btn">
-            <input type="submit" value="Save" class="btn btn-success mt-2 btn-block">
-        </div>
+        <input type="submit" value="Save" class="btn btn-success mt-2 btn-block">
     </form>
 
     <div id="overlay" class="overlay">
