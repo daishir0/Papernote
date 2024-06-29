@@ -58,7 +58,6 @@ videos.txt
 archive_noncommentpdf.py
 cleantext_to_summary.py
 concat_posts.py
-create_youtubemd.py
 delete_unlinkimage.py
 generate_summary2.py
 insert_space.py
