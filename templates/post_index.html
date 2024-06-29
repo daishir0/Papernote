@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Post</title>
     <link href="/static/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
 
     <style>
         body {
@@ -44,9 +45,14 @@
         {% if request.authorization %}
         <div class="mb-2">
             <div class="d-flex justify-content-between">
-                <form action="{{ url_for('add_post') }}" method="post" class="form-inline">
-                    <button type="submit" class="btn btn-success">Add Post</button>
-                </form>
+                <div class="btn-group">
+                    <form action="{{ url_for('add_post') }}" method="post" class="form-inline d-inline">
+                        <button type="submit" class="btn btn-success">Add Post</button>
+                    </form>
+                    <!-- youtubeボタンを「Add Post」ボタンのすぐ右に配置し、同じ大きさにする -->
+                    <span class="mx-1"></span>
+                    <a href="/youtube" class="btn btn-primary" style="border-radius: 10%;"><i class="fa-brands fa-youtube"></i></a>
+                </div>
                 <button type="button" class="btn btn-primary" onclick="toggleAll()">Toggle</button>
             </div>
         </div>
@@ -244,7 +250,7 @@
                         location.reload();
                     },
                     error: function(xhr) {
-                        alert('削除失敗しました。');
+                        alert('削失敗しました。');
                     }
                 });
             }
