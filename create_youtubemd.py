@@ -38,6 +38,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from PIL import Image, ExifTags
 from openai import OpenAI
 import time
+import yt_dlp
 
 def download_video(url):
     # 動画をダウンロードする関数
@@ -48,10 +49,28 @@ def download_video(url):
         filename = f"{uuid.uuid4()}.mp4"
         stream.download(filename=filename)
         print("Downloaded with pytube")
-        # print(f"Video Title: {title}")  # タイトルを表示
         return filename, title  # タイトルも返すように変更
     except Exception as e:
         print(f"pytube failed: {e}")
+        print("Trying to download with yt-dlp...")
+        return download_video_with_ytdlp(url)
+
+def download_video_with_ytdlp(url):
+    # yt-dlpを使用して動画をダウンロードする関数
+    ydl_opts = {
+        'format': 'bestvideo+bestaudio/best',
+        'outtmpl': '%(id)s.%(ext)s',
+        'noplaylist': True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info_dict)
+            title = info_dict.get('title', None)
+            print("Downloaded with yt-dlp")
+            return filename, title
+    except Exception as e:
+        print(f"yt-dlp failed: {e}")
         sys.exit(1)
 
 def extract_frames(video_path, interval_sec, output_dir="./tmp", threshold=0.1, sample_size=(10, 10)):
@@ -254,6 +273,25 @@ def save_transcription(text, timestamp=None, dirname=''):
         file.write(text)
     print(f"Transcription saved to {filename}")
     
+import re
+
+def extract_video_id(url):
+    # YouTubeのURLからVIDEO IDを抽出する関数
+    patterns = [
+        r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([^&]+)',
+        r'(?:https?://)?youtu\.be/([^?&]+)',
+        r'(?:https?://)?m\.youtube\.com/watch\?v=([^&]+)',
+        r'(?:https?://)?m\.youtube\.com/embed/([^?&]+)',
+        r'(?:https?://)?www\.youtube\.com/watch\?v=([^&]+)&app=mobile',
+        r'(?:https?://)?m\.youtube\.com/watch\?v=([^&]+)&feature=youtu\.be',
+        r'youtube://watch\?v=([^&]+)'
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
 def main():
     if len(sys.argv) == 1:
         with open("videos.txt", 'r') as file:
@@ -267,9 +305,13 @@ def main():
             video_source = parts[0]
             interval_sec = int(parts[1]) if len(parts) > 1 else 30
 
-            if video_source.startswith("https://"):
+            if video_source.startswith("https://") or video_source.startswith("http://") or video_source.startswith("youtube://"):
                 youtube_url = video_source
-                video_id = youtube_url.split("v=")[-1]
+                video_id = extract_video_id(youtube_url)  # VIDEO IDを抽出
+
+                if video_id is None:
+                    print("無効なYouTube URLです。")
+                    continue
 
                 print("動画ダウンロード開始")
                 video_filename, video_title = download_video(youtube_url)
@@ -319,10 +361,14 @@ def main():
             print("Deleted all temporary files in ./tmp")
 
     elif len(sys.argv) in [2, 3]:
-        if sys.argv[1].startswith("https://"):
+        if sys.argv[1].startswith("https://") or sys.argv[1].startswith("http://") or sys.argv[1].startswith("youtube://"):
             youtube_url = sys.argv[1]
             interval_sec = int(sys.argv[2]) if len(sys.argv) == 3 else 10
-            video_id = youtube_url.split("v=")[-1]
+            video_id = extract_video_id(youtube_url)  # VIDEO IDを抽出
+
+            if video_id is None:
+                print("無効なYouTube URLです。")
+                sys.exit(1)
 
             print("動画ダウンロード開始")
             video_filename, video_title = download_video(youtube_url)
