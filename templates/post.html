@@ -12,6 +12,9 @@
         body {
             font-family: Arial, sans-serif;
         }
+        pre{
+            margin-bottom: 0rem;
+        }
         .mermaid {
             margin-top: 20px;
         }
@@ -57,6 +60,27 @@
             justify-content: space-between;
             align-items: center;
           }
+        .index-container {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .index-container ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .index-container li {
+            margin: 5px 0;
+        }
+        .index-container a {
+            text-decoration: none;
+            color: #007bff;
+        }
+        .index-container a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -70,6 +94,8 @@
 {% endif %}
 </div>
 
+<div id="index" class="index-container"></div>
+
 <template id="markdown-content">
 {{ content['markdown'] | safe }}
 </template>
@@ -79,6 +105,7 @@
 <script src="/static/jquery-3.7.0.min.js"></script>
 <script src="/static/marked.min.js"></script>
 <script src="/static/mermaid.min.js"></script>
+<script src="/static/scripts.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -89,7 +116,7 @@
             const codeText = (typeof code === 'string' ? code : code.text).trim();
             // スマホはcode.langがundefinedでPCはcode.langがstringであるため対処
             const lang = (language === undefined) ? code.lang : language;
-            
+
             if (lang === undefined) {
                 return `<pre>${codeText}</pre>`;
             }
@@ -97,18 +124,27 @@
             if (lang === 'mermaid') {
                 return `<div class="mermaid">${codeText}</div>`;
             } else {
-                return `<pre><code>${codeText}</code></pre>`;
+                const firstLine = codeText.split('\n')[0];
+                const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
+                return `
+                    <div>
+                        <pre><code>${firstLine}</code></pre>
+                        <button class="btn btn-primary btn-sm" onclick="toggleCode('${codeId}')">Show More</button>
+                        <button class="btn btn-secondary btn-sm" onclick="copyCode('${codeId}')">Copy Code</button>
+                        <pre id="${codeId}" style="display:none;"><code>${codeText}</code></pre>
+                    </div>
+                `;
             }
         };
 
         renderer.image = function(href, title, text) {
             if (typeof href === 'object' && href !== null) {
-                href = href.href || 'default-image-path.jpg'; // オブジェクトからhrefを取り出す
+                href = href.href || 'default-image-path.jpg';
             } else if (typeof href !== 'string') {
                 console.error('Invalid href:', href);
-                href = 'default-image-path.jpg'; // デフォルトの画像パスを設定
+                href = 'default-image-path.jpg';
             }
-            text = text || 'default alt text'; // デフォルトのaltテキストを設定
+            text = text || 'default alt text';
             return `<img loading="lazy" src="${href}" alt="${text}">`;
         };
 
@@ -120,14 +156,51 @@
         const html = marked.parse(markdownText);
         document.getElementById('content').innerHTML = html;
         mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+
+        // インデックス生成
+        const index = document.getElementById('index');
+        const headings = document.querySelectorAll('#content h1, #content h2, #content h3, #content h4, #content h5, #content h6');
+        const indexList = document.createElement('ul');
+
+        headings.forEach(heading => {
+            const level = parseInt(heading.tagName.substring(1));
+            const listItem = document.createElement('li');
+            listItem.style.marginLeft = (level - 1) * 20 + 'px'; // インデントを設定
+            const link = document.createElement('a');
+            const id = heading.textContent.replace(/\s+/g, '-').toLowerCase();
+            heading.id = id; // HタグにIDを設定
+            link.href = `#${id}`;
+            link.textContent = heading.textContent;
+            listItem.appendChild(link);
+            indexList.appendChild(listItem);
+        });
+
+        index.appendChild(indexList);
     });
 
+    function toggleCode(id) {
+        const codeBlock = document.getElementById(id);
+        if (codeBlock.style.display === 'none') {
+            $(codeBlock).slideDown();
+        } else {
+            $(codeBlock).slideUp();
+        }
+    }
+
+    function copyCode(id) {
+        const codeBlock = document.getElementById(id);
+        const textArea = document.createElement('textarea');
+        textArea.value = codeBlock.textContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showTemporaryMessage('コードがコピーされました');
+    }
+
     function editPost(filename) {
-        // 現在のスクロール位置を保存
         var scrollPosition = window.scrollY || document.documentElement.scrollTop;
         localStorage.setItem('scrollPosition', scrollPosition);
-
-        // 編集ページに遷移
         location.href = '/edit_post/' + filename;
     }
 
