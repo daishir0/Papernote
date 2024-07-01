@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>テキストファイルアップロード</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="/static/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #007bff;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">テキストファイルアップロード</h1>
+        <div id="upload-area" class="upload-area mt-4">
+            ドラッグ＆ドロップ、もしくはクリックしてファイルをアップロード
+        </div>
+        <input type="file" id="file-input" multiple style="display: none;">
+        <div id="message" class="mt-3"></div>
+    </div>
+    <script src="/static/jquery-3.7.0.min.js"></script>
+    <script src="/static/popper.min.js"></script>
+    <script src="/static/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            var uploadArea = $('#upload-area');
+            var fileInput = $('#file-input');
+
+            uploadArea.on('click', function() {
+                fileInput.click();
+            });
+
+            uploadArea.on('dragover', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                $(this).addClass('dragging');
+            });
+
+            uploadArea.on('dragleave', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                $(this).removeClass('dragging');
+            });
+
+            uploadArea.on('drop', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                $(this).removeClass('dragging');
+                var files = event.originalEvent.dataTransfer.files;
+                handleFiles(files);
+            });
+
+            fileInput.on('change', function(event) {
+                var files = event.target.files;
+                handleFiles(files);
+            });
+
+            function handleFiles(files) {
+                var formData = new FormData();
+                for (var i = 0; i < files.length; i++) {
+                    formData.append('files[]', files[i]);
+                }
+
+                $.ajax({
+                    url: "{{ url_for('upload_text') }}",
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        $('#message').text(response.message);
+                    },
+                    error: function() {
+                        $('#message').text('アップロードに失敗しました。');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

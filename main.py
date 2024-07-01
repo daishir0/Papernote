@@ -888,6 +888,30 @@ def youtube():
 
     return render_template('youtube.html')
 
+@app.route('/upload_text', methods=['GET', 'POST'])
+def upload_text():
+    if request.method == 'POST':
+        files = request.files.getlist('files[]')
+        for file in files:
+            if file:
+                content = file.read().decode('utf-8')
+                if content.strip():  # 空でないことを確認
+                    first_line = content.split('\n', 1)[0]
+                    if first_line:
+                        timestamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
+                        new_filename = f"{timestamp}-{files.index(file)}.txt"
+                        new_filepath = os.path.join('./post', new_filename)
+                        
+                        with open(new_filepath, 'w', encoding='utf-8') as f:
+                            f.write(f"##{file.filename}\n\n{content}")
+                else:
+                    print(f'ファイル {file.filename} は空です。スキップします。')
+            else:
+                print(f'ファイル {file.filename} は無効です。スキップします。')
+        return jsonify({'message': 'ファイルがアップロードされました。'}), 200
+
+    return render_template('upload_text.html')
+
 if __name__ == "__main__":
     port = config['server']['port']
     app.run(host='0.0.0.0', port=port, debug=True)
