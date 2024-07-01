@@ -39,6 +39,7 @@ from PIL import Image, ExifTags
 from openai import OpenAI
 import time
 import yt_dlp
+import yaml
 
 def download_video(url):
     # 動画をダウンロードする関数
@@ -240,9 +241,16 @@ def transcribe_all_mp3s_in_directory(directory):
                 print(f"{file} の変換中にエラーが発生しました: {e}")
     print("すべてのMP3ファイルの変換が完了しました。")
 
+def load_api_key():
+    # config.yamlからAPIキーを読み込む関数
+    with open("config.yaml", 'r') as file:
+        config = yaml.safe_load(file)
+    return config['openai_api_key']
+
 def transcribe_mp3(file_path, timestamp=None, dirname=''):
     # Initialize the OpenAI client
-    client = OpenAI()
+    api_key = load_api_key()
+    client = OpenAI(api_key=api_key)
 
     attempts = 0
     max_retries=3

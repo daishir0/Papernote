@@ -25,6 +25,8 @@ import mimetypes
 import random
 import datetime as dt
 import html
+import uuid
+import subprocess
 
 # Load configuration from YAML file
 with open('config.yaml', 'r') as config_file:
@@ -244,7 +246,7 @@ def attach_upload():
                     elif orientation == 8:
                         image = image.rotate(90, expand=True)
             except (AttributeError, KeyError, IndexError):
-                # EXIFデータがない場合は何もしない
+                # EXIFデータがない場合は何もし���い
                 pass
 
             small_image = image.copy()
@@ -281,7 +283,7 @@ def file_upload():
         if file and allowed_file(original_filename):
             file.stream.seek(0)  # ファイルストリームをリセット
             file_hash = calculate_sha256(file.stream)
-            file.stream.seek(0)  # ハッシュ計算後、ファイルストリームを再度リセット
+            file.stream.seek(0)  # ハッシュ計算後、ファイルストリームを再��リセット
             filename = secure_filename(f"{file_hash}.pdf")
             save_path = os.path.join('./pdfs', filename)
             
@@ -580,7 +582,7 @@ def post_index():
                     filtered_files.append(file)
             post_files_info[topic] = filtered_files
     else:
-        # 検索クエリがない場合、すべてのファイルを表示
+        # 検索クエリがない場合、すべてのファ���ルを表示
         for topic in post_files_info:
             post_files_info[topic] = [file for file in post_files_info[topic]]
             
@@ -652,7 +654,7 @@ def post(filename):
 def postdata(filename):
     # ファイル名の安全性を手動で確認
     if not is_valid_filename(filename):
-        abort(400)  # 無効なファイル名の場合は400エラーを返す
+        abort(400)  # 無効��ファイル名の場合は400エラーを返す
 
     path = os.path.join('./post', filename)
     if not os.path.exists(path):
@@ -865,6 +867,7 @@ def edit_summary2(filename):
     return render_template('edit_summary2.html', filename=filename, content=content)
 
 @app.route('/youtube', methods=['GET', 'POST'])
+@basic_auth.required
 def youtube():
     global processing
     if request.method == 'POST':
@@ -889,6 +892,7 @@ def youtube():
     return render_template('youtube.html')
 
 @app.route('/upload_text', methods=['GET', 'POST'])
+@basic_auth.required
 def upload_text():
     if request.method == 'POST':
         files = request.files.getlist('files[]')
@@ -912,6 +916,46 @@ def upload_text():
 
     return render_template('upload_text.html')
 
+@app.route('/upload_movie', methods=['GET', 'POST'])
+@basic_auth.required
+def upload_movie():
+    if request.method == 'POST':
+        if 'movie_file' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
+
+        movie_file = request.files['movie_file']
+        if movie_file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+
+        interval_sec = request.form.get('interval_sec', 10)
+        interval_sec = int(interval_sec)
+
+        if movie_file:
+            # UUIDでファイル名を生成
+            filename = f"{uuid.uuid4()}.mp4"
+            file_path = os.path.join('./', filename)  # 同じディレクトリに保存
+            movie_file.save(file_path)
+
+            # create_youtubemd.pyをサブプロセスとして実行
+            command = f"python create_youtubemd.py {file_path} {interval_sec}"
+            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+
+            if process.returncode != 0:
+                return jsonify({'error': stderr.decode('utf-8')}), 500
+
+            # 正常処理後にファイルを削除
+            os.remove(file_path)
+            mp3_file_path = file_path.replace('.mp4', '.mp3')
+            if os.path.exists(mp3_file_path):
+                os.remove(mp3_file_path)
+
+            return render_template('upload_movie.html', message='変換処理が完了しました。')
+
+    return render_template('upload_movie.html')
+
 if __name__ == "__main__":
     port = config['server']['port']
     app.run(host='0.0.0.0', port=port, debug=True)
+
+

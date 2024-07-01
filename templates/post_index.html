@@ -49,8 +49,9 @@
                     <form action="{{ url_for('add_post') }}" method="post" class="form-inline d-inline">
                         <button type="submit" class="btn btn-success mr-1">Add Post</button>
                     </form>
-                    <a href="/upload_text" class="btn btn-success mx-1" style="border-radius: 12%;"><i class="fas fa-upload"></i></a>
+                    <a href="/upload_text" class="btn btn-primary mx-1" style="border-radius: 12%;"><i class="fas fa-upload"></i></a>
                     <a href="/youtube" class="btn btn-primary" style="border-radius: 12%;"><i class="fa-brands fa-youtube"></i></a>
+                    <a href="/upload_movie" class="btn btn-primary mx-1" style="border-radius: 12%;"><i class="fas fa-video"></i></a>
                 </div>
                 <button type="button" class="btn btn-primary" onclick="toggleAll()">Toggle</button>
             </div>
@@ -193,7 +194,7 @@
             // 「/」キーで検索ボックスをアクティブにする
             $(document).on('keydown', function(e) {
                 if (e.key === '/') {
-                    e.preventDefault(); // ブラウザのデフォルトの挙動を防ぐ
+                    e.preventDefault(); // ブラウザのデフォルトの挙動���防ぐ
                     $('input[name="search"]').focus().select();
                 }
             });

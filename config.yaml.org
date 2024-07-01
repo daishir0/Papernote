@@ -25,3 +25,5 @@ twitter:
 
 server:
   port: 5555
+
+openai_api_key: "your_openai_api_key_here"
