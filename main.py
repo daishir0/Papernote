@@ -96,7 +96,7 @@ def login():
                     user_obj = User(user_id, user['username'], user['password'])
                     login_user(user_obj)
                     send_email("Authentication Success", f"User {username} logged in successfully.\n\n{get_client_info()}")
-                    return redirect(url_for('index'))
+                    return redirect(url_for('post_index'))
                 else:
                     print(f"Password does not match for user: {username}")
         print("Login failed. Invalid credentials.")
