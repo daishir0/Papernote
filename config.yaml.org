@@ -27,3 +27,8 @@ server:
   port: 5555
 
 openai_api_key: "your_openai_api_key_here"
+
+gmail:
+  sender_email: "sender@gmail.com"
+  recipient_email: "recipient@example.com"
+  app_password: "your_gmail_app_password"

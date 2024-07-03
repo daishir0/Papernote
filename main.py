@@ -27,6 +27,9 @@ import datetime as dt
 import html
 import uuid
 import subprocess
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Load configuration from YAML file
 with open('config.yaml', 'r') as config_file:
@@ -44,10 +47,46 @@ ALLOWED_EXTENSIONS = set(config['allowed_extensions'])
 # Excluded string
 EXCLUDE_STRING = config['exclude_string']
 
+def send_email(subject, body):
+    sender_email = config['gmail']['sender_email']
+    recipient_email = config['gmail']['recipient_email']
+    app_password = config['gmail']['app_password']
+
+    # 初期値の場合はメール送信をスキップ
+    if sender_email == "sender@gmail.com" or recipient_email == "recipient@example.com":
+        print("Skipping email sending due to default configuration values.")
+        return
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = recipient_email
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, app_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, recipient_email, text)
+        server.quit()
+        print("Email sent successfully")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+def get_client_info():
+    client_ip_waf = request.headers.get('X-Forwarded-For', None)
+    client_ip = request.remote_addr
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    return f"Client IP (WAF): {client_ip_waf}\nClient IP: {client_ip}\nUser Agent: {user_agent}\n"
+
 @app.route('/admin')
 @basic_auth.required
 def admin():
-    return redirect(url_for('index'))
+    client_info = get_client_info()
+    send_email("Authentication Success", f"Admin page accessed successfully.\n\n{client_info}")
+    return redirect(url_for('post_index'))
 
 @app.route('/protected')
 @basic_auth.required
@@ -56,7 +95,12 @@ def protected():
 
 @app.errorhandler(401)
 def custom_401(error):
-    return "認証が必要です。", 401
+    client_info = get_client_info()
+    send_email("Authentication Failed", f"Unauthorized access attempt detected.\n\n{client_info}")
+    response = make_response(render_template('401.html', client_info=client_info), 401)
+    # WWW-Authenticateヘッダーを削除して、ブラウザが再度認証を求めないようにする
+    response.headers.pop('WWW-Authenticate', None)
+    return response
 
 
 @app.route('/', methods=['GET'])
@@ -174,7 +218,7 @@ def is_text_matched(pdf_filename, search_terms):
     
     # clean_textディレクトリ内のテキストファイルのパス
     clean_txt_path = os.path.join('./clean_text', txt_filename)
-    # memoディレクトリ内のテキストファイルのパス
+    # memoディレクト内のテキストファイルのパス
     memo_txt_path = os.path.join('./memo', txt_filename)
     
     # 検索対象のテキストファイルのパスリスト
@@ -246,7 +290,7 @@ def attach_upload():
                     elif orientation == 8:
                         image = image.rotate(90, expand=True)
             except (AttributeError, KeyError, IndexError):
-                # EXIFデータがない場合は何もし���い
+                # EXIFデータがない場合は何もしない
                 pass
 
             small_image = image.copy()
@@ -283,7 +327,7 @@ def file_upload():
         if file and allowed_file(original_filename):
             file.stream.seek(0)  # ファイルストリームをリセット
             file_hash = calculate_sha256(file.stream)
-            file.stream.seek(0)  # ハッシュ計算後、ファイルストリームを再��リセット
+            file.stream.seek(0)  # ハッシュ計算後、ファイルストリームを再リセット
             filename = secure_filename(f"{file_hash}.pdf")
             save_path = os.path.join('./pdfs', filename)
             
@@ -582,7 +626,7 @@ def post_index():
                     filtered_files.append(file)
             post_files_info[topic] = filtered_files
     else:
-        # 検索クエリがない場合、すべてのファ���ルを表示
+        # 検索クエリがない場合、すべてのファイルを表示
         for topic in post_files_info:
             post_files_info[topic] = [file for file in post_files_info[topic]]
             
@@ -654,7 +698,7 @@ def post(filename):
 def postdata(filename):
     # ファイル名の安全性を手動で確認
     if not is_valid_filename(filename):
-        abort(400)  # 無効��ファイル名の場合は400エラーを返す
+        abort(400)  # 無効なファイル名の場合は400エラーを返す
 
     path = os.path.join('./post', filename)
     if not os.path.exists(path):
