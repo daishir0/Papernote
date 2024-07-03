@@ -87,7 +87,7 @@
 
 <div class="post-header">
 <a href="/post"><< post一覧へ</a>
-{% if request.authorization %}
+{% if current_user.is_authenticated %}
 <button class="btn btn-success btn-sm" onclick="editPost('{{ content.filename }}')">
     <i class="fas fa-edit"></i>
 </button>

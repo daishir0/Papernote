@@ -18,7 +18,8 @@ import string
 import hashlib
 import threading
 import datetime
-from flask_basicauth import BasicAuth
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask import abort
 from pdfminer.pdfparser import PDFSyntaxError
 import mimetypes
@@ -30,16 +31,112 @@ import subprocess
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField, TextAreaField, HiddenField
+from wtforms.validators import DataRequired
+from flask_wtf.csrf import CSRFProtect
+from datetime import timedelta
 
 # Load configuration from YAML file
 with open('config.yaml', 'r') as config_file:
     config = yaml.safe_load(config_file)
 
 app = Flask(__name__)
-app.config['BASIC_AUTH_USERNAME'] = config['basic_auth']['username']
-app.config['BASIC_AUTH_PASSWORD'] = config['basic_auth']['password']
-basic_auth = BasicAuth(app)
-processing = False
+
+# secret_keyの設定
+app.secret_key = config['secret_key']
+
+# CSRF保護の設定
+csrf = CSRFProtect(app)
+
+# Flask-Loginの設定
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+# セッションの保持時間を設定（例: 1日）
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=1)
+
+# ユーザークラスの定義
+class User(UserMixin):
+    def __init__(self, id, username, password):
+        self.id = id
+        self.username = username
+        self.password = password
+
+# ユーザー情報のロード
+@login_manager.user_loader
+def load_user(user_id):
+    user = config['users'].get(user_id)
+    if user:
+        return User(user_id, user['username'], user['password'])
+    return None
+
+# ログインフォームの定義
+class LoginForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    submit = SubmitField('Login')
+
+# ログインルートの追加
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        print("Form validated successfully.")
+        username = form.username.data
+        password = form.password.data
+        print(f"Attempting login for user: {username}")
+        for user_id, user in config['users'].items():
+            print(f"Checking user: {user['username']}")
+            if user['username'] == username:
+                print(f"User found. Checking password...")
+                if check_password_hash(user['password'], password):
+                    print(f"Password match. Logging in user: {username}")
+                    user_obj = User(user_id, user['username'], user['password'])
+                    login_user(user_obj)
+                    send_email("Authentication Success", f"User {username} logged in successfully.\n\n{get_client_info()}")
+                    return redirect(url_for('index'))
+                else:
+                    print(f"Password does not match for user: {username}")
+        print("Login failed. Invalid credentials.")
+        send_email("Authentication Failed", f"Failed login attempt for user {username}.\n\n{get_client_info()}")
+        return render_template('login.html', form=form, error="Invalid credentials")
+    else:
+        print("Form validation failed.")
+        for field, errors in form.errors.items():
+            for error in errors:
+                print(f"Error in {field}: {error}")
+    return render_template('login.html', form=form)
+
+# ログアウトルートの追加
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+# ルートの保護
+@app.route('/admin')
+@login_required
+def admin():
+    client_info = get_client_info()
+    send_email("Authentication Success", f"Admin page accessed successfully.\n\n{client_info}")
+    return redirect(url_for('post_index'))
+
+@app.route('/protected')
+@login_required
+def protected():
+    return "You are seeing this because you are authenticated."
+
+# 401エラーハンドラの変更
+@app.errorhandler(401)
+def custom_401(error):
+    client_info = get_client_info()
+    send_email("Authentication Failed", f"Unauthorized access attempt detected.\n\n{client_info}")
+    response = make_response(render_template('401.html', client_info=client_info), 401)
+    return response
+
 
 UPLOAD_FOLDER = './attach'
 ALLOWED_EXTENSIONS = set(config['allowed_extensions'])
@@ -81,31 +178,9 @@ def get_client_info():
     user_agent = request.headers.get('User-Agent', 'Unknown')
     return f"Client IP (WAF): {client_ip_waf}\nClient IP: {client_ip}\nUser Agent: {user_agent}\n"
 
-@app.route('/admin')
-@basic_auth.required
-def admin():
-    client_info = get_client_info()
-    send_email("Authentication Success", f"Admin page accessed successfully.\n\n{client_info}")
-    return redirect(url_for('post_index'))
-
-@app.route('/protected')
-@basic_auth.required
-def protected():
-    return "You are seeing this because you are authenticated."
-
-@app.errorhandler(401)
-def custom_401(error):
-    client_info = get_client_info()
-    send_email("Authentication Failed", f"Unauthorized access attempt detected.\n\n{client_info}")
-    response = make_response(render_template('401.html', client_info=client_info), 401)
-    # WWW-Authenticateヘッダーを削除して、ブラウザが再度認証を求めないようにする
-    response.headers.pop('WWW-Authenticate', None)
-    return response
-
-
 @app.route('/', methods=['GET'])
 def index():
-    authenticated = basic_auth.authenticate()
+    authenticated = current_user.is_authenticated
     search_query = request.args.get('search')
     pdf_files = [f for f in os.listdir('./pdfs') if os.path.isfile(os.path.join('./pdfs', f)) and f.endswith('.pdf') and f != '.gitkeep']
     if not authenticated:
@@ -174,7 +249,7 @@ def permalink(filename):
         with open(os.path.join('./memo', filename + '.txt'), 'r', encoding='utf-8') as memo_file:
             memo1_title = memo_file.readline().strip()
             lines = memo_file.readlines()
-            authenticated = basic_auth.authenticate()
+            authenticated = current_user.is_authenticated
             memo2_content = [line.strip() for line in lines if EXCLUDE_STRING not in line]
 
 
@@ -191,7 +266,7 @@ def permalink(filename):
         'pdf_id': pdf_id
     }
 
-    authenticated = basic_auth.authenticate()
+    authenticated = current_user.is_authenticated
 
     # 添付ファイル名を取得してテンプレートに返答
     attach_files = [f for f in os.listdir('./pdfs-attach') if filename in f]
@@ -199,10 +274,10 @@ def permalink(filename):
     return render_template('permalink.html', pdf=pdf_info, attach_files=attach_files, authenticated=authenticated, config=config)
 
 
-@basic_auth.required
+@login_required
 @app.route('/pdfsattach/<filename>')
 def pdfsattach(filename):
-    if basic_auth.authenticate():
+    if current_user.is_authenticated:
         file_path = os.path.join('./pdfs-attach', secure_filename(filename))
         if os.path.exists(file_path):
             return send_from_directory('./pdfs-attach', secure_filename(filename))
@@ -247,7 +322,7 @@ def allowed_file(filename):
     # return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'pdf'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@basic_auth.required
+@login_required
 @app.route('/attach_upload', methods=['POST'])
 def attach_upload():
     if 'file' not in request.files:
@@ -309,7 +384,7 @@ def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
 
-@basic_auth.required
+@login_required
 @app.route('/upload', methods=['GET', 'POST'])
 def file_upload():
     if request.method == 'POST':
@@ -474,7 +549,7 @@ def cleantextize_pdfs_async(pdf_files):
 # 静的ファイルへのルートを定義
 @app.route('/pdfs/<filename>')
 def pdf_file(filename):
-    if basic_auth.authenticate():
+    if current_user.is_authenticated:
         return send_from_directory('./pdfs', secure_filename(filename))
     else:
         abort(403)  # Forbiddenアクセス拒否
@@ -499,8 +574,13 @@ def tw(filename):
     
     return response
 
+class EditMemoForm(FlaskForm):
+    content = TextAreaField('Content', validators=[DataRequired()])
+    csrf_token = HiddenField()  # CSRFトークン用のフィールド
+
 @app.route('/edit_memo/<filename>', methods=['GET', 'POST'])
 def edit_memo(filename):
+    form = EditMemoForm()
     txt_filename = secure_filename(filename.replace('.pdf', '.txt'))
     txt_path = os.path.join('./memo', txt_filename)
     
@@ -517,7 +597,7 @@ def edit_memo(filename):
     else:
         content = ""
 
-    return render_template('edit_memo.html', filename=txt_filename, content=content)
+    return render_template('edit_memo.html', filename=txt_filename, content=content, form=form)
 
 @app.route('/memo/<filename>')
 def memo(filename):
@@ -578,12 +658,19 @@ def move_to_top(filename):
 
 @app.route('/post')
 def post_index():
+    form = LoginForm()  # フォームオブジェクトを作成
+    authenticated = current_user.is_authenticated
+    sorted_post_files_info = get_sorted_post_files_info()  # あなたのロジックに従ってデータを取得
+
+    return render_template('post_index.html', post_files=sorted_post_files_info, authenticated=authenticated, form=form)
+
+def get_sorted_post_files_info():
     # ブログディレクトリの全ファイルを取得
     post_dir = './post'
     post_files = [f for f in os.listdir(post_dir) if os.path.isfile(os.path.join(post_dir, f)) and not f.endswith('.gitkeep')]
     search_query = request.args.get('search')
 
-    authenticated = basic_auth.authenticate()
+    authenticated = current_user.is_authenticated
     post_files_info = {}
 
     for filename in post_files:
@@ -642,8 +729,7 @@ def post_index():
     
     print(sorted_post_files_info)
 
-    # ファイル名のリストをテンプレートに渡す
-    return render_template('post_index.html', post_files=sorted_post_files_info, authenticated=authenticated)
+    return sorted_post_files_info
 
 def is_valid_filename(filename):
     # ファイル名がディレクトリトラバーサルを含まないかチェック
@@ -658,7 +744,7 @@ def is_valid_filename(filename):
 
 @app.route('/post/<filename>')
 def post(filename):
-    authenticated = basic_auth.authenticate()
+    authenticated = current_user.is_authenticated
     
     # ファイル名の安全性を手動で確認
     if not is_valid_filename(filename):
@@ -666,7 +752,7 @@ def post(filename):
 
     path = os.path.join('./post', filename)
     if not os.path.exists(path):
-        auth = request.authorization
+        auth = current_user.is_authenticated
         if auth:
             # 認証されている場合、編集画面へリダイレクト
             return redirect(url_for('edit_post', filename=filename))
@@ -693,39 +779,14 @@ def post(filename):
 
     return render_template('post.html', content=content, authenticated=authenticated)
 
-
-@app.route('/postdata/<filename>')
-def postdata(filename):
-    # ファイル名の安全性を手動で確認
-    if not is_valid_filename(filename):
-        abort(400)  # 無効なファイル名の場合は400エラーを返す
-
-    path = os.path.join('./post', filename)
-    if not os.path.exists(path):
-        abort(404)
-
-    with open(path, 'r', encoding='utf-8', errors='ignore') as memo_file:
-        lines = memo_file.readlines()
-        title = lines[0].strip() if lines else ""
-        markdown = ''.join(lines[2:])  # 3行目以降を抽出
-
-    authenticated = basic_auth.authenticate()
-
-    # 非公開の場合は認証されていない場合に出力しない
-    if not authenticated and title.startswith('##'):
-        abort(404)
-
-    # 画像リンクのMarkdownパターンを除外
-    markdown = re.sub(r'!\[.*?\]\(/attach/.*?\)', '', markdown)
-    # [](...)形式のリンクも除外
-    markdown = re.sub(r'\[.*?\]\(/attach/.*?\)', '', markdown)
-
-    return markdown
-
+class EditPostForm(FlaskForm):
+    content = TextAreaField('Content', validators=[DataRequired()])
+    csrf_token = HiddenField()  # CSRFトークン用のフィールド
 
 @app.route('/edit_post/<filename>', methods=['GET', 'POST'])
-@basic_auth.required
+@login_required
 def edit_post(filename):
+    form = EditPostForm()  # フォームオブジェクトを作成
     # ファイル名の安全性を手動で確認
     if not is_valid_filename(filename):
         abort(400)  # 無効なファイル名の場合は400エラーを返す
@@ -734,8 +795,8 @@ def edit_post(filename):
     backup_dir = './post/bk'
     os.makedirs(backup_dir, exist_ok=True)
     
-    if request.method == 'POST':
-        content = request.form['content']
+    if request.method == 'POST' and form.validate_on_submit():
+        content = form.content.data
         with open(post_path, 'w', encoding='utf-8', errors='replace') as f:
             f.write(content)
         
@@ -760,11 +821,39 @@ def edit_post(filename):
     else:
         content = ""
 
-    return render_template('edit_post.html', filename=filename, content=content)
+    return render_template('edit_post.html', filename=filename, content=content, form=form)
 
-    
+@app.route('/postdata/<filename>')
+def postdata(filename):
+    # ファイル名の安全性を手動で確認
+    if not is_valid_filename(filename):
+        abort(400)  # 無効なファイル名の場合は400エラーを返す
+
+    path = os.path.join('./post', filename)
+    if not os.path.exists(path):
+        abort(404)
+
+    with open(path, 'r', encoding='utf-8', errors='ignore') as memo_file:
+        lines = memo_file.readlines()
+        title = lines[0].strip() if lines else ""
+        markdown = ''.join(lines[2:])  # 3行目以降を抽出
+
+    authenticated = current_user.is_authenticated
+
+    # 非公開の場合は認証されていない場合に出力しない
+    if not authenticated and title.startswith('##'):
+        abort(404)
+
+    # 画像リンクのMarkdownパターンを除外
+    markdown = re.sub(r'!\[.*?\]\(/attach/.*?\)', '', markdown)
+    # [](...)形式のリンクも除外
+    markdown = re.sub(r'\[.*?\]\(/attach/.*?\)', '', markdown)
+
+    return markdown
+
+
 @app.route('/rename_post', methods=['POST'])
-@basic_auth.required
+@login_required
 def rename_post():
     old_filename = request.form['old_filename']
     new_filename = request.form['new_filename'] + '.txt'
@@ -788,7 +877,7 @@ def rename_post():
         return jsonify({'error': '元のファイルが存在しません。'}), 404
 
 @app.route('/add_post', methods=['POST'])
-@basic_auth.required
+@login_required
 def add_post():
     date_string = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
     filename = f"[__]{date_string}.txt"
@@ -800,7 +889,7 @@ def add_post():
     return redirect(url_for('post_index'))
 
 @app.route('/delete_post', methods=['POST'])
-@basic_auth.required
+@login_required
 def delete_post():
     filename = request.form['filename']
     # ファイル名の安全性を手動で確認
@@ -823,7 +912,7 @@ def delete_post():
 def summary(filename):
     path = os.path.join('./summary', secure_filename(filename))
     if not os.path.exists(path):
-        auth = request.authorization
+        auth = current_user.is_authenticated
         if auth:
             # 認証されている場合、編集画面へリダイレクト
             return redirect(url_for('edit_summary', filename=filename))
@@ -839,13 +928,18 @@ def summary(filename):
         'filename': filename
     }
 
-    authenticated = basic_auth.authenticate()
+    authenticated = current_user.is_authenticated
     
     return render_template('summary.html', content=content, authenticated=authenticated)
 
+class EditSummaryForm(FlaskForm):
+    content = TextAreaField('Content', validators=[DataRequired()])
+    csrf_token = HiddenField()  # CSRFトークン用のフィールド
+
 @app.route('/edit_summary/<filename>', methods=['GET', 'POST'])
-@basic_auth.required  # Add this decorator
+@login_required  # Add this decorator
 def edit_summary(filename):
+    form = EditSummaryForm()
     txt_path = os.path.join('./summary', secure_filename(filename))
     
     if request.method == 'POST':
@@ -862,14 +956,14 @@ def edit_summary(filename):
     else:
         content = ""
 
-    return render_template('edit_summary.html', filename=filename, content=content)
+    return render_template('edit_summary.html', filename=filename, content=content, form=form)
 
 
 @app.route('/summary2/<filename>')
 def summary2(filename):
     path = os.path.join('./summary2', secure_filename(filename))
     if not os.path.exists(path):
-        auth = request.authorization
+        auth = current_user.is_authenticated
         if auth:
             # 認証されている場合、編集画面へリダイレクト
             return redirect(url_for('edit_summary2', filename=filename))
@@ -885,13 +979,14 @@ def summary2(filename):
         'filename': filename
     }
 
-    authenticated = basic_auth.authenticate()
+    authenticated = current_user.is_authenticated
     
     return render_template('summary2.html', content=content, authenticated=authenticated)
 
 @app.route('/edit_summary2/<filename>', methods=['GET', 'POST'])
-@basic_auth.required  # Add this decorator
+@login_required  # Add this decorator
 def edit_summary2(filename):
+    form = EditSummaryForm()
     txt_path = os.path.join('./summary2', secure_filename(filename))
     
     if request.method == 'POST':
@@ -908,10 +1003,10 @@ def edit_summary2(filename):
     else:
         content = ""
 
-    return render_template('edit_summary2.html', filename=filename, content=content)
+    return render_template('edit_summary2.html', filename=filename, content=content, form=form)
 
 @app.route('/youtube', methods=['GET', 'POST'])
-@basic_auth.required
+@login_required
 def youtube():
     global processing
     if request.method == 'POST':
@@ -936,7 +1031,7 @@ def youtube():
     return render_template('youtube.html')
 
 @app.route('/upload_text', methods=['GET', 'POST'])
-@basic_auth.required
+@login_required
 def upload_text():
     if request.method == 'POST':
         files = request.files.getlist('files[]')
@@ -961,7 +1056,7 @@ def upload_text():
     return render_template('upload_text.html')
 
 @app.route('/upload_movie', methods=['GET', 'POST'])
-@basic_auth.required
+@login_required
 def upload_movie():
     if request.method == 'POST':
         if 'movie_file' not in request.files:
@@ -999,7 +1094,13 @@ def upload_movie():
     return render_template('upload_movie.html')
 
 if __name__ == "__main__":
+    # ユーザー情報のハッシュ化
+    for user_id, user in config['users'].items():
+        print(f"Hashing password for user: {user['username']}")
+        user['password'] = generate_password_hash(user['password'])
+        print(f"Hashed password: {user['password']}")
     port = config['server']['port']
     app.run(host='0.0.0.0', port=port, debug=True)
+
 
 

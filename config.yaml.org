@@ -32,3 +32,12 @@ gmail:
   sender_email: "sender@gmail.com"
   recipient_email: "recipient@example.com"
   app_password: "your_gmail_app_password"
+
+secret_key: 'your_secret_key_here'
+users:
+  user1:
+    username: 'user1'
+    password: 'password1'
+  user2:
+    username: 'user2'
+    password: 'password2'

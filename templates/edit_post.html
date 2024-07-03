@@ -61,6 +61,8 @@
         }
     </style>
     <script>
+        const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
+
         document.addEventListener('DOMContentLoaded', () => {
             const contentTextArea = document.getElementById('content');
             if (contentTextArea) {
@@ -280,7 +282,10 @@
                         try {
                             const response = await fetch('/attach_upload', {
                                 method: 'POST',
-                                body: formData
+                                body: formData,
+                                headers: {
+                                    'X-CSRFToken': csrfToken  // CSRFトークンをヘッダーに追加
+                                }
                             });
 
                             if (response.ok) {
@@ -310,6 +315,7 @@
 <a href="/post" class="mb-2"><< post一覧へ</a>
 
     <form method="post" class="container" style="margin-left: 0px; margin-right: 0px; max-width: 100%">
+        {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
         <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
             <div class="btn-group mr-2" role="group" aria-label="First group">
                 <button id="insertHashButton" type="button" class="btn btn-primary">#</button>

@@ -40,6 +40,7 @@
         }
     </style>
     <script>
+        const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
         // JavaScriptで自動保存機能を実装
         document.addEventListener('DOMContentLoaded', () => {
             let lastContent = document.querySelector('textarea').value; // 最後に保存した内容を保持
@@ -51,6 +52,7 @@
                         method: 'POST', // フォームの送信方法に合わせて 'POST'
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded', // コンテントタイプを適切に設定
+                            'X-CSRFToken': csrfToken  // CSRFトークンをヘッダーに追加
                         },
                         body: `content=${encodeURIComponent(currentContent)}` // 送信するデータ。'content'はサーバーで期待されるフィールド名に合わせて変更してください
                     }).then(response => {
@@ -93,6 +95,7 @@
 </head>
 <body>
     <form method="post">
+        {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
         <h1>Edit</h1>
         <div>※1行目はタイトル、2行目はタグ(半角スペース区切り)です</div>
         <textarea name="content">{{ content }}</textarea>

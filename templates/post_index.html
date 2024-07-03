@@ -42,11 +42,12 @@
             </div>
         </div>
         
-        {% if request.authorization %}
+        {% if current_user.is_authenticated %}
         <div class="mb-2">
             <div class="d-flex justify-content-between">
                 <div class="btn-group">
                     <form action="{{ url_for('add_post') }}" method="post" class="form-inline d-inline">
+                        {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
                         <button type="submit" class="btn btn-success mr-1">Add Post</button>
                     </form>
                     <a href="/upload_text" class="btn btn-primary mx-1" style="border-radius: 12%;"><i class="fas fa-upload"></i></a>
@@ -58,7 +59,7 @@
         </div>
         {% endif %}
 
-        {% if request.authorization %}
+        {% if current_user.is_authenticated %}
         <!-- 検索ボックスと検索ボタンを追加 -->
         <form method="get" action="/post">
             <div class="input-group mb-3">
@@ -71,7 +72,7 @@
         {% endif %}
 
         {% for topic, files in post_files.items() %}
-            {% if topic != '_トピック未設定' or request.authorization %}
+            {% if topic != '_トピック未設定' or current_user.is_authenticated %}
             <h2 class="toggleable" onclick="toggleVisibility('{{ topic|escape }}')">{{ topic }}</h2>
             <ul class="list-group mb-4" id="{{ topic|escape }}">
                 {% for file in files %}
@@ -81,7 +82,7 @@
                                 {{ file.title }}
                             </a>
                         </div>
-                        {% if request.authorization %}
+                        {% if current_user.is_authenticated %}
                         <div class="d-flex justify-content-between align-items-center">
                             <a class="no-underline" href="#" onclick="renameFile('{{ file.filename }}'); return false;" style="font-size: small;">
                                 {{ file.filename }}
@@ -112,6 +113,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <form id="renameForm" method="post">
+                    {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
                     <div class="modal-header">
                         <h5 class="modal-title" id="renameModalLabel">Rename File</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
@@ -145,6 +147,18 @@
     <script src="/static/scripts.js"></script> <!-- Added -->
 
     <script>
+        // CSRFトークンを取得
+        var csrf_token = "{{ csrf_token() }}";
+
+        // jQueryのグローバル設定でCSRFトークンをヘッダーに追加
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrf_token);
+                }
+            }
+        });
+
         $(document).ready(function() {
             restoreToggleStates();
 
@@ -173,7 +187,6 @@
                 }
             });
 
-
             // URLからクエリパラメータを取得し、検索フィールドに設定
             const urlParams = new URLSearchParams(window.location.search);
             const searchKeyword = urlParams.get('search'); // 'search'パラメータの値を取得
@@ -194,13 +207,12 @@
             // 「/」キーで検索ボックスをアクティブにする
             $(document).on('keydown', function(e) {
                 if (e.key === '/') {
-                    e.preventDefault(); // ブラウザのデフォルトの挙動���防ぐ
+                    e.preventDefault(); // ブラウザのデフォルトの挙動を防ぐ
                     $('input[name="search"]').focus().select();
                 }
             });
         
         });
-
 
         function renameFile(oldFilename) {
             // 現在のスクロール位置を保存
@@ -245,12 +257,12 @@
                 $.ajax({
                     type: 'POST',
                     url: '{{ url_for("delete_post") }}',
-                    data: { filename: filename },
+                    data: { filename: filename, csrf_token: csrf_token }, // CSRFトークンを追加
                     success: function(response) {
                         location.reload();
                     },
                     error: function(xhr) {
-                        alert('削失敗しました。');
+                        alert('削除に失敗しました。');
                     }
                 });
             }
@@ -325,4 +337,3 @@
     
 </body>
 </html>
-

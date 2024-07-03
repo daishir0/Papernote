@@ -65,7 +65,9 @@ function autoSaveContent() {
             fetch(window.location.href, { // 現在のページのURLを使用
                 method: 'POST', // フォームの送信方法に合わせて 'POST'
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded', // コンテントタイプを適切に設定
+                    'Content-Type': 'application/x-www-form-urlencoded', // CSRFトークンをヘッダーに追加
+                    'X-CSRFToken': csrfToken
+                    // コンテントタイプを適切に設定
                 },
                 body: `content=${encodeURIComponent(currentContent)}` // 送信するデータ。'content'はサーバーで期待されるフィールド名に合わせて変更してください
             }).then(response => {

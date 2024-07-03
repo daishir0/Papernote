@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/styles.css">
     <script src="/static/scripts.js"></script>
     <script>
+        const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
 
         document.addEventListener('DOMContentLoaded', () => {
             // 自動保存機能
@@ -36,7 +37,8 @@
 </head>
 <body>
     <form method="post">
-        
+        {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
+
         <h1>Edit</h1>
 
         <textarea id="content" name="content">{{ content }}</textarea>

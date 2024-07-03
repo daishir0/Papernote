@@ -1,4 +1,7 @@
 Flask==2.1.1
+Flask-Login
+Flask-WTF
+Werkzeug
 requests==2.32.3
 numpy==1.26.4
 PyYAML==6.0
