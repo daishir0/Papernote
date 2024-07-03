@@ -36,6 +36,8 @@ from wtforms import StringField, PasswordField, SubmitField, TextAreaField, Hidd
 from wtforms.validators import DataRequired
 from flask_wtf.csrf import CSRFProtect
 from datetime import timedelta
+import tldextract
+
 processing = False
 
 # Load configuration from YAML file
@@ -97,7 +99,27 @@ def login():
                     user_obj = User(user_id, user['username'], user['password'])
                     login_user(user_obj)
                     send_email("Authentication Success", f"User {username} logged in successfully.\n\n{get_client_info()}")
-                    return redirect(url_for('post_index'))
+                    
+                    # Create response object
+                    response = make_response(redirect(url_for('post_index')))
+                    
+                    # Set domain-specific cookie
+                    host = request.host
+                    extracted = tldextract.extract(host)
+                    
+                    if extracted.subdomain:
+                        # If there's a subdomain, set the cookie for the main domain and all its subdomains
+                        cookie_domain = f".{extracted.domain}.{extracted.suffix}"
+                    else:
+                        # If there's no subdomain, set the cookie for the current domain only
+                        cookie_domain = f"{extracted.domain}.{extracted.suffix}"
+
+                    response.set_cookie('session', user_obj.get_id(), 
+                                        domain=cookie_domain,
+                                        httponly=True, secure=True, samesite='Strict',
+                                        max_age=3600)  # Set cookie expiration to 1 hour
+                    
+                    return response
                 else:
                     print(f"Password does not match for user: {username}")
         print("Login failed. Invalid credentials.")
