@@ -11,6 +11,7 @@
         <a href="/post"><< post一覧へ</a>
         <h1 class="text-center">動画アップロード</h1>
         <form action="/upload_movie" method="post" enctype="multipart/form-data" class="mt-4">
+            {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
             <div class="form-group">
                 <label for="movie_file">動画ファイルを選択:</label>
                 <input type="file" id="movie_file" name="movie_file" class="form-control" accept="video/*" required>
@@ -26,5 +27,8 @@
     <script src="/static/jquery-3.7.0.min.js"></script>
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
+    <script>
+        const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
+    </script>
 </body>
 </html>

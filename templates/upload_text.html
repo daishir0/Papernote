@@ -28,6 +28,8 @@
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
     <script>
+        const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
+
         $(document).ready(function() {
             var uploadArea = $('#upload-area');
             var fileInput = $('#file-input');
@@ -73,6 +75,9 @@
                     data: formData,
                     processData: false,
                     contentType: false,
+                    headers: {
+                        'X-CSRFToken': csrfToken  // CSRFトークンをヘッダーに追加
+                    },
                     success: function(response) {
                         $('#message').text(response.message);
                     },

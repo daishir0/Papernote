@@ -27,6 +27,8 @@
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
     <script>
+        const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
+
         $(document).ready(function() {
             $('#youtube-form').on('submit', function(event) {
                 event.preventDefault();
@@ -34,6 +36,9 @@
                     url: "{{ url_for('youtube') }}",
                     type: 'POST',
                     data: $(this).serialize(),
+                    headers: {
+                        'X-CSRFToken': csrfToken  // CSRFトークンをヘッダーに追加
+                    },
                     success: function(response) {
                         if (response.status === 'started') {
                             $('#message').text('処理が開始されました');

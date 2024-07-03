@@ -36,6 +36,7 @@ from wtforms import StringField, PasswordField, SubmitField, TextAreaField, Hidd
 from wtforms.validators import DataRequired
 from flask_wtf.csrf import CSRFProtect
 from datetime import timedelta
+processing = False
 
 # Load configuration from YAML file
 with open('config.yaml', 'r') as config_file:
@@ -823,6 +824,36 @@ def edit_post(filename):
 
     return render_template('edit_post.html', filename=filename, content=content, form=form)
 
+class UploadTextForm(FlaskForm):
+    content = TextAreaField('Content', validators=[DataRequired()])
+
+@app.route('/upload_text', methods=['GET', 'POST'])
+@login_required
+def upload_text():
+    form = UploadTextForm()
+    if request.method == 'POST':
+        files = request.files.getlist('files[]')
+        for file in files:
+            if file:
+                content = file.read().decode('utf-8')
+                if content.strip():  # 空でないことを確認
+                    first_line = content.split('\n', 1)[0]
+                    if first_line:
+                        timestamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
+                        new_filename = f"{timestamp}-{files.index(file)}.txt"
+                        new_filepath = os.path.join('./post', new_filename)
+                        
+                        with open(new_filepath, 'w', encoding='utf-8') as f:
+                            f.write(f"##{file.filename}\n\n{content}")
+                else:
+                    print(f'ファイル {file.filename} は空です。スキップします。')
+            else:
+                print(f'ファイル {file.filename} は無効です。スキップします。')
+        return jsonify({'message': 'ファイルがアップロードされました。'}), 200
+
+    return render_template('upload_text.html', form=form)
+
+
 @app.route('/postdata/<filename>')
 def postdata(filename):
     # ファイル名の安全性を手動で確認
@@ -1008,6 +1039,7 @@ def edit_summary2(filename):
 @app.route('/youtube', methods=['GET', 'POST'])
 @login_required
 def youtube():
+    form = UploadTextForm()  # フォームオブジェクトを作成
     global processing
     if request.method == 'POST':
         if processing:
@@ -1028,36 +1060,13 @@ def youtube():
         threading.Thread(target=run_process).start()
         return jsonify({"status": "started"}), 202
 
-    return render_template('youtube.html')
+    return render_template('youtube.html', form=form)
 
-@app.route('/upload_text', methods=['GET', 'POST'])
-@login_required
-def upload_text():
-    if request.method == 'POST':
-        files = request.files.getlist('files[]')
-        for file in files:
-            if file:
-                content = file.read().decode('utf-8')
-                if content.strip():  # 空でないことを確認
-                    first_line = content.split('\n', 1)[0]
-                    if first_line:
-                        timestamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
-                        new_filename = f"{timestamp}-{files.index(file)}.txt"
-                        new_filepath = os.path.join('./post', new_filename)
-                        
-                        with open(new_filepath, 'w', encoding='utf-8') as f:
-                            f.write(f"##{file.filename}\n\n{content}")
-                else:
-                    print(f'ファイル {file.filename} は空です。スキップします。')
-            else:
-                print(f'ファイル {file.filename} は無効です。スキップします。')
-        return jsonify({'message': 'ファイルがアップロードされました。'}), 200
-
-    return render_template('upload_text.html')
 
 @app.route('/upload_movie', methods=['GET', 'POST'])
 @login_required
 def upload_movie():
+    form = UploadTextForm()  # フォームオブジェクトを作成
     if request.method == 'POST':
         if 'movie_file' not in request.files:
             return jsonify({'error': 'No file part'}), 400
@@ -1089,9 +1098,10 @@ def upload_movie():
             if os.path.exists(mp3_file_path):
                 os.remove(mp3_file_path)
 
-            return render_template('upload_movie.html', message='変換処理が完了しました。')
+            return render_template('upload_movie.html', message='変換処理が完了しました。', form=form)
 
-    return render_template('upload_movie.html')
+    return render_template('upload_movie.html', form=form)
+
 
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
@@ -1101,6 +1111,3 @@ if __name__ == "__main__":
         print(f"Hashed password: {user['password']}")
     port = config['server']['port']
     app.run(host='0.0.0.0', port=port, debug=True)
-
-
-

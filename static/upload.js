@@ -15,7 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response = await fetch('/attach_upload', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken  // CSRFトークンをヘッダーに追加
+                }
             });
 
             if (response.ok) {
