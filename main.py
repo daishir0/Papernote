@@ -144,12 +144,12 @@ def logout():
     return redirect(url_for('login'))
 
 # ルートの保護
-@app.route('/admin')
-@login_required
-def admin():
-    client_info = get_client_info()
-    send_email("Authentication Success", f"Admin page accessed successfully.\n\n{client_info}")
-    return redirect(url_for('post_index'))
+# @app.route('/admin')
+# @login_required
+# def admin():
+#     client_info = get_client_info()
+#     send_email("Authentication Success", f"Admin page accessed successfully.\n\n{client_info}")
+#     return redirect(url_for('post_index'))
 
 @app.route('/protected')
 @login_required
