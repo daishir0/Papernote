@@ -124,13 +124,11 @@
             if (lang === 'mermaid') {
                 return `<div class="mermaid">${codeText}</div>`;
             } else {
-                const firstLine = codeText.split('\n')[0];
                 const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
                 return `
                     <div>
-                        <pre><code>${firstLine}</code></pre>
-                        <button class="btn btn-primary btn-sm" onclick="toggleCode('${codeId}')">Show More</button>
-                        <button class="btn btn-secondary btn-sm" onclick="copyCode('${codeId}')">Copy Code</button>
+                        <button class="btn btn-dark btn-sm" onclick="toggleCode('${codeId}')">&lt;Code/&gt;...</button>
+                        <button class="btn btn-primary btn-sm" onclick="copyCode('${codeId}')"><i class="fa fa-copy"></i></button>
                         <pre id="${codeId}" style="display:none;"><code>${codeText}</code></pre>
                     </div>
                 `;

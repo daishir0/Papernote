@@ -98,8 +98,9 @@ def login():
                     print(f"Password match. Logging in user: {username}")
                     user_obj = User(user_id, user['username'], user['password'])
                     login_user(user_obj)
-                    send_email("Authentication Success", f"User {username} logged in successfully.\n\n{get_client_info()}")
-                    
+                    # send_email("Authentication Success", f"User {username} logged in successfully.\n\n{get_client_info()}")
+                    with open('./access_log.txt', 'a') as log_file:
+                        log_file.write(f"{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - User {username} logged in successfully - {get_client_info()}\n")
                     # Create response object
                     response = make_response(redirect(url_for('post_index')))
                     
@@ -124,6 +125,9 @@ def login():
                     print(f"Password does not match for user: {username}")
         print("Login failed. Invalid credentials.")
         send_email("Authentication Failed", f"Failed login attempt for user {username}.\n\n{get_client_info()}")
+        with open('./access_log.txt', 'a') as log_file:
+            log_file.write(f"{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - User {username} Authentication Failed - {get_client_info()}\n")
+
         return render_template('login.html', form=form, error="Invalid credentials")
     else:
         print("Form validation failed.")
@@ -199,7 +203,8 @@ def get_client_info():
     client_ip_waf = request.headers.get('X-Forwarded-For', None)
     client_ip = request.remote_addr
     user_agent = request.headers.get('User-Agent', 'Unknown')
-    return f"Client IP (WAF): {client_ip_waf}\nClient IP: {client_ip}\nUser Agent: {user_agent}\n"
+    # return f"Client IP (WAF): {client_ip_waf}\nClient IP: {client_ip}\nUser Agent: {user_agent}\n"
+    return f"{client_ip_waf} {client_ip} {user_agent}"
 
 @app.route('/', methods=['GET'])
 def index():
