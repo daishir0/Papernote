@@ -1,7 +1,3 @@
-basic_auth:
-  username: 'admin'
-  password: 'PLEASE SET YOUR OWN PASSWORD'
-
 allowed_extensions:
   - 'jpg'
   - 'jpeg'
