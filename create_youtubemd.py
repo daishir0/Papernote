@@ -228,18 +228,36 @@ def convert_movie_file_to_mp3(movie_file):
     return mp3_filename
 
 def transcribe_all_mp3s_in_directory(directory):
+    # 処理開始時点の記録
+    with open("./debug_log.txt", 'a', encoding='utf-8') as log_file:
+        log_file.write(f"{datetime.now().strftime('%d/%b/%Y:%H:%M:%S %z')} - transcribe 開始: {directory}\n")
+    
     print("MP3ファイルをテキストに変換中...")
-    for file in sorted(os.listdir(directory)):
-        if file.endswith('.mp3'):
-            file_path = os.path.join(directory, file)
-            timestamp = file.split('.')[0]
-            try:
-                transcribed_text = transcribe_mp3(file_path, timestamp=timestamp, dirname=directory)
-                save_transcription(transcribed_text, timestamp=timestamp, dirname=directory)
-                print(f"{file} の変換が完了しました。")
-            except Exception as e:
-                print(f"{file} の変換中にエラーが発生しました: {e}")
-    print("すべてのMP3ファイルの変換が完了しました。")
+    mp3_files = [f for f in sorted(os.listdir(directory)) if f.endswith('.mp3')]
+    
+    if not mp3_files:
+        print("MP3ファイルが見つかりませんでした。")
+        return
+
+    for file in mp3_files:
+        file_path = os.path.join(directory, file)
+        timestamp = file.split('.')[0]
+        try:
+            transcribed_text = transcribe_mp3(file_path, timestamp=timestamp, dirname=directory)
+            save_transcription(transcribed_text, timestamp=timestamp, dirname=directory)
+            print(f"{file} の変換が完了しました。")
+        except Exception as e:
+            print(f"{file} の変換中にエラーが発生しました: {e}")
+            # エラーをログに記録
+            with open("./debug_log.txt", 'a', encoding='utf-8') as log_file:
+                log_file.write(f"{datetime.now().strftime('%d/%b/%Y:%H:%M:%S %z')} - エラー: {file} - {str(e)}\n")
+            continue  # 次のファイルの処理に進む
+
+    print("すべてのMP3ファイルの処理が完了しました。")
+    # 処理終了時点の記録
+    with open("./debug_log.txt", 'a', encoding='utf-8') as log_file:
+        log_file.write(f"{datetime.now().strftime('%d/%b/%Y:%H:%M:%S %z')} - transcribe 終了: {directory}\n")
+
 
 def load_api_key():
     # config.yamlからAPIキーを読み込む関数
@@ -257,6 +275,10 @@ def transcribe_mp3(file_path, timestamp=None, dirname=''):
     wait_time=5
     while attempts < max_retries:
         try:
+            # 処理開始時点の記録
+            with open("./debug_log.txt", 'a', encoding='utf-8') as log_file:
+                log_file.write(f"{datetime.now().strftime('%d/%b/%Y:%H:%M:%S %z')} - openai 開始: {file_path}\n")
+            
             # Open the MP3 file and transcribe it using the OpenAI API
             with open(file_path, 'rb') as mp3_file:
                 transcript = client.audio.transcriptions.create(
@@ -265,6 +287,11 @@ def transcribe_mp3(file_path, timestamp=None, dirname=''):
                 )
                 # Retrieve the transcription text from the response
                 transcribed_text = transcript.text  # Access the text attribute
+                
+                # サーバーから帰ってきたテキストの記録
+                # with open("./debug_log.txt", 'a', encoding='utf-8') as log_file:
+                    # log_file.write(f"{datetime.now().strftime('%d/%b/%Y:%H:%M:%S %z')} - 結果: {transcribed_text}\n")
+                
                 return transcribed_text
         except Exception as e:
             attempts += 1

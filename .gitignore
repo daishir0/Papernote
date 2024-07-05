@@ -69,3 +69,4 @@ paper.pid
 access_log.txt
 
 template/paper.code-workspace
+debug_log.txt
