@@ -37,6 +37,8 @@ from wtforms.validators import DataRequired
 from flask_wtf.csrf import CSRFProtect
 from datetime import timedelta
 import tldextract
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 processing = False
 
@@ -48,6 +50,13 @@ app = Flask(__name__)
 
 # secret_keyの設定
 app.secret_key = config['secret_key']
+
+# Flask-Limiterの設定
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
 
 # CSRF保護の設定
 csrf = CSRFProtect(app)
@@ -83,7 +92,12 @@ class LoginForm(FlaskForm):
 
 # ログインルートの追加
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")  # 1分間に5回の試行を許可
 def login():
+    print(f"current_user.is_authenticated: {current_user.is_authenticated}")
+    if request.method == 'GET' and current_user.is_authenticated:
+        return redirect(url_for('post_index'))
+    
     form = LoginForm()
     if form.validate_on_submit():
         print("Form validated successfully.")
