@@ -325,7 +325,7 @@ def pdfsattach(filename):
         else:
             abort(404)  # ファイルが存在しない場合は404エラーを返す
     else:
-        abort(401)  # 認証が必要なエラーを返す
+        abort(401)  # 認���が必要なエラーを返す
         
 
 def is_text_matched(pdf_filename, search_terms):
@@ -487,7 +487,7 @@ def crop_and_resize_image(image, target_width, target_height):
         new_height = original_height
         new_width = int(target_aspect_ratio * new_height)
     else:
-        # 縦長の画像の場合（通常は発生しないが念のため）
+        # 縦長の��像の場合（通常は発生しないが念のため）
         new_width = original_width
         new_height = int(new_width / target_aspect_ratio)
     
@@ -765,7 +765,7 @@ def get_sorted_post_files_info():
     for topic in post_files_info:
         post_files_info[topic].sort(key=lambda x: x['filename'])
 
-    # トピック名でソート
+    # トピ��ク名でソート
     sorted_post_files_info = dict(sorted(post_files_info.items()))
     
     print(sorted_post_files_info)
@@ -846,7 +846,7 @@ def edit_post(filename):
         backup_filename = f"{filename}_{remainder}"
         backup_path = os.path.join(backup_dir, backup_filename)
         
-        # バックアップディレクトリに保存
+        # バックアップディレクトリ���保存
         with open(backup_path, 'w', encoding='utf-8') as f:
             f.write(content)
         
@@ -1088,17 +1088,15 @@ def youtube():
         youtube_url = request.form['youtube_url']
         interval_sec = request.form.get('interval_sec', 10)
         
-        def run_process():
-            global processing
-            process = Popen(['python', 'create_youtubemd.py', youtube_url, str(interval_sec)], stdout=PIPE, stderr=PIPE)
-            stdout, stderr = process.communicate()
-            processing = False
-            if process.returncode != 0:
-                print(f"Error: {stderr.decode('utf-8')}")
-        
         processing = True
-        threading.Thread(target=run_process).start()
-        return jsonify({"status": "started"}), 202
+        process = Popen(['python', 'create_youtubemd.py', youtube_url, str(interval_sec)], stdout=PIPE, stderr=PIPE)
+        stdout, stderr = process.communicate()
+        processing = False
+        if process.returncode != 0:
+            print(f"Error: {stderr.decode('utf-8')}")
+            return jsonify({"status": "error", "message": stderr.decode('utf-8')}), 500
+        
+        return redirect(url_for('youtube'))
 
     return render_template('youtube.html', form=form)
 

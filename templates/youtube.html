@@ -10,7 +10,8 @@
     <div class="container mt-5">
         <a href="/post"><< post一覧へ</a>
         <h1 class="text-center">YouTube URL入力</h1>
-        <form id="youtube-form" class="mt-4">
+        <form id="youtube-form" class="mt-4" method="POST" action="{{ url_for('youtube') }}">
+            {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
             <div class="form-group">
                 <label for="youtube_url">YouTube URL:</label>
                 <input type="text" id="youtube_url" name="youtube_url" class="form-control" placeholder="YouTube動画のURLを入力" required>
@@ -26,32 +27,5 @@
     <script src="/static/jquery-3.7.0.min.js"></script>
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
-    <script>
-        const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
-
-        $(document).ready(function() {
-            $('#youtube-form').on('submit', function(event) {
-                event.preventDefault();
-                $.ajax({
-                    url: "{{ url_for('youtube') }}",
-                    type: 'POST',
-                    data: $(this).serialize(),
-                    headers: {
-                        'X-CSRFToken': csrfToken  // CSRFトークンをヘッダーに追加
-                    },
-                    success: function(response) {
-                        if (response.status === 'started') {
-                            $('#message').text('処理が開始されました');
-                        } else if (response.status === 'processing') {
-                            $('#message').text('しばらくたって、実行してください');
-                        }
-                    },
-                    error: function() {
-                        $('#message').text('しばらくたって、実行してください');
-                    }
-                });
-            });
-        });
-    </script>
 </body>
 </html>
