@@ -98,7 +98,7 @@
         {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
         <h1>Edit</h1>
         <div>※1行目はタイトル、2行目はタグ(半角スペース区切り)です</div>
-        <textarea name="content">{{ content }}</textarea>
+        <textarea name="content">{{ content|safe }}</textarea>
         <input type="submit" value="Save">
     </form>
 </body>

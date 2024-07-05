@@ -57,7 +57,7 @@
 
 <template id="markdown-content">
 {% for line in pdf['memo2_content'][1:] -%}
-{{ line | safe }}
+{{ line | e }}
 {% endfor -%}
 </template>
 
