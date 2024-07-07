@@ -1177,6 +1177,7 @@ class YouTubeDownloadForm(FlaskForm):
     submit = SubmitField('Download')
 
 @app.route('/ytdl', methods=['GET', 'POST'])
+@login_required
 def ytdl():
     form = YouTubeDownloadForm()
     if form.validate_on_submit():
@@ -1197,7 +1198,7 @@ def ytdl():
         else:
             return "Failed to download the video with both pytube and yt-dlp.", 500
 
-    return render_template('youtube_dl.html', form=form)
+    return render_template('ytdl.html', form=form)
 
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化

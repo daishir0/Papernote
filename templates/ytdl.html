@@ -2,19 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>YouTube Downloader</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>YouTube Downloader</h1>
-        <form action="/ytdl" method="post">
+    <div class="container mt-5">
+        <h1 class="text-center">YouTube Downloader</h1>
+        <form action="/ytdl" method="post" class="mt-4">
             {{ form.hidden_tag() }}
-            <label for="url">YouTube URL:</label>
-            {{ form.url }}
-            <button type="submit">{{ form.submit }}</button>
+            <div class="form-group">
+                <label for="url">YouTube URL:</label>
+                {{ form.url(class="form-control") }}
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Download</button>
         </form>
     </div>
+    <script src="/static/jquery-3.7.0.min.js"></script>
+    <script src="/static/popper.min.js"></script>
+    <script src="/static/bootstrap.min.js"></script>
 </body>
 </html>
