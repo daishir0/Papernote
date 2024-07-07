@@ -5,7 +5,7 @@ import requests
 import numpy as np
 import yaml
 import time
-from flask import Flask, request, jsonify, render_template, redirect, url_for, send_from_directory, make_response
+from flask import Flask, request, jsonify, render_template, redirect, url_for, send_from_directory, make_response, send_file
 from subprocess import Popen, PIPE
 from werkzeug.exceptions import BadRequest
 from werkzeug.utils import secure_filename
@@ -39,6 +39,8 @@ from datetime import timedelta
 import tldextract
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from pytube import YouTube
+import yt_dlp
 
 processing = False
 
@@ -1140,6 +1142,62 @@ def upload_movie():
 
     return render_template('upload_movie.html', form=form)
 
+def download_video_with_pytube(url):
+    try:
+        yt = YouTube(url)
+        title = yt.title  # 動画のタイトルを取得
+        stream = yt.streams.filter(file_extension='mp4').get_highest_resolution()
+        filename = f"{uuid.uuid4()}.mp4"
+        stream.download(filename=filename)
+        print("Downloaded with pytube")
+        return filename, title  # タイトルも返すように変更
+    except Exception as e:
+        print(f"pytube failed: {e}")
+        return None, None
+
+def download_video_with_ytdlp(url):
+    ydl_opts = {
+        'format': 'bestvideo+bestaudio/best',
+        'outtmpl': '%(id)s.%(ext)s',
+        'noplaylist': True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info_dict)
+            title = info_dict.get('title', None)
+            print("Downloaded with yt-dlp")
+            return filename, title
+    except Exception as e:
+        print(f"yt-dlp failed: {e}")
+        return None, None
+
+class YouTubeDownloadForm(FlaskForm):
+    url = StringField('YouTube URL', validators=[DataRequired()])
+    submit = SubmitField('Download')
+
+@app.route('/ytdl', methods=['GET', 'POST'])
+def ytdl():
+    form = YouTubeDownloadForm()
+    if form.validate_on_submit():
+        url = form.url.data
+        filename, title = download_video_with_pytube(url)
+        if filename is None:
+            print("Trying to download with yt-dlp...")
+            filename, title = download_video_with_ytdlp(url)
+        
+        if filename is not None:
+            # 安全なファイル名を作成
+            safe_title = "".join([c if c.isalnum() else "_" for c in title]) + ".mp4"
+            response = send_file(filename, as_attachment=True, download_name=safe_title)
+            
+            # ダウンロードが終わったらローカルファイルを削除
+            os.remove(filename)
+            return response
+        else:
+            return "Failed to download the video with both pytube and yt-dlp.", 500
+
+    return render_template('youtube_dl.html', form=form)
 
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
