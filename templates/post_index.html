@@ -17,7 +17,7 @@
         .toggleable {
             cursor: pointer;
             color: blue;
-            text-decoration: underline;
+            text-decoration: none;
         }
         .list-group-item {
             padding: 0.1rem 1rem; /* パディングを狭くする */
@@ -30,6 +30,22 @@
         }
         .no-underline:hover {
             text-decoration: underline;
+        }
+        .card {
+            height: 100%;
+        }
+        .card-body {
+            display: flex;
+            flex-direction: column;
+        }
+        .card-title {
+            margin-bottom: auto;
+        }
+        .btn-group {
+            margin-top: auto;
+        }
+        .bg-white{
+            background-color: rgb(230, 236, 254) !important;
         }
     </style>
 </head>
@@ -47,14 +63,21 @@
             <div class="d-flex justify-content-between">
                 <div class="btn-group">
                     <form action="{{ url_for('add_post') }}" method="post" class="form-inline d-inline">
-                        {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
-                        <button type="submit" class="btn btn-success mr-1">Add Post</button>
+                        {{ form.hidden_tag() }}
+                        <button type="submit" class="btn btn-primary" style="margin-right: 3px;">New Post</button>
                     </form>
-                    <a href="/upload_text" class="btn btn-primary mx-1" style="border-radius: 12%;"><i class="fas fa-upload"></i></a>
-                    <a href="/youtube" class="btn btn-primary" style="border-radius: 12%;"><i class="fa-brands fa-youtube"></i></a>
-                    <a href="/upload_movie" class="btn btn-primary mx-1" style="border-radius: 12%;"><i class="fas fa-video"></i></a>
+                    <div class="dropdown d-inline">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="uploadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-upload"></i>
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="uploadDropdown">
+                            <li><a class="dropdown-item" href="/upload_text"><i class="fas fa-file-alt"></i> Text</a></li>
+                            <li><a class="dropdown-item" href="/youtube"><i class="fa-brands fa-youtube"></i> YouTube</a></li>
+                            <li><a class="dropdown-item" href="/upload_movie"><i class="fas fa-video"></i> Movie</a></li>
+                        </ul>
+                    </div>
                 </div>
-                <button type="button" class="btn btn-primary" onclick="toggleAll()">Toggle</button>
+                <button type="button" class="btn btn-primary" onclick="closeAll()">Close</button>
             </div>
         </div>
         {% endif %}
@@ -73,38 +96,43 @@
 
         {% for topic, files in post_files.items() %}
             {% if topic != '_トピック未設定' or current_user.is_authenticated %}
-            <h2 class="toggleable" onclick="toggleVisibility('{{ topic|escape }}')">{{ topic }}</h2>
-            <ul class="list-group mb-4" id="{{ topic|escape }}">
+            <h2 class="toggleable bg-white text-dark p-2 rounded border border-primary" onclick="toggleVisibility('{{ topic|escape }}')">{{ topic }}</h2>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4" id="{{ topic|escape }}">
                 {% for file in files %}
-                    <li class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a class="no-underline" href="{{ url_for('post', filename=file.filename) }}" style="font-size: larger;">
-                                {{ file.title }}
-                            </a>
-                        </div>
-                        {% if current_user.is_authenticated %}
-                        <div class="d-flex justify-content-between align-items-center">
-                            <a class="no-underline" href="#" onclick="renameFile('{{ file.filename }}'); return false;" style="font-size: small;">
-                                {{ file.filename }}
-                            </a>
-                            <div>
-                                <button class="btn btn-primary btn-sm" onclick="copyToClipboard('{{ file.filename }}')">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                                <button class="btn btn-success btn-sm" onclick="editPost('{{ file.filename }}')">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteFile('{{ file.filename }}')">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
+                    <div class="col mb-2">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a class="no-underline" href="{{ url_for('post', filename=file.filename) }}">
+                                        {{ file.title }}
+                                    </a>
+                                </h5>
+                                {% if current_user.is_authenticated %}
+                                <p class="card-text">
+                                    <a class="no-underline" href="#" onclick="renameFile('{{ file.filename }}'); return false;" style="font-size: small;">
+                                        {{ file.filename }}
+                                    </a>
+                                </p>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-primary btn-sm" onclick="copyToClipboard('{{ file.filename }}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    <button class="btn btn-success btn-sm" onclick="editPost('{{ file.filename }}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteFile('{{ file.filename }}')">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
-                        {% endif %}
-                    </li>
+                    </div>
                 {% endfor %}
-            </ul>
+            </div>
             {% endif %}
         {% endfor %}
+
 
     </div>
 
@@ -188,7 +216,7 @@
 
             // URLからクエリパラメータを取得し、検索フィールドに設定
             const urlParams = new URLSearchParams(window.location.search);
-            const searchKeyword = urlParams.get('search'); // 'search'パラメータの値を取得
+            const searchKeyword = urlParams.get('search'); // 'search'パラメータ���値を取得
             if(searchKeyword) {
                 $('input[name="search"]').val(decodeURIComponent(searchKeyword.replace(/\+/g, ' ')));
 
@@ -211,38 +239,38 @@
                 }
             });
         
-            // 以下、インクリメンタルサーチ
-            // 検索入力欄にイベントリスナーを追加
-            $('input[name="search"]').on('input', function() {
-                var searchTerm = $(this).val().toLowerCase();
-                filterItems(searchTerm);
-            });
+        // 以下、インクリメンタルサーチ
+        // 検索入力欄にイベントリスナーを追加
+        $('input[name="search"]').on('input', function() {
+            var searchTerm = $(this).val().toLowerCase();
+            filterItems(searchTerm);
+        });
 
-            function filterItems(searchTerm) {
-                $('.list-group').each(function() {
-                    var h2 = $(this).prev('h2');
-                    var visibleItems = 0;
+        function filterItems(searchTerm) {
+            $('.row').each(function() {
+                var h2 = $(this).prev('h2');
+                var visibleItems = 0;
 
-                    $(this).find('li').each(function() {
-                        var text = $(this).find('a:first').text().toLowerCase();
-                        if (text.indexOf(searchTerm) > -1) {
-                            $(this).show();
-                            visibleItems++;
-                        } else {
-                            $(this).hide();
-                        }
-                    });
-
-                    // H2要素の表示/非表示を制御
-                    if (visibleItems > 0) {
-                        h2.show();
+                $(this).find('.col').each(function() {
+                    var text = $(this).find('.card-title a').text().toLowerCase();
+                    if (text.indexOf(searchTerm) > -1) {
                         $(this).show();
+                        visibleItems++;
                     } else {
-                        h2.hide();
                         $(this).hide();
                     }
                 });
-            }
+
+                // H2要素の表示/非表示を制御
+                if (visibleItems > 0) {
+                    h2.show();
+                    $(this).show();
+                } else {
+                    h2.hide();
+                    $(this).hide();
+                }
+            });
+        }
 
         });
 
@@ -307,22 +335,12 @@
             });
         }
 
-        function toggleAll() {
-            var allVisible = $('.list-group').filter(function() {
-                return $(this).is(':visible');
-            }).length === $('.list-group').length;
-
-            $('.list-group').each(function() {
+        function closeAll() {
+            $('.row').each(function() {
                 var element = $(this);
-                if (allVisible) {
-                    element.slideUp(function() {
-                        saveToggleState(element.attr('id'), false);
-                    });
-                } else {
-                    element.slideDown(function() {
-                        saveToggleState(element.attr('id'), true);
-                    });
-                }
+                element.slideUp(function() {
+                    saveToggleState(element.attr('id'), false);
+                });
             });
         }
 
