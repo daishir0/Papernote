@@ -318,21 +318,24 @@
         {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
         <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
             <div class="btn-group mr-2" role="group" aria-label="First group">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        挿入
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><button id="insertDateButton" type="button" class="dropdown-item">YY</button></li>
+                        <li><button id="insertTimeButton" type="button" class="dropdown-item">HH</button></li>
+                        <li><button id="uploadFileButton" type="button" class="dropdown-item">ファイル</button></li>
+                        <li><button id="pasteMermaidButton" type="button" class="dropdown-item">Markdown書式</button></li>
+                    </ul>
+                </div>
                 <button id="insertHashButton" type="button" class="btn btn-primary">#</button>
                 <button id="insertDashButton" type="button" class="btn btn-primary">-</button>
                 <button id="insert1Button" type="button" class="btn btn-primary">1.</button>
                 <button id="insertQuoteButton" type="button" class="btn btn-primary">&gt;</button>
                 <button id="insertSpaceButton" type="button" class="btn btn-primary">Sp</button>
                 <button id="insertBoldButton" type="button" class="btn btn-primary">B</button>
-                <button id="pasteMermaidButton" type="button" class="btn btn-primary">M</button>
-                <button id="uploadFileButton" type="button" class="btn btn-primary">
-                    <i class="fas fa-paperclip"></i>
-                </button>
-                <button id="lineButton" type="button" class="btn btn-primary">
-                    <i class="fas fa-comment-dots"></i>
-                </button>
-                <button id="insertDateButton" type="button" class="btn btn-primary">YY</button>
-                <button id="insertTimeButton" type="button" class="btn btn-primary">HH</button>
+                <button id="lineButton" type="button" class="btn btn-primary"><i class="fas fa-comment-dots"></i></button>
             </div>
         </div>
         <input type="file" id="fileInput" style="display:none;">
