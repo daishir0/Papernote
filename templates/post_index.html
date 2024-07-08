@@ -189,6 +189,24 @@
         $(document).ready(function() {
             restoreToggleStates();
 
+            // 検索キーワードがある場合、すべてのh2を開く
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchKeyword = urlParams.get('search'); // 'search'パラメータ値を取得
+            if (searchKeyword) {
+                $('input[name="search"]').val(decodeURIComponent(searchKeyword.replace(/\+/g, ' ')));
+
+                $('.row').each(function() {
+                    var element = $(this);
+                    element.slideDown(function() {
+                        saveToggleState(element.attr('id'), true);
+                    });
+                });
+
+                $('h2').each(function() {
+                    $(this).show();
+                });
+            }
+
             $('#renameForm').on('submit', function(event) {
                 event.preventDefault();
                 var formData = $(this).serialize();
@@ -213,23 +231,6 @@
                     restoreToggleStates();
                 }
             });
-
-            // URLからクエリパラメータを取得し、検索フィールドに設定
-            const urlParams = new URLSearchParams(window.location.search);
-            const searchKeyword = urlParams.get('search'); // 'search'パラメータ値を取得
-            if(searchKeyword) {
-                $('input[name="search"]').val(decodeURIComponent(searchKeyword.replace(/\+/g, ' ')));
-
-                $('.list-group').each(function() {
-                    var element = $(this);
-
-                    element.slideDown(function() {
-                        saveToggleState(element.attr('id'), true);
-                    });
-
-                });
-                
-            }
 
             // 「/」キーで検索ボックスをアクティブにする
             $(document).on('keydown', function(e) {
