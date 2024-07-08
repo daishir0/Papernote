@@ -97,11 +97,11 @@
         {% for topic, files in post_files.items() %}
             {% if topic != '_トピック未設定' or current_user.is_authenticated %}
             <h2 class="toggleable bg-white text-dark p-2 rounded border border-primary" onclick="toggleVisibility('{{ topic|escape }}')">{{ topic }}</h2>
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4" id="{{ topic|escape }}">
+            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 row-cols-xl-6 g-3" id="{{ topic|escape }}">
                 {% for file in files %}
                     <div class="col mb-2">
                         <div class="card">
-                            <div class="card-body">
+                            <div class="card-body" style="padding: 0.5rem;"> <!-- 余白を狭くする -->
                                 <h5 class="card-title">
                                     <a class="no-underline" href="{{ url_for('post', filename=file.filename) }}">
                                         {{ file.title }}
