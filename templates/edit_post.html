@@ -318,25 +318,23 @@
         {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
         <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
             <div class="btn-group mr-2" role="group" aria-label="First group">
-                <div class="btn-group">
-                    <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                        挿入
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><button id="insertDateButton" type="button" class="dropdown-item">YYYYMMDD</button></li>
-                        <li><button id="insertTimeButton" type="button" class="dropdown-item">hhmmss</button></li>
-                        <li><button id="uploadFileButton" type="button" class="dropdown-item">ファイル</button></li>
-                        <li><button id="pasteMermaidButton" type="button" class="dropdown-item">Markdown書式</button></li>
-                    </ul>
-                </div>
-                <button id="insertHashButton" type="button" class="btn btn-primary">#</button>
-                <button id="insertDashButton" type="button" class="btn btn-primary">-</button>
-                <button id="insert1Button" type="button" class="btn btn-primary">1.</button>
-                <button id="insertQuoteButton" type="button" class="btn btn-primary">&gt;</button>
-                <button id="insertSpaceButton" type="button" class="btn btn-primary">Sp</button>
-                <button id="insertBoldButton" type="button" class="btn btn-primary">B</button>
-                <button id="lineButton" type="button" class="btn btn-primary"><i class="fas fa-comment-dots"></i></button>
+                <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="挿入オプションを表示">
+                    挿入
+                </button>
+                <ul class="dropdown-menu">
+                    <li><button id="insertDateButton" type="button" class="dropdown-item" title="現在の日付を挿入">YYYYMMDD</button></li>
+                    <li><button id="insertTimeButton" type="button" class="dropdown-item" title="現在の時刻を挿入">hhmmss</button></li>
+                    <li><button id="uploadFileButton" type="button" class="dropdown-item" title="ファイルをアップロード">ファイル</button></li>
+                    <li><button id="pasteMermaidButton" type="button" class="dropdown-item" title="Mermaid書式を挿入">Markdown書式</button></li>
+                </ul>
             </div>
+            <button id="insertHashButton" type="button" class="btn btn-primary" title="行の先頭に#を挿入">#</button>
+            <button id="insertDashButton" type="button" class="btn btn-primary" title="行の先頭に-を挿入">-</button>
+            <button id="insert1Button" type="button" class="btn btn-primary" title="行の先頭に1.を挿入">1.</button>
+            <button id="insertQuoteButton" type="button" class="btn btn-primary" title="行の先頭に>を挿入">&gt;</button>
+            <button id="insertSpaceButton" type="button" class="btn btn-primary" title="行の先頭にスペースを挿入">Sp</button>
+            <button id="insertBoldButton" type="button" class="btn btn-primary" title="選択したテキストを太字にする">B</button>
+            <button id="lineButton" type="button" class="btn btn-primary" title="チャット入力モードを開く"><i class="fas fa-comment-dots"></i></button>
         </div>
         <input type="file" id="fileInput" style="display:none;">
 

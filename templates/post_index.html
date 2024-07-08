@@ -114,13 +114,13 @@
                                     </a>
                                 </p>
                                 <div class="btn-group" role="group">
-                                    <button class="btn btn-primary btn-sm" onclick="copyToClipboard('{{ file.filename }}')">
+                                    <button class="btn btn-sm" style="background-color: #cce5ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#6699ff'; this.title='copy to clipboard';" onmouseout="this.style.backgroundColor='#cce5ff';" onclick="copyToClipboard('{{ file.filename }}')">
                                         <i class="fas fa-copy"></i>
                                     </button>
-                                    <button class="btn btn-success btn-sm" onclick="editPost('{{ file.filename }}')">
+                                    <button class="btn btn-sm" style="background-color: #d4edda; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#66cc66'; this.title='edit';" onmouseout="this.style.backgroundColor='#d4edda';" onclick="editPost('{{ file.filename }}')">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteFile('{{ file.filename }}')">
+                                    <button class="btn btn-sm" style="background-color: #f8d7da; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ff6666'; this.title='delete';" onmouseout="this.style.backgroundColor='#f8d7da';" onclick="deleteFile('{{ file.filename }}')">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
@@ -216,7 +216,7 @@
 
             // URLからクエリパラメータを取得し、検索フィールドに設定
             const urlParams = new URLSearchParams(window.location.search);
-            const searchKeyword = urlParams.get('search'); // 'search'パラメータ���値を取得
+            const searchKeyword = urlParams.get('search'); // 'search'パラメータ値を取得
             if(searchKeyword) {
                 $('input[name="search"]').val(decodeURIComponent(searchKeyword.replace(/\+/g, ' ')));
 
