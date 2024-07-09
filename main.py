@@ -41,6 +41,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from pytube import YouTube
 import yt_dlp
+from bs4 import BeautifulSoup
+from markdownify import markdownify as md
 
 processing = False
 
@@ -1199,6 +1201,54 @@ def ytdl():
             return "Failed to download the video with both pytube and yt-dlp.", 500
 
     return render_template('ytdl.html', form=form)
+
+
+class UploadTextForm(FlaskForm):
+    web_url = TextAreaField('WebページURL', validators=[DataRequired()])  # TextAreaFieldに変更
+    submit = SubmitField('送信')
+
+@app.route('/webtomd', methods=['GET', 'POST'])
+@login_required
+def webtomd():
+    form = UploadTextForm()
+    message = ''
+    if request.method == 'POST':
+        web_urls = form.web_url.data.splitlines()  # 複数行のURLを取得
+        success_count = 0
+        error_count = 0
+        for web_url in web_urls:
+            if not web_url.strip():
+                continue
+            try:
+                response = requests.get(web_url.strip(), allow_redirects=True)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # JavaScriptタグを削除
+                for script in soup(["script", "style"]):
+                    script.decompose()
+                
+                markdown_text = md(str(soup))
+                
+                # HTMLからタイトルを取得し、ファイル名に変換
+                title = soup.title.string if soup.title else 'untitled'
+                file_name = f"[web]{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.txt"
+                file_path = os.path.join('./post', file_name)
+                
+                with open(file_path, 'w', encoding='utf-8') as file:
+                    file.write(web_url.strip() + '\n' + markdown_text)
+                
+                success_count += 1
+            except requests.exceptions.RequestException as e:
+                error_count += 1
+                print(f"Error processing URL {web_url.strip()}: {e}")
+            
+            time.sleep(1)  # 1秒のタイムアウトを入れる
+        
+        message = f"{success_count}件のファイルが変換され、{error_count}件のファイルがエラーになりました。"
+        return render_template('webtomd.html', form=form, message=message)
+    
+    return render_template('webtomd.html', form=form, message=message)
 
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化

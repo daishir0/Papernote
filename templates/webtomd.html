@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>WebページURL入力</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="/static/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <a href="/post"><< post一覧へ</a>
+        <h1 class="text-center">WebページのMarkdown書式への変換ツール</h1>
+        <form id="webtomd-form" class="mt-4" method="POST" action="{{ url_for('webtomd') }}">
+            {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
+            <div class="form-group">
+                <label for="web_url">WebページURL:</label>
+                {{ form.web_url(class="form-control", placeholder="WebページのURLを入力", rows=5) }} <!-- テキストエリアに変更 -->
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">送信</button>
+        </form>
+        <div id="message" class="mt-3">{{ message }}</div>
+    </div>
+    <script src="/static/jquery-3.7.0.min.js"></script>
+    <script src="/static/popper.min.js"></script>
+    <script src="/static/bootstrap.min.js"></script>
+</body>
+</html>
