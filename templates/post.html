@@ -44,8 +44,8 @@
         }
         @media print {
             .tweet-link,
-            a[href="/post"],
-            button[onclick^="editPost('"] {
+            button[onclick^="editPost('"],
+            #back-to-index {
                 display: none;
             }
             a {
@@ -86,7 +86,7 @@
 <body>
 
 <div class="post-header">
-<a href="/post"><< post一覧へ</a>
+<a id="back-to-index" href="/post"><< post一覧へ</a>
 {% if current_user.is_authenticated %}
 <button class="btn btn-success btn-sm" onclick="editPost('{{ content.filename }}')">
     <i class="fas fa-edit"></i>
