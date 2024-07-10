@@ -329,7 +329,7 @@ def pdfsattach(filename):
         else:
             abort(404)  # ファイルが存在しない場合は404エラーを返す
     else:
-        abort(401)  # 認���が必要なエラーを返す
+        abort(401)  # 認証が必要なエラーを返す
         
 
 def is_text_matched(pdf_filename, search_terms):
@@ -491,7 +491,7 @@ def crop_and_resize_image(image, target_width, target_height):
         new_height = original_height
         new_width = int(target_aspect_ratio * new_height)
     else:
-        # 縦長の��像の場合（通常は発生しないが念のため）
+        # 縦長の画像の場合（通常は発生しないが念のため）
         new_width = original_width
         new_height = int(new_width / target_aspect_ratio)
     
@@ -769,7 +769,7 @@ def get_sorted_post_files_info():
     for topic in post_files_info:
         post_files_info[topic].sort(key=lambda x: x['filename'])
 
-    # トピ��ク名でソート
+    # トピック名でソート
     sorted_post_files_info = dict(sorted(post_files_info.items()))
     
     print(sorted_post_files_info)
@@ -850,7 +850,7 @@ def edit_post(filename):
         backup_filename = f"{filename}_{remainder}"
         backup_path = os.path.join(backup_dir, backup_filename)
         
-        # バックアップディレクトリ���保存
+        # バックアップディレクトリ保存
         with open(backup_path, 'w', encoding='utf-8') as f:
             f.write(content)
         
