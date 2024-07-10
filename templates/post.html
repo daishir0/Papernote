@@ -152,7 +152,17 @@
         });
 
         const html = marked.parse(markdownText);
-        document.getElementById('content').innerHTML = html;
+
+        // 画面表示の際、以下のタグをエスケープ
+        const tagsToEscape = ['title', 'script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'link', 'meta'];
+        let escapedHtml = html;
+        tagsToEscape.forEach(tag => {
+            const regex = new RegExp(`<${tag}>`, 'g');
+            const closingRegex = new RegExp(`</${tag}>`, 'g');
+            escapedHtml = escapedHtml.replace(regex, `&lt;${tag}&gt;`).replace(closingRegex, `&lt;/${tag}&gt;`);
+        });
+
+        document.getElementById('content').innerHTML = escapedHtml;
         mermaid.init(undefined, document.querySelectorAll('.mermaid'));
 
         // インデックス生成
