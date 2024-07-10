@@ -1228,7 +1228,7 @@ def webtomd():
                 for script in soup(["script", "style"]):
                     script.decompose()
                 
-                markdown_text = md(str(soup))
+                markdown_text = md(str(soup).replace('\n', ''))
                 
                 # HTMLからタイトルを取得し、ファイル名に変換
                 title = soup.title.string if soup.title else 'untitled'

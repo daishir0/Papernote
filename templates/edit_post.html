@@ -292,8 +292,8 @@
                                 const result = await response.json();
                                 const smallImageUrl = result.url.replace(/\/([^\/]+)$/, '/s_$1');
                                 const markdownLink = result.isImage 
-                                    ? `[![${result.filename}](${smallImageUrl})](${result.url})\n` 
-                                    : `[${result.filename}](${result.url})\n`;
+                                    ? `[![${result.filename}](${smallImageUrl})](${result.url})` 
+                                    : `[${result.filename}](${result.url})`;
                                 console.log(markdownLink);
                                 insertTextAtCursor(document.getElementById('content'), markdownLink);
                             } else {
