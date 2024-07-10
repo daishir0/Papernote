@@ -1221,8 +1221,9 @@ def webtomd():
                 continue
             try:
                 response = requests.get(web_url.strip(), allow_redirects=True)
+                response.encoding = 'utf-8'  # エンコーディングをUTF-8に設定
                 response.raise_for_status()
-                soup = BeautifulSoup(response.text, 'html.parser')
+                soup = BeautifulSoup(response.text, 'html.parser', from_encoding='utf-8')
                 
                 # JavaScriptタグを削除
                 for script in soup(["script", "style"]):
