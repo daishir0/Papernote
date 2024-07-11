@@ -173,6 +173,15 @@
         const headings = document.querySelectorAll('#content h1, #content h2, #content h3, #content h4, #content h5, #content h6');
         const indexList = document.createElement('ul');
 
+        // インデックスがない場合はインデックスエリアを削除
+        if (headings.length === 0) {
+            const indexContainer = document.getElementById('index');
+            if (indexContainer) {
+                indexContainer.remove();
+            }
+            return;
+        }
+
         headings.forEach(heading => {
             const level = parseInt(heading.tagName.substring(1));
             const listItem = document.createElement('li');
