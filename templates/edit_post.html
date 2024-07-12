@@ -247,11 +247,11 @@
             textArea.focus();
 
             // カーソル位置までスクロール
-            const cursorPosition = textArea.selectionStart;
-            const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
-            const scrollTop = textArea.scrollTop;
-            const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
-            textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
+            // const cursorPosition = textArea.selectionStart;
+            // const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
+            // const scrollTop = textArea.scrollTop;
+            // const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
+            // textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
         }
 
         function getCurrentDate() {
