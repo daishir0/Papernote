@@ -83,6 +83,8 @@ function autoSaveContent() {
             
             // showTemporaryMessage('変更を保存中...'); // 実際にはここでサーバーへの非同期通信を行う
             lastContent = currentContent; // 最後に保存した内容を更新
+        } else {
+            console.log('No changes detected, skipping server save.');
         }
     }, 60000); // 60000ミリ秒（1分）ごと
 }
