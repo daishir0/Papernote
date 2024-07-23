@@ -772,7 +772,7 @@ def get_sorted_post_files_info():
     # トピック名でソート
     sorted_post_files_info = dict(sorted(post_files_info.items()))
     
-    print(sorted_post_files_info)
+    # print(sorted_post_files_info)
 
     return sorted_post_files_info
 
