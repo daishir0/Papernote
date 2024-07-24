@@ -84,17 +84,23 @@
         blockquote p {
             white-space: pre-wrap; /* 改行を反映させる */
         }
+        .align-right {
+            margin-left: auto;
+        }
     </style>
 </head>
 <body>
 
 <div class="post-header">
-<a id="back-to-index" href="/post"><< post一覧へ</a>
-{% if current_user.is_authenticated %}
-<button class="btn btn-success btn-sm" onclick="editPost('{{ content.filename }}')">
-    <i class="fas fa-edit"></i>
-</button>
-{% endif %}
+    <a id="back-to-index" href="/post"><< post一覧へ</a>
+    <div class="align-right">
+        <button class="btn btn-dark btn-sm" onclick="openAllCodes()">All &lt;Code/&gt; Open</button>
+        {% if current_user.is_authenticated %}
+        <button class="btn btn-success btn-sm" onclick="editPost('{{ content.filename }}')">
+            <i class="fas fa-edit"></i>
+        </button>
+        {% endif %}
+    </div>
 </div>
 
 <div id="index" class="index-container"></div>
@@ -131,7 +137,7 @@
                 return `
                     <div>
                         <button class="btn btn-dark btn-sm" onclick="toggleCode('${codeId}')">&lt;Code/&gt;...</button>
-                        <button class="btn btn-primary btn-sm" onclick="copyCode('${codeId}')"><i class="fa fa-copy"></i></button>
+                        <button class="btn btn-dark btn-sm" onclick="copyCode('${codeId}')"><i class="fa fa-copy"></i></button>
                         <pre id="${codeId}" style="display:none;"><code>${codeText}</code></pre>
                     </div>
                 `;
@@ -222,6 +228,27 @@
         var scrollPosition = window.scrollY || document.documentElement.scrollTop;
         localStorage.setItem('scrollPosition', scrollPosition);
         location.href = '/edit_post/' + filename;
+    }
+
+    let allCodesOpen = false;
+
+    function openAllCodes() {
+        const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
+        if (allCodesOpen) {
+            codeBlocks.forEach(codeBlock => {
+                if (codeBlock.style.display !== 'none') {
+                    $(codeBlock).slideUp();
+                }
+            });
+            allCodesOpen = false;
+        } else {
+            codeBlocks.forEach(codeBlock => {
+                if (codeBlock.style.display === 'none') {
+                    $(codeBlock).slideDown();
+                }
+            });
+            allCodesOpen = true;
+        }
     }
 
     window.addEventListener('beforeprint', function() {
