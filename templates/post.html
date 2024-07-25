@@ -99,7 +99,6 @@
 <div class="post-header">
     <a id="back-to-index" class="none_print" href="/post"><< post一覧へ</a>
     <div class="align-right">
-        <button id="toggle-index" class="btn btn-dark btn-sm toggle-button collapsed none_print">Index</button>
         <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;Code/&gt;</button>
         {% if current_user.is_authenticated %}
         <button class="btn btn-success btn-sm none_print" onclick="editPost('{{ content.filename }}')">
@@ -110,6 +109,7 @@
 </div>
 
 <div id="index" class="index-container">
+    <button id="toggle-index" class="btn btn-primary btn-sm toggle-button collapsed none_print" style="float: right;">Index</button>
     <ul style="display: none;">
         <!-- インデックスのリストアイテムがここに入ります -->
     </ul>
