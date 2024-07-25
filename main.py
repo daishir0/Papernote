@@ -762,8 +762,8 @@ def get_sorted_post_files_info():
         for topic in post_files_info:
             post_files_info[topic] = [file for file in post_files_info[topic]]
             
-    for topic, files in post_files_info.items():
-        print(f"トピック: {topic}, ファイル情報: {files}")
+    # for topic, files in post_files_info.items():
+    #     print(f"トピック: {topic}, ファイル情報: {files}")
 
     # 各トピック内でファイル名昇順にソート
     for topic in post_files_info:
