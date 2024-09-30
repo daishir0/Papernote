@@ -143,9 +143,9 @@
                 <li>
                     {% if authenticated %}
                     <a href="{{ pdf['url'] }}" class="button-link pdf"><i class="fa fa-file-pdf"></i></a>
-                    <button class="button-link copy-text-link" data-url="/clean_text/{{ pdf['pdf_id'] }}.pdf">
+                    <!-- <button class="button-link copy-text-link" data-url="/clean_text/{{ pdf['pdf_id'] }}.pdf">
                         <i class="fa fa-copy"></i>
-                    </button>
+                    </button> -->
                     {% endif %}
                     <a class="paper" href="{{ pdf['pdf_id'] }}">・{{ pdf['memo1_title'] }}</a>
                     <span class="tag">{{ pdf['memo2_content'][0] }}</span>
@@ -281,29 +281,29 @@
             });
     
             // ツールチップの設定
-            $('a.pdf').hover(function() {
-                const link = $(this);
-                const pdfId = link.attr('href').replace('.pdf', '').replace('/pdfs/', '');
-                const tooltipUrl = `/memo/${pdfId}.txt`;
+            // $('a.pdf').hover(function() {
+            //     const link = $(this);
+            //     const pdfId = link.attr('href').replace('.pdf', '').replace('/pdfs/', '');
+            //     const tooltipUrl = `/memo/${pdfId}.txt`;
     
-                // title属性を一時的にdata-original-titleに保存して削除
-                link.attr('data-original-title', link.attr('title'));
-                link.removeAttr('title');
+            //     // title属性を一時的にdata-original-titleに保存して削除
+            //     link.attr('data-original-title', link.attr('title'));
+            //     link.removeAttr('title');
     
-                $.get(tooltipUrl, function(data) {
-                    // 改行を<br>に置き換えてツールチップに表示
-                    const formattedData = data.replace(/\n/g, '<br>');
-                    link.attr('data-bs-original-title', formattedData);
-                    link.tooltip({ html: true }).tooltip('show');
-                });
-            }, function() {
-                const link = $(this);
-                link.tooltip('hide');
+            //     $.get(tooltipUrl, function(data) {
+            //         // 改行を<br>に置き換えてツールチップに表示
+            //         const formattedData = data.replace(/\n/g, '<br>');
+            //         link.attr('data-bs-original-title', formattedData);
+            //         link.tooltip({ html: true }).tooltip('show');
+            //     });
+            // }, function() {
+            //     const link = $(this);
+            //     link.tooltip('hide');
     
-                // カスタムツールチップを隠した後、元のtitle属性を復元
-                link.attr('title', link.attr('data-original-title'));
-                link.removeAttr('data-original-title');
-            });
+            //     // カスタムツールチップを隠した後、元のtitle属性を復元
+            //     link.attr('title', link.attr('data-original-title'));
+            //     link.removeAttr('data-original-title');
+            // });
         });
         </script>
 
