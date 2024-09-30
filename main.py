@@ -34,7 +34,7 @@ from email.mime.multipart import MIMEMultipart
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, TextAreaField, HiddenField
 from wtforms.validators import DataRequired
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, validate_csrf
 from datetime import timedelta
 import tldextract
 from flask_limiter import Limiter
@@ -663,31 +663,55 @@ def memo(filename):
     return content
 
 @app.route('/delete', methods=['POST'])
+@login_required
+@csrf.exempt  # CSRFトークンの検証を免除
 def delete_file():
-    filename = request.form['filename']
+    try:
+        filename = request.form['filename']
+        csrf_token = request.form['csrf_token']
 
-    # 削除するファイルのパスを構築
-    paths = {
-        'PDF File': os.path.join('./pdfs', secure_filename(filename)),
-        'Clean Text File': os.path.join('./clean_text', secure_filename(filename.replace('.pdf', '.txt'))),
-        'Memo File': os.path.join('./memo', secure_filename(filename.replace('.pdf', '.txt'))),
-        'Summary File': os.path.join('./summary', secure_filename(filename.replace('.pdf', '.txt'))),
-        'Secondary Summary File': os.path.join('./summary2', secure_filename(filename.replace('.pdf', '.txt'))),
-        'Twitter Card Image': os.path.join('./tw', secure_filename(filename.replace('.pdf', '.png')))
-    }
-
-    # 各ファイルの存在を確認し、存在する場合は削除
-    for file_type, path in paths.items():
         try:
-            if os.path.exists(path):
+            validate_csrf(csrf_token)
+        except ValidationError:
+            return jsonify({'error': 'Invalid CSRF token'}), 400
+
+        # 削除するファイルのパスを構築
+        paths = {
+            'PDF File': os.path.join('./pdfs', secure_filename(filename)),
+            'Attached Files': [os.path.join('./pdfs-attach', f) for f in os.listdir('./pdfs-attach') if f.startswith(secure_filename(filename.replace('.pdf', '')))],
+            'Clean Text File': os.path.join('./clean_text', secure_filename(filename.replace('.pdf', '.txt'))),
+            'Memo File': os.path.join('./memo', secure_filename(filename.replace('.pdf', '.txt'))),
+            'Summary File': os.path.join('./summary', secure_filename(filename.replace('.pdf', '.txt'))),
+            'Secondary Summary File': os.path.join('./summary2', secure_filename(filename.replace('.pdf', '.txt'))),
+            'Twitter Card Image': os.path.join('./static/tw', secure_filename(filename.replace('.pdf', '.png')))
+        }
+
+        # 各ファイルの存在を確認し、存在する場合は削除
+        deleted_files = []
+        for file_type, path in paths.items():
+            if isinstance(path, list):  # 添付ファイルの場合
+                for file_path in path:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        deleted_files.append(f"{file_type}: {os.path.basename(file_path)}")
+                        print(f"{file_type} at {file_path} was successfully deleted.")
+                    else:
+                        print(f"{file_type} at {file_path} does not exist.")
+            elif os.path.exists(path):
                 os.remove(path)
+                deleted_files.append(file_type)
                 print(f"{file_type} at {path} was successfully deleted.")
             else:
                 print(f"{file_type} at {path} does not exist.")
-        except Exception as e:
-            print(f"Failed to delete {file_type} at {path}: {e}")
 
-    return jsonify({'message': f'{filename} が削除されました。'})
+        if deleted_files:
+            return jsonify({'message': f'{filename} の以下のファイルが削除されました: {", ".join(deleted_files)}'}), 200
+        else:
+            return jsonify({'message': f'{filename} に関連するファイルが見つかりませんでした。'}), 404
+
+    except Exception as e:
+        print(f"Error in delete_file: {str(e)}")
+        return jsonify({'error': f'ファイルの削除中にエラーが発生しました: {str(e)}'}), 500
 
 @app.route('/clean_text/<filename>')
 def clean_text_file(filename):
