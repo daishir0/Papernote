@@ -19,6 +19,8 @@
             display: none;
         }
     </style>
+    <!-- 他のメタタグ -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body>
     <div class="container mt-5">
@@ -115,23 +117,35 @@
             let formData = new FormData();
 
             formData.append('file', file);
+            
+            // CSRFトークンを追加（存在する場合のみ）
+            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
+            
+            if (csrfToken) {
+                formData.append('csrf_token', csrfToken);
+            }
 
             loading.style.display = 'block';
             fetch(url, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
             })
             .then(response => {
                 loading.style.display = 'none';
                 if (response.ok) {
-                    message.textContent = 'ファイルがアップロードされました。';
+                    return response.json();
                 } else {
-                    message.textContent = 'アップロードに失敗しました。';
+                    throw new Error('アップロードに失敗しました。');
                 }
             })
-            .catch(() => {
+            .then(data => {
+                message.textContent = data.message || 'ファイルがアップロードされました。';
+            })
+            .catch((error) => {
                 loading.style.display = 'none';
-                message.textContent = 'アップロード中にエラーが発生しました。';
+                message.textContent = error.message || 'アップロード中にエラーが発生しました。';
             });
         }
     </script>

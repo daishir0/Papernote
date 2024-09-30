@@ -434,7 +434,7 @@ def uploaded_file(filename):
 def file_upload():
     if request.method == 'POST':
         if 'file' not in request.files:
-            return redirect(request.url)
+            return jsonify({'error': 'ファイルがありません'}), 400
         
         file = request.files['file']
 
@@ -442,38 +442,43 @@ def file_upload():
         original_filename = file.filename
 
         if original_filename == '':
-            return redirect(request.url)
+            return jsonify({'error': 'ファイルが選択されていません'}), 400
         
         if file and allowed_file(original_filename):
-            file.stream.seek(0)  # ファイルストリームをリセット
-            file_hash = calculate_sha256(file.stream)
-            file.stream.seek(0)  # ハッシュ計算後、ファイルストリームを再リセット
-            filename = secure_filename(f"{file_hash}.pdf")
-            save_path = os.path.join('./pdfs', filename)
-            
-            # 既に同名のファイルが存在するかを確認
-            if os.path.exists(save_path):
-                # 存在する場合は何もしない（上書きしない＝タイムスタンプを更新しない)
-                print("already file exist.")
-            else:
-                # 存在しない場合は保存
-                file.save(save_path)
-            
-            # Twitter CardのPNGを出力するディレクトリを指定
-            output_dir = Path('./static/tw')
-            output_dir.mkdir(parents=True, exist_ok=True)
-            
-            # アップロードされたPDFファイルに対して処理を実行
-            pdf_to_twitter_card(Path(save_path), output_dir)
+            try:
+                file.stream.seek(0)  # ファイルストリームをリセット
+                file_hash = calculate_sha256(file.stream)
+                file.stream.seek(0)  # ハッシュ計算後、ファイルストリームを再リセット
+                filename = secure_filename(f"{file_hash}.pdf")
+                save_path = os.path.join('./pdfs', filename)
+                
+                # 既に同名のファイルが存在するかを確認
+                if os.path.exists(save_path):
+                    # 存在する場合は何もしない（上書きしない＝タイムスタンプを更新しない)
+                    print("already file exist.")
+                else:
+                    # 存在しない場合は保存
+                    file.save(save_path)
+                
+                # Twitter CardのPNGを出力するディレクトリを指定
+                output_dir = Path('./static/tw')
+                output_dir.mkdir(parents=True, exist_ok=True)
+                
+                # アップロードされたPDFファイルに対して処理を実行
+                pdf_to_twitter_card(Path(save_path), output_dir)
 
-            # /memoディレクトリにメモファイルを作成（ファイルがまだ存在しない場合のみ）
-            memo_path = os.path.join('./memo', f"{file_hash}.txt")
-            if not os.path.exists(memo_path):
-                with open(memo_path, 'w') as memo_file:
-                    memo_file.write(original_filename + '\n')  # 1行目に元のファイル名を記載
-            
-            return redirect(url_for('file_upload'))
-
+                # /memoディレクトリにメモファイルを作成（ファイルがまだ存在しない場合のみ）
+                memo_path = os.path.join('./memo', f"{file_hash}.txt")
+                if not os.path.exists(memo_path):
+                    with open(memo_path, 'w') as memo_file:
+                        memo_file.write(original_filename + '\n')  # 1行目に元のファイル名を記載
+                
+                return jsonify({'message': 'ファイルがアップロードされました'}), 200
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
+        else:
+            return jsonify({'error': '許可されていないファイル形式です'}), 400
+    
     elif request.method == 'GET':
         return render_template('upload.html')
 

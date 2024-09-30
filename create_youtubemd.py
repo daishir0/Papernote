@@ -289,8 +289,8 @@ def transcribe_mp3(file_path, timestamp=None, dirname=''):
                 transcribed_text = transcript.text  # Access the text attribute
                 
                 # サーバーから帰ってきたテキストの記録
-                # with open("./debug_log.txt", 'a', encoding='utf-8') as log_file:
-                    # log_file.write(f"{datetime.now().strftime('%d/%b/%Y:%H:%M:%S %z')} - 結果: {transcribed_text}\n")
+                with open("./debug_log.txt", 'a', encoding='utf-8') as log_file:
+                    log_file.write(f"{datetime.now().strftime('%d/%b/%Y:%H:%M:%S %z')} - 結果: {transcribed_text}\n")
                 
                 return transcribed_text
         except Exception as e:
