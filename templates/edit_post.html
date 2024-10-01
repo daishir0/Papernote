@@ -59,6 +59,12 @@
             gap: 10px;
             width: 100%; /* 画面の幅いっぱいに広げる */
         }
+        .view-link {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
     </style>
     <script>
         const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
@@ -312,7 +318,8 @@
     </script>
 </head>
 <body>
-<a href="/post" class="mb-2"><< post一覧へ</a>
+
+    <a href="/post" class="mb-2"><< post一覧へ</a>
 
     <form method="post" class="container" style="margin-left: 0px; margin-right: 0px; max-width: 100%">
         {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
@@ -335,6 +342,9 @@
             <button id="insertSpaceButton" type="button" class="btn btn-primary" title="行の先頭にスペースを挿入">Sp</button>
             <button id="insertBoldButton" type="button" class="btn btn-primary" title="選択したテキストを太字にする">B</button>
             <button id="lineButton" type="button" class="btn btn-primary" title="チャット入力モードを開く"><i class="fas fa-comment-dots"></i></button>
+            <button type="button" class="btn btn-primary" title="ページを閲覧" onclick="window.open('{{ url_for('post', filename=request.view_args['filename']) }}', '_blank')">
+                <i class="fas fa-eye"></i>
+            </button>
         </div>
         <input type="file" id="fileInput" style="display:none;">
 
