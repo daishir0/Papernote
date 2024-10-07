@@ -84,6 +84,9 @@
                     if (submitButton) {
                         submitButton.click();
                     }
+                } else if (event.ctrlKey && event.key === 's') {
+                    event.preventDefault();
+                    saveWithoutRedirect();
                 }
             });
 
@@ -312,6 +315,31 @@
                     }
                     event.preventDefault();
                 }
+            }
+        }
+
+        async function saveWithoutRedirect() {
+            const content = document.getElementById('content').value;
+            const formData = new FormData();
+            formData.append('content', content);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+
+                if (response.ok) {
+                    showTemporaryMessage('保存しました');
+                } else {
+                    showTemporaryMessage('保存に失敗しました');
+                }
+            } catch (error) {
+                console.error('保存中にエラーが発生しました:', error);
+                showTemporaryMessage('保存に失敗しました');
             }
         }
 
