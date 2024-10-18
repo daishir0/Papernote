@@ -132,7 +132,7 @@
         const renderer = new marked.Renderer();
 
         renderer.code = function(code, language) {
-            const codeText = (typeof code === 'string' ? code : code.text).trim();
+            const codeText = (typeof code === 'string' ? code : code.text).trim().replace(/</g, '&lt;').replace(/>/g, '&gt;');
             // スマホはcode.langがundefinedでPCはcode.langがstringであるため対処
             const lang = (language === undefined) ? code.lang : language;
 
