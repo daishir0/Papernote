@@ -853,6 +853,35 @@ def post(filename):
 
     return render_template('post.html', content=content, authenticated=authenticated)
 
+@app.route('/postmd/<filename>')
+def markdown_file(filename):
+    authenticated = current_user.is_authenticated
+    
+    # ファイル名の安全性を手動で確認
+    if not is_valid_filename(filename):
+        abort(400)  # 無効なファイル名の場合は400エラーを返す
+
+    path = os.path.join('./post', filename)
+    if not os.path.exists(path):
+        auth = current_user.is_authenticated
+        if auth:
+            # 認証されている場合、編集画面へリダイレクト
+            return redirect(url_for('edit_post', filename=filename))
+        else:
+            # 認証されていない場合、404エラーを返す
+            abort(404)
+
+    with open(path, 'r', encoding='utf-8', errors='ignore') as memo_file:
+        lines = memo_file.readlines()
+        markdown = ''.join(lines)  # 全ての行を結合して返す
+
+    # 1行目が##で始まる場合は認証されていない場合に返答しない
+    title = lines[0].strip() if lines else ""
+    if not authenticated and title.startswith('##'):
+        abort(404)
+
+    return markdown, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
 class EditPostForm(FlaskForm):
     content = TextAreaField('Content', validators=[DataRequired()])
     csrf_token = HiddenField()  # CSRFトークン用のフィールド
