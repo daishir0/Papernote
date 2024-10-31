@@ -68,7 +68,7 @@
 
 {% if authenticated %}
     <div class="buttons-container">
-    <a href="/move_to_top/{{ pdf['pdf_id'] }}" class="button-link delete-link move-to-top-link"><i class="fa fa-arrow-up"></i> 論文をトップへ移動する</a>
+    <a href="/move_to_top/{{ pdf['pdf_id'] }}" class="button-link move-to-top-link"><i class="fa fa-arrow-up"></i> 論文をトップへ移動する</a>
     <a href="javascript:void(0);" class="button-link delete-link" data-filename="{{ pdf['pdf_id'] }}.pdf">ページを削除する</a>
     </div>
 {% endif %}
