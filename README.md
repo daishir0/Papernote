@@ -68,9 +68,6 @@ Papernote is a web application that manages PDF files and their associated notes
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Deployment
-This application is deployed by the author on the following website:
-[https://paper.path-finder.jp](https://paper.path-finder.jp)
 
 ---
 
@@ -139,6 +136,3 @@ PapernoteはPDFファイルとそれに関連するメモや要約を管理す�
 ## ライセンス
 このプロジェクトはMITライセンスの下でライセンスされています。詳細はLICENSEファイルを参照してください。
 
-## 運用
-このアプリケーションは以下のWebサイトで著者によって運用されています：
-[https://paper.path-finder.jp](https://paper.path-finder.jp)
