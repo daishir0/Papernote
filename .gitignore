@@ -25,6 +25,9 @@ summary/*
 !summary2/.gitkeep
 summary2/*
 
+!claude_output/.gitkeep
+claude_output/*
+
 !static/tw/.gitkeep
 static/tw/*
 
@@ -44,6 +47,8 @@ text-file-search-php/*
 __pycache__/*
 
 search/*
+
+scripts/*
 
 debug.sh
 log.sh
