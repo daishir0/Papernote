@@ -599,11 +599,12 @@ def cleantextize_pdfs_async(pdf_files):
 # 静的ファイルへのルートを定義
 @app.route('/pdfs/<filename>')
 def pdf_file(filename):
-    if current_user.is_authenticated:
-        return send_from_directory('./pdfs', secure_filename(filename))
-    else:
-        abort(403)  # Forbiddenアクセス拒否
+    # if current_user.is_authenticated:
+    #     return send_from_directory('./pdfs', secure_filename(filename))
+    # else:
+    #     abort(403)  # Forbiddenアクセス拒否
 
+    return send_from_directory('./pdfs', secure_filename(filename))
 
 @app.route('/tw/<path:filename>')
 def tw(filename):
