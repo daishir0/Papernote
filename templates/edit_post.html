@@ -207,21 +207,21 @@
             // 選択部分の前後にテキストを挿入
             if (text === '**') {
                 textArea.value = value.slice(0, start) + ' ' + text + value.slice(start, end) + text + ' ' + value.slice(end);
-                textArea.selectionStart = start + text.length + 1; // 前後のスペースを考慮
-                textArea.selectionEnd = end + text.length + 1;
+                // textArea.selectionStart = start + text.length + 1; // 前後のスペースを考慮
+                // textArea.selectionEnd = end + text.length + 1;
             } else {
                 textArea.value = value.slice(0, start) + text + value.slice(start, end) + text + value.slice(end);
-                textArea.selectionStart = start + text.length;
-                textArea.selectionEnd = end + text.length;
+                // textArea.selectionStart = start + text.length;
+                // textArea.selectionEnd = end + text.length;
             }
-            textArea.focus();
+            // textArea.focus();
 
             // カーソル位置までスクロール
-            const cursorPosition = textArea.selectionStart;
-            const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
-            const scrollTop = textArea.scrollTop;
-            const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
-            textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
+            // const cursorPosition = textArea.selectionStart;
+            // const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
+            // const scrollTop = textArea.scrollTop;
+            // const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
+            // textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
         }
 
         function insertTextAtLineStart(textArea, text) {
@@ -239,11 +239,11 @@
             const newText = selectedLines.split('\n').map(line => text + line).join('\n');
 
             textArea.value = before + newText + after;
-            textArea.selectionStart = lineStart;
-            textArea.selectionEnd = lineStart + newText.length;
+            // textArea.selectionStart = lineStart;
+            // textArea.selectionEnd = lineStart + newText.length;
 
-            textArea.focus();
-            console.log('Inserted Text at Line Start:', text); // ここで確認
+            // textArea.focus();
+            console.log('Inserted Text at Line Start:', text);
         }
 
         function insertTextAtCursor(textArea, text) {
@@ -252,8 +252,8 @@
             const end = textArea.selectionEnd;
             const value = textArea.value;
             textArea.value = value.slice(0, start) + text + value.slice(start);
-            textArea.selectionStart = textArea.selectionEnd = start + text.length;
-            textArea.focus();
+            // textArea.selectionStart = textArea.selectionEnd = start + text.length;
+            // textArea.focus();
 
             // カーソル位置までスクロール
             // const cursorPosition = textArea.selectionStart;
