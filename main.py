@@ -1041,6 +1041,27 @@ def delete_post():
     else:
         return jsonify({'error': f'ファイルが存在しません。{filename}'}), 404
 
+@app.route('/archive_post', methods=['POST'])
+@login_required
+def archive_post():
+    filename = request.form['filename']
+    if not is_valid_filename(filename):
+        return jsonify({'error': '無効なファイル名です。'}), 400
+
+    file_path = os.path.join('./post', filename)
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'ファイルが存在しません。'}), 404
+
+    try:
+        # [__]を[_archived]に置換
+        new_filename = re.sub(r'\[__\]', '[_archived]', filename)
+        new_path = os.path.join('./post', new_filename)
+        
+        os.rename(file_path, new_path)
+        return jsonify({'success': 'ファイルがアーカイブされました。'}), 200
+    except Exception as e:
+        return jsonify({'error': f'アーカイブに失敗しました: {str(e)}'}), 500
+
 @app.route('/duplicate_post', methods=['POST'])
 @login_required
 def duplicate_post():

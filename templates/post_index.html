@@ -124,6 +124,9 @@
                                     <button class="btn btn-sm" style="background-color: #d4edda; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#66cc66'; this.title='edit';" onmouseout="this.style.backgroundColor='#d4edda';" onclick="editPost('{{ file.filename }}')">
                                         <i class="fas fa-edit"></i>
                                     </button>
+                                    <button class="btn btn-sm" style="background-color: #fff3cd; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ffd700'; this.title='archive';" onmouseout="this.style.backgroundColor='#fff3cd';" onclick="archiveFile('{{ file.filename }}')">
+                                        <i class="fas fa-box-archive"></i>
+                                    </button>
                                     <button class="btn btn-sm" style="background-color: #f8d7da; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ff6666'; this.title='delete';" onmouseout="this.style.backgroundColor='#f8d7da';" onclick="deleteFile('{{ file.filename }}')">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
@@ -378,6 +381,22 @@
 
             // 編集ページに遷移
             location.href = '/edit_post/' + filename;
+        }
+
+        function archiveFile(filename) {
+            if (confirm('このファイルをアーカイブしますか？')) {
+                $.ajax({
+                    type: 'POST',
+                    url: '/archive_post',
+                    data: { filename: filename, csrf_token: csrf_token },
+                    success: function(response) {
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('アーカイブに失敗しました。');
+                    }
+                });
+            }
         }
 
         function duplicateFile(filename) {
