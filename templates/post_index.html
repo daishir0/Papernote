@@ -118,6 +118,9 @@
                                     <button class="btn btn-sm" style="background-color: #cce5ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#6699ff'; this.title='copy to clipboard';" onmouseout="this.style.backgroundColor='#cce5ff';" onclick="copyToClipboard('{{ file.filename }}')">
                                         <i class="fas fa-copy"></i>
                                     </button>
+                                    <button class="btn btn-sm" style="background-color: #e6e6ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#9999ff'; this.title='duplicate';" onmouseout="this.style.backgroundColor='#e6e6ff';" onclick="duplicateFile('{{ file.filename }}')">
+                                        <i class="fas fa-file-circle-plus"></i>
+                                    </button>
                                     <button class="btn btn-sm" style="background-color: #d4edda; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#66cc66'; this.title='edit';" onmouseout="this.style.backgroundColor='#d4edda';" onclick="editPost('{{ file.filename }}')">
                                         <i class="fas fa-edit"></i>
                                     </button>
@@ -375,6 +378,22 @@
 
             // 編集ページに遷移
             location.href = '/edit_post/' + filename;
+        }
+
+        function duplicateFile(filename) {
+            if (confirm('このファイルを複製しますか？')) {
+                $.ajax({
+                    type: 'POST',
+                    url: '/duplicate_post',
+                    data: { filename: filename, csrf_token: csrf_token },
+                    success: function(response) {
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('複製に失敗しました。');
+                    }
+                });
+            }
         }
 
         // ページ読み込み時にスクロール位置を復元

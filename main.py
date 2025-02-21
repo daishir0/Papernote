@@ -1040,6 +1040,29 @@ def delete_post():
             return jsonify({'error': f'ファイルの削除に失敗しました: {str(e)}'}), 500
     else:
         return jsonify({'error': f'ファイルが存在しません。{filename}'}), 404
+
+@app.route('/duplicate_post', methods=['POST'])
+@login_required
+def duplicate_post():
+    filename = request.form['filename']
+    if not is_valid_filename(filename):
+        return jsonify({'error': '無効なファイル名です。'}), 400
+
+    original_path = os.path.join('./post', filename)
+    new_filename = filename.replace('.txt', '(copy).txt')
+    new_path = os.path.join('./post', new_filename)
+    
+    if os.path.exists(original_path):
+        try:
+            with open(original_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            with open(new_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            return jsonify({'success': 'ファイルが複製されました。'}), 200
+        except Exception as e:
+            return jsonify({'error': f'ファイルの複製に失敗しました: {str(e)}'}), 500
+    else:
+        return jsonify({'error': 'ファイルが存在しません。'}), 404
     
 
 @app.route('/summary/<filename>')
