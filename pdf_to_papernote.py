@@ -205,7 +205,7 @@ def extract_paper_title_openai(text, api_key):
         
         # OpenAIに問い合わせ
         response = client.chat.completions.create(
-            model="o1",
+            model="o3-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -300,7 +300,7 @@ def generate_paper_summary_openai(text, api_key):
         
         # OpenAIに問い合わせ
         response = client.chat.completions.create(
-            model="o1",
+            model="o3-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -402,7 +402,7 @@ def generate_paper_review_openai(text, api_key):
         
         # OpenAIに問い合わせ
         response = client.chat.completions.create(
-            model="o1",
+            model="o3-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -610,11 +610,24 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
                 al_pdf_path = candidate_path
                 print(f"添付ファイルを見つけました (パターン2): {al_pdf_path}")
         
-        # パターン3: ディレクトリ内のすべての al- ファイルから部分一致で検索
+        # パターン3: スペース、ハイフン、ドットを削除したバージョン
+        if al_pdf_path is None:
+            # 拡張子を除いたファイル名を取得
+            pdf_name_without_ext = os.path.splitext(pdf_basename)[0]
+            # スペース、ハイフン、ドットを削除したバージョンを作成
+            no_space_hyphen_dot_name = re.sub(r'[\s\-\.]+', '', pdf_name_without_ext)
+            candidate_path = os.path.join(pdf_dir, f"al-{no_space_hyphen_dot_name}.pdf")
+            if os.path.exists(candidate_path):
+                al_pdf_path = candidate_path
+                print(f"添付ファイルを見つけました (パターン3): {al_pdf_path}")
+        
+        # パターン4: ディレクトリ内のすべての al- ファイルから部分一致で検索
         if al_pdf_path is None:
             pdf_name_without_ext = os.path.splitext(pdf_basename)[0]  # 拡張子を除いたファイル名
             # ドットを削除したバージョンも用意
             no_dot_name = pdf_name_without_ext.replace('.', '')
+            # スペース、ハイフン、ドットを削除したバージョンも用意
+            no_space_hyphen_dot_name = re.sub(r'[\s\-\.]+', '', pdf_name_without_ext)
             
             # ディレクトリ内のファイルを検索
             for filename in os.listdir(pdf_dir):
@@ -622,10 +635,10 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
                     # 拡張子とプレフィックスを除いたファイル名
                     al_name = os.path.splitext(filename[3:])[0]
                     
-                    # 元のファイル名またはドットなしバージョンとの部分一致を確認
-                    if (pdf_name_without_ext in al_name) or (no_dot_name in al_name):
+                    # 元のファイル名またはドットなしバージョンまたはスペース/ハイフン/ドットなしバージョンとの部分一致を確認
+                    if (pdf_name_without_ext in al_name) or (no_dot_name in al_name) or (no_space_hyphen_dot_name in al_name):
                         al_pdf_path = os.path.join(pdf_dir, filename)
-                        print(f"添付ファイルを見つけました (パターン3): {al_pdf_path}")
+                        print(f"添付ファイルを見つけました (パターン4): {al_pdf_path}")
                         break
         
         # 添付ファイルが見つかった場合は処理
@@ -878,7 +891,7 @@ def show_program_info():
              ・tmp/{論文タイトル}/summary.txt      - 論文の要約
              ・tmp/{論文タイトル}/summary2.txt     - 論文の評価（査読）
              
-  -openai    要約や評価の生成にClaudeの代わりにOpenAIのo1モデルを使用します。
+  -openai    要約や評価の生成にClaudeの代わりにOpenAIのo3-miniモデルを使用します。
              このオプションが指定されない場合は、従来通りClaudeを使用します。
 
 使用例：
@@ -921,7 +934,7 @@ def main():
         
     # -openaiオプションが指定されている場合のメッセージ
     if args.openai:
-        print("\n-openaiオプションが有効です。要約や評価の生成にOpenAIのo1モデルを使用します。\n")
+        print("\n-openaiオプションが有効です。要約や評価の生成にOpenAIのo3-miniモデルを使用します。\n")
 
     # 処理したファイル数をカウント
     success_count = 0
