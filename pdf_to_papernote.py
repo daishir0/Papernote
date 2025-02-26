@@ -10,6 +10,7 @@ from pdfminer.high_level import extract_text
 import re
 import sys
 import anthropic  # Anthropic APIを使用するためのライブラリ
+import openai     # OpenAI APIを使用するためのライブラリ
 import yaml       # YAML設定ファイルを読み込むためのライブラリ
 
 def calculate_sha256(file_path):
@@ -107,7 +108,29 @@ def load_anthropic_api_key():
         
         api_key = config.get('anthropic_api_key')
         if not api_key:
-            print("APIキーが設定ファイルに見つかりません")
+            print("Anthropic APIキーが設定ファイルに見つかりません")
+            return None
+            
+        return api_key
+    except Exception as e:
+        print(f"設定ファイルの読み込みエラー: {e}")
+        return None
+
+def load_openai_api_key():
+    """
+    OpenAI APIキーを設定ファイルから読み込む
+    
+    Returns:
+        str: APIキー、読み込みに失敗した場合はNone
+    """
+    config_path = '/home/ec2-user/paper/config.yaml'
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        api_key = config.get('openai_api_key')
+        if not api_key:
+            print("OpenAI APIキーが設定ファイルに見つかりません")
             return None
             
         return api_key
@@ -157,6 +180,45 @@ def extract_paper_title(text, api_key):
     except Exception as e:
         print(f"Claude APIの呼び出しエラー: {e}")
         return None
+
+def extract_paper_title_openai(text, api_key):
+    """
+    テキストの冒頭部分からOpenAIのモデルを使って論文タイトルを抽出
+    
+    Args:
+        text (str): 論文のテキスト
+        api_key (str): OpenAIのAPIキー
+    
+    Returns:
+        str: 抽出された論文タイトル、エラー時はNone
+    """
+    # テキストの冒頭部分（最初の500文字）を抽出
+    text_start = text[:500]
+    
+    # OpenAIへのプロンプト
+    system_prompt = "あなたは論文タイトルを抽出する専門家です。与えられた論文の冒頭からタイトルのみを抽出してください。余計な説明や引用符は不要です。単語間の半角スペースがなければ修正して。"
+    user_prompt = f"以下の論文の冒頭からタイトルを抽出してください:\n\n{text_start}"
+    
+    try:
+        # OpenAI APIクライアントを初期化
+        client = openai.OpenAI(api_key=api_key)
+        
+        # OpenAIに問い合わせ
+        response = client.chat.completions.create(
+            model="o1",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+        
+        # レスポンスからタイトルを抽出
+        title = response.choices[0].message.content.strip()
+        return title
+    
+    except Exception as e:
+        print(f"OpenAI APIの呼び出しエラー: {e}")
+        return None
 def generate_paper_summary(text, api_key):
     """
     論文テキストをClaudeに送信して章ごとの要約を生成
@@ -202,6 +264,55 @@ def generate_paper_summary(text, api_key):
     
     except Exception as e:
         print(f"Claude APIの呼び出しエラー: {e}")
+        return None
+
+def generate_paper_summary_openai(text, api_key):
+    """
+    論文テキストをOpenAIのモデルに送信して章ごとの要約を生成
+    
+    Args:
+        text (str): 論文の全テキスト
+        api_key (str): OpenAIのAPIキー
+    
+    Returns:
+        str: Markdown形式の要約、エラー時はNone
+    """
+    # システムプロンプトとユーザープロンプトを定義
+    system_prompt = """あなたは学術論文の要約を作成する専門家です。
+論文の内容を章ごとに要約し、各章の重要なポイントを箇条書きで示してください。
+日本語で出力し、Markdown形式で整形してください。"""
+    
+    user_prompt = f"""以下の論文を章ごとに要約してください。
+以下のテンプレートに従ってMarkdown形式で出力してください：
+
+# 章1
+- 要約項目1
+- 要約項目2
+# 章2
+- 要約項目1
+
+論文テキスト:
+{text}"""
+    
+    try:
+        # OpenAI APIクライアントを初期化
+        client = openai.OpenAI(api_key=api_key)
+        
+        # OpenAIに問い合わせ
+        response = client.chat.completions.create(
+            model="o1",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+        
+        # レスポンスから要約を抽出
+        summary = response.choices[0].message.content.strip()
+        return summary
+    
+    except Exception as e:
+        print(f"OpenAI APIの呼び出しエラー: {e}")
         return None
 
 def generate_paper_review(text, api_key):
@@ -252,6 +363,58 @@ def generate_paper_review(text, api_key):
     
     except Exception as e:
         print(f"Claude APIの呼び出しエラー: {e}")
+        return None
+
+def generate_paper_review_openai(text, api_key):
+    """
+    論文テキストをOpenAIのモデルに送信して論文の評価を生成
+    
+    Args:
+        text (str): 論文の全テキスト
+        api_key (str): OpenAIのAPIキー
+    
+    Returns:
+        str: Markdown形式の論文評価、エラー時はNone
+    """
+    # システムプロンプトとユーザープロンプトを定義
+    system_prompt = """あなたはトップジャーナルの論文査読者です。
+学術論文を評価して、新規性、関連研究との相違点、有効性、信頼性について詳細な査読レポートを作成してください。
+日本語で出力し、Markdown形式で整形してください。"""
+    
+    user_prompt = f"""以下の論文を査読し、評価してください。
+以下のテンプレートに従ってMarkdown形式で出力してください：
+
+# 新規性
+- 内容
+# 言及されている全ての関連研究との相違点
+- 内容
+# 有効性
+- 内容
+# 信頼性
+- 内容
+
+論文テキスト:
+{text}"""
+    
+    try:
+        # OpenAI APIクライアントを初期化
+        client = openai.OpenAI(api_key=api_key)
+        
+        # OpenAIに問い合わせ
+        response = client.chat.completions.create(
+            model="o1",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+        
+        # レスポンスから評価を抽出
+        review = response.choices[0].message.content.strip()
+        return review
+    
+    except Exception as e:
+        print(f"OpenAI APIの呼び出しエラー: {e}")
         return None
 
 def pdf_to_cleantext(pdf_path, clean_text_dir):
@@ -396,8 +559,15 @@ def copy_files_with_title_structure(pdf_path, file_hash, title, output_enabled=F
     
     return copied_files
 
-def process_pdf(pdf_path, output_enabled=False):
-    """PDFファイルの処理メイン関数"""
+def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
+    """
+    PDFファイルの処理メイン関数
+    
+    Args:
+        pdf_path (str): 処理対象のPDFファイルパス
+        output_enabled (bool): タイトルに基づいたディレクトリ構造でファイルを別途出力するかどうか
+        openai_enabled (bool): OpenAIのモデルを使用するかどうか（Falseの場合はClaudeを使用）
+    """
     try:
         # ディレクトリの準備
         ensure_directories()
@@ -514,31 +684,44 @@ def process_pdf(pdf_path, output_enabled=False):
                 with open(clean_text_path, 'r', encoding='utf-8') as f:
                     text = f.read()
                 
-                # APIキーを読み込む
-                api_key = load_anthropic_api_key()
-                if api_key:
-                    # タイトルを抽出
-                    print("論文タイトルを抽出中...")
-                    title = extract_paper_title(text, api_key)
-                    
-                    if title:
-                        # タイトルを1行目に書き込む（元のファイル名は書き込まない）
-                        with open(memo_path, 'w', encoding='utf-8') as memo_file:
-                            memo_file.write(f"{title}\n")
-                        print(f"論文タイトルを抽出しました: {title}")
-                        generated_files.append(memo_path)
-                        extracted_title = title  # タイトルを保存
+                # OpenAI/Anthropic APIキーを読み込む
+                if openai_enabled:
+                    api_key = load_openai_api_key()
+                    if api_key:
+                        # タイトルを抽出（OpenAI）
+                        print("論文タイトルをOpenAIで抽出中...")
+                        title = extract_paper_title_openai(text, api_key)
                     else:
-                        # タイトル抽出に失敗した場合
-                        with open(memo_path, 'w', encoding='utf-8') as memo_file:
-                            memo_file.write(os.path.basename(pdf_path) + '\n')
-                        print("タイトル抽出に失敗しました。元のファイル名をメモに保存しました。")
-                        generated_files.append(memo_path)
+                        # OpenAI APIキーが取得できない場合はAnthropicにフォールバック
+                        print("OpenAI APIキーが取得できなかったため、Claudeを使用します。")
+                        api_key = load_anthropic_api_key()
+                        if api_key:
+                            print("論文タイトルをClaudeで抽出中...")
+                            title = extract_paper_title(text, api_key)
+                        else:
+                            title = None
                 else:
-                    # APIキーが取得できない場合
+                    # 従来通りAnthropicを使用
+                    api_key = load_anthropic_api_key()
+                    if api_key:
+                        # タイトルを抽出（Claude）
+                        print("論文タイトルをClaudeで抽出中...")
+                        title = extract_paper_title(text, api_key)
+                    else:
+                        title = None
+                
+                if title:
+                    # タイトルを1行目に書き込む（元のファイル名は書き込まない）
+                    with open(memo_path, 'w', encoding='utf-8') as memo_file:
+                        memo_file.write(f"{title}\n")
+                    print(f"論文タイトルを抽出しました: {title}")
+                    generated_files.append(memo_path)
+                    extracted_title = title  # タイトルを保存
+                else:
+                    # タイトル抽出に失敗した場合
                     with open(memo_path, 'w', encoding='utf-8') as memo_file:
                         memo_file.write(os.path.basename(pdf_path) + '\n')
-                    print("APIキーが取得できなかったため、元のファイル名をメモに保存しました。")
+                    print("タイトル抽出に失敗しました。元のファイル名をメモに保存しました。")
                     generated_files.append(memo_path)
             except Exception as e:
                 # エラーが発生した場合
@@ -563,23 +746,40 @@ def process_pdf(pdf_path, output_enabled=False):
                 with open(clean_text_path, 'r', encoding='utf-8') as f:
                     text = f.read()
                 
-                # APIキーを読み込む
-                api_key = load_anthropic_api_key()
-                if api_key:
-                    # 要約を生成
-                    print("論文の要約を生成中...")
-                    summary = generate_paper_summary(text, api_key)
-                    
-                    if summary:
-                        # 要約をファイルに保存
-                        with open(summary_path, 'w', encoding='utf-8') as summary_file:
-                            summary_file.write(summary)
-                        print(f"論文の要約を保存しました: {summary_path}")
-                        generated_files.append(summary_path)
+                # OpenAI/Anthropic APIキーを読み込む
+                if openai_enabled:
+                    api_key = load_openai_api_key()
+                    if api_key:
+                        # 要約を生成（OpenAI）
+                        print("論文の要約をOpenAIで生成中...")
+                        summary = generate_paper_summary_openai(text, api_key)
                     else:
-                        print("要約の生成に失敗しました。")
+                        # OpenAI APIキーが取得できない場合はAnthropicにフォールバック
+                        print("OpenAI APIキーが取得できなかったため、Claudeを使用します。")
+                        api_key = load_anthropic_api_key()
+                        if api_key:
+                            print("論文の要約をClaudeで生成中...")
+                            summary = generate_paper_summary(text, api_key)
+                        else:
+                            summary = None
                 else:
-                    print("APIキーが取得できなかったため、要約生成をスキップします。")
+                    # 従来通りAnthropicを使用
+                    api_key = load_anthropic_api_key()
+                    if api_key:
+                        # 要約を生成（Claude）
+                        print("論文の要約をClaudeで生成中...")
+                        summary = generate_paper_summary(text, api_key)
+                    else:
+                        summary = None
+                
+                if summary:
+                    # 要約をファイルに保存
+                    with open(summary_path, 'w', encoding='utf-8') as summary_file:
+                        summary_file.write(summary)
+                    print(f"論文の要約を保存しました: {summary_path}")
+                    generated_files.append(summary_path)
+                else:
+                    print("要約の生成に失敗しました。")
             except Exception as e:
                 print(f"要約生成中にエラーが発生しました: {e}")
         else:
@@ -595,23 +795,40 @@ def process_pdf(pdf_path, output_enabled=False):
                 with open(clean_text_path, 'r', encoding='utf-8') as f:
                     text = f.read()
                 
-                # APIキーを読み込む
-                api_key = load_anthropic_api_key()
-                if api_key:
-                    # 論文評価を生成
-                    print("論文評価（査読）を生成中...")
-                    review = generate_paper_review(text, api_key)
-                    
-                    if review:
-                        # 評価をファイルに保存
-                        with open(summary2_path, 'w', encoding='utf-8') as summary2_file:
-                            summary2_file.write(review)
-                        print(f"論文評価を保存しました: {summary2_path}")
-                        generated_files.append(summary2_path)
+                # OpenAI/Anthropic APIキーを読み込む
+                if openai_enabled:
+                    api_key = load_openai_api_key()
+                    if api_key:
+                        # 論文評価を生成（OpenAI）
+                        print("論文評価（査読）をOpenAIで生成中...")
+                        review = generate_paper_review_openai(text, api_key)
                     else:
-                        print("論文評価の生成に失敗しました。")
+                        # OpenAI APIキーが取得できない場合はAnthropicにフォールバック
+                        print("OpenAI APIキーが取得できなかったため、Claudeを使用します。")
+                        api_key = load_anthropic_api_key()
+                        if api_key:
+                            print("論文評価（査読）をClaudeで生成中...")
+                            review = generate_paper_review(text, api_key)
+                        else:
+                            review = None
                 else:
-                    print("APIキーが取得できなかったため、論文評価生成をスキップします。")
+                    # 従来通りAnthropicを使用
+                    api_key = load_anthropic_api_key()
+                    if api_key:
+                        # 論文評価を生成（Claude）
+                        print("論文評価（査読）をClaudeで生成中...")
+                        review = generate_paper_review(text, api_key)
+                    else:
+                        review = None
+                
+                if review:
+                    # 評価をファイルに保存
+                    with open(summary2_path, 'w', encoding='utf-8') as summary2_file:
+                        summary2_file.write(review)
+                    print(f"論文評価を保存しました: {summary2_path}")
+                    generated_files.append(summary2_path)
+                else:
+                    print("論文評価の生成に失敗しました。")
             except Exception as e:
                 print(f"論文評価生成中にエラーが発生しました: {e}")
         else:
@@ -660,6 +877,9 @@ def show_program_info():
              ・tmp/{論文タイトル}/al-paper.pdf     - 添付PDFファイル（存在する場合）
              ・tmp/{論文タイトル}/summary.txt      - 論文の要約
              ・tmp/{論文タイトル}/summary2.txt     - 論文の評価（査読）
+             
+  -openai    要約や評価の生成にClaudeの代わりにOpenAIのo1モデルを使用します。
+             このオプションが指定されない場合は、従来通りClaudeを使用します。
 
 使用例：
   1. 単一のPDFファイルを処理する:
@@ -674,12 +894,19 @@ def show_program_info():
   4. タイトルベースのディレクトリ出力を有効にして処理する:
      python pdf_to_papernote.py -output example.pdf
      python pdf_to_papernote.py -output *.pdf
+     
+  5. OpenAIのモデルを使用して処理する:
+     python pdf_to_papernote.py -openai example.pdf
+     
+  6. 複数のオプションを組み合わせる:
+     python pdf_to_papernote.py -output -openai example.pdf
 """)
 
 def main():
     parser = argparse.ArgumentParser(description='PDFファイルを処理してPaperNoteシステム用のファイルを生成')
     parser.add_argument('pdf_files', nargs='*', help='処理対象のPDFファイル（複数指定可能）')
     parser.add_argument('-output', action='store_true', help='論文タイトルに基づいたディレクトリ構造でファイルを別途出力する')
+    parser.add_argument('-openai', action='store_true', help='要約や評価の生成にClaudeの代わりにOpenAIのモデルを使用する')
     args = parser.parse_args()
 
     # 引数がない場合、プログラムの概要とコマンド例を表示して終了
@@ -691,6 +918,10 @@ def main():
     if args.output:
         print("\n-outputオプションが有効です。論文タイトルに基づいたディレクトリにファイルをコピーします。")
         print("出力ディレクトリ: ./tmp/{論文タイトル}/\n")
+        
+    # -openaiオプションが指定されている場合のメッセージ
+    if args.openai:
+        print("\n-openaiオプションが有効です。要約や評価の生成にOpenAIのo1モデルを使用します。\n")
 
     # 処理したファイル数をカウント
     success_count = 0
@@ -701,7 +932,7 @@ def main():
         print(f"\n==== ファイル処理開始: {pdf_path} ====")
         
         # メインのPDFファイルを処理（al-プレフィックスファイルの処理も含む）
-        if process_pdf(pdf_path, args.output):
+        if process_pdf(pdf_path, args.output, args.openai):
             success_count += 1
             print(f"ファイル {pdf_path} の処理が成功しました。")
         else:
