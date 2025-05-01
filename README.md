@@ -61,6 +61,47 @@ Papernote is a web application that manages PDF files and their associated notes
 - **YouTube Integration**: Generate markdown from YouTube videos.
 - **Movie Upload**: Upload and process movie files.
 
+## Tools
+### PDF to PaperNote Processor
+A command-line tool that processes academic paper PDFs and generates files for the PaperNote system:
+- Copies and renames PDF files using hash values
+- Detects and copies attachment files (al-prefix files)
+- Generates Twitter Card images (from the first page of PDFs)
+- Extracts and formats clean text from PDFs
+- Creates memo files containing paper titles (AI-extracted)
+- Generates chapter-by-chapter summaries (AI-generated)
+- Creates paper evaluations (peer review reports, AI-generated)
+
+Usage:
+```bash
+python pdf_to_papernote.py [options] <PDF_file> [<PDF_file> ...]
+```
+
+Options:
+- `-output`: Outputs files in a directory structure based on paper metadata
+- `-openai`: Uses OpenAI's o3-mini model instead of Claude for summaries and evaluations
+
+Example commands:
+```bash
+# Process a single PDF file
+python pdf_to_papernote.py example.pdf
+
+# Process multiple PDF files
+python pdf_to_papernote.py a.pdf b.pdf
+
+# Process all PDF files using wildcard
+python pdf_to_papernote.py *.pdf
+
+# Process with metadata-based directory output
+python pdf_to_papernote.py -output example.pdf
+
+# Use OpenAI model
+python pdf_to_papernote.py -openai example.pdf
+
+# Combine multiple options
+python pdf_to_papernote.py -output -openai example.pdf
+```
+
 ## Notes
 - Ensure that the `config.yaml` file is properly configured.
 - The application requires a running instance of Flask and other dependencies specified in `requirements.txt`.
@@ -128,6 +169,47 @@ PapernoteはPDFファイルとそれに関連するメモや要約を管理す�
 - **メモと要約の管理**: PDFファイルのメモと要約を作成および編集。
 - **YouTube統合**: YouTube動画からMarkdownを生成。
 - **ムービーアップロード**: ムービーファイルのアップロードと処理。
+
+## ツール
+### PDF論文処理ツール
+学術論文のPDFファイルを処理し、PaperNoteシステム用のファイルを生成するコマンドラインツールです：
+- PDFファイルのコピーとハッシュ値によるリネーム
+- 添付ファイル（al-プレフィックスファイル）の検出とコピー
+- Twitter Card用の画像生成（PDFの1ページ目から）
+- PDFからのテキスト抽出と整形
+- 論文のタイトルを含むメモファイルの作成（AI抽出）
+- 論文の章ごとの要約生成（AI生成）
+- 論文の評価レポート作成（査読レポート、AI生成）
+
+使用方法：
+```bash
+python pdf_to_papernote.py [オプション] <PDFファイル> [<PDFファイル> ...]
+```
+
+オプション：
+- `-output`: 論文メタデータに基づいたディレクトリ構造でファイルを出力
+- `-openai`: 要約や評価の生成にClaudeの代わりにOpenAIのo3-miniモデルを使用
+
+使用例：
+```bash
+# 単一のPDFファイルを処理
+python pdf_to_papernote.py example.pdf
+
+# 複数のPDFファイルを処理
+python pdf_to_papernote.py a.pdf b.pdf
+
+# ワイルドカードを使用して全てのPDFファイルを処理
+python pdf_to_papernote.py *.pdf
+
+# メタデータベースのディレクトリ出力を有効にして処理
+python pdf_to_papernote.py -output example.pdf
+
+# OpenAIのモデルを使用して処理
+python pdf_to_papernote.py -openai example.pdf
+
+# 複数のオプションを組み合わせて処理
+python pdf_to_papernote.py -output -openai example.pdf
+```
 
 ## 注意点
 - `config.yaml`ファイルが正しく設定されていることを確認してください。

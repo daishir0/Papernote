@@ -170,6 +170,13 @@
             sanitize: true
         });
 
+        // テーブルのレンダリングをカスタマイズ
+        const originalTable = renderer.table;
+        renderer.table = function(header, body) {
+            const table = originalTable.call(this, header, body);
+            return '<div class="table-responsive">' + table + '</div>';
+        };
+
         const html = marked.parse(markdownText);
 
         // 画面表示の際、以下のタグをエスケープ

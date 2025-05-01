@@ -267,26 +267,38 @@ blockquote {
 }
 
 #content table {
-  border-collapse: collapse;
-  margin: 16px 0;
-  max-width: 100%;
+    width: 100%;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
 }
 
 #content th {
-  font-weight: bold;
-  background-color: var(--color-surface);
-  border-top: 1px solid var(--color-divider);
-  border-bottom: 1px solid var(--color-divider);
-  border-right: 1px solid var(--color-divider);
-  padding: 4px 12px;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    min-width: 120px;  /* 最小幅を設定 */
 }
 
 #content td {
-  border-bottom: 1px solid var(--color-divider);
-  border-right: 1px solid var(--color-divider);
-  padding: 4px 12px;
-  max-width: 600px;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    min-width: 120px;  /* 最小幅を設定 */
 }
+
+/* モバイル対応 */
+@media screen and (max-width: 768px) {
+    table {
+        font-size: 14px;
+    }
+    
+    th, td {
+        padding: 0.5rem;
+    }
+    
+    /* 総合評価列は改行を許可 */
+    td:last-child {
+        white-space: normal;
+        min-width: 200px;
+    }
 
 #content hr {
   height: 2px;
@@ -331,4 +343,11 @@ table thead tr {
   color: black; /* タイトル行の文字色 */
   font-weight: bold; /* タイトル行のフォントを太字に */
   text-align: center; /* タイトル行のテキストを中央揃えに */
+}
+
+code {
+    font-size: .875em;
+    color: #000000;
+    word-wrap: break-word;
+}
 }

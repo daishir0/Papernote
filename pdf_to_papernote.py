@@ -1,4 +1,86 @@
 #!/usr/bin/env python3
+"""
+# PaperNote PDF処理ツール (PDF to PaperNote Processor)
+
+## プログラム概要 (Program Overview)
+このプログラムは学術論文のPDFファイルを処理し、PaperNoteシステム用の以下のファイルを生成します：
+
+- PDFファイルのコピー（ハッシュ値でリネーム）
+- 添付ファイル（al-プレフィックスファイル）の検出とコピー
+- Twitter Card用の画像（PDFの1ページ目から生成）
+- 論文のクリーンテキスト（PDFからテキストを抽出して整形）
+- 論文のタイトルを含むメモファイル（AI抽出）
+- 論文の章ごとの要約（AI生成）
+- 論文の評価（査読レポート、AI生成）
+
+このプログラムはAnthropicのClaude APIまたはOpenAIのAPIを使用して、論文のタイトル抽出、要約生成、
+および評価レポートの作成を行います。APIキーは設定ファイル（/home/ec2-user/paper/config.yaml）から読み込まれます。
+
+## 使用方法 (Usage Instructions)
+基本的な使用方法：
+```
+python pdf_to_papernote.py [オプション] <PDFファイル> [<PDFファイル> ...]
+```
+
+### オプション
+- `-output`: 論文メタデータに基づいたディレクトリ構造でファイルを別途出力します
+  ファイルは以下の形式でコピーされます：
+  - tmp/{発行年月}_{論文タイトル}/paper.pdf        - 元のPDFファイル
+  - tmp/{発行年月}_{論文タイトル}/al-paper.pdf     - 添付PDFファイル（存在する場合）
+  - tmp/{発行年月}_{論文タイトル}/summary.txt      - 論文の要約
+  - tmp/{発行年月}_{論文タイトル}/summary2.txt     - 論文の評価（査読）
+
+- `-openai`: 要約や評価の生成にClaudeの代わりにOpenAIのo3-miniモデルを使用します
+  このオプションが指定されない場合は、従来通りClaudeを使用します
+
+### 出力ディレクトリ構造
+プログラムは以下のディレクトリ構造を作成し、ファイルを保存します：
+- ./pdfs/            - ハッシュ値でリネームされたPDFファイル
+- ./memo/            - 論文タイトルを含むメモファイル
+- ./clean_text/      - PDFから抽出されたクリーンテキスト
+- ./static/tw/       - Twitter Card用の画像
+- ./pdfs-attach/     - 添付ファイル（al-プレフィックスファイル）
+- ./summary/         - 論文の章ごとの要約
+- ./summary2/        - 論文の評価（査読）
+- ./tmp/             - メタデータベースのディレクトリ（-outputオプション使用時）
+
+## サンプルコマンド (Sample Commands)
+1. 単一のPDFファイルを処理する:
+   ```
+   python pdf_to_papernote.py example.pdf
+   ```
+
+2. 複数のPDFファイルを個別に指定して処理する:
+   ```
+   python pdf_to_papernote.py a.pdf b.pdf foo.pdf hoge.pdf
+   ```
+
+3. ワイルドカードを使用して全てのPDFファイルを処理する:
+   ```
+   python pdf_to_papernote.py *.pdf
+   ```
+
+4. メタデータベースのディレクトリ出力を有効にして処理する:
+   ```
+   python pdf_to_papernote.py -output example.pdf
+   python pdf_to_papernote.py -output *.pdf
+   ```
+
+5. OpenAIのモデルを使用して処理する:
+   ```
+   python pdf_to_papernote.py -openai example.pdf
+   ```
+
+6. 複数のオプションを組み合わせる:
+   ```
+   python pdf_to_papernote.py -output -openai example.pdf
+   ```
+
+7. オプションなしで実行するとヘルプ情報が表示されます:
+   ```
+   python pdf_to_papernote.py
+   ```
+"""
 import argparse
 import os
 import hashlib
@@ -138,9 +220,95 @@ def load_openai_api_key():
         print(f"設定ファイルの読み込みエラー: {e}")
         return None
 
+def extract_paper_metadata(text, api_key):
+    """
+    論文テキスト全体からClaudeを使って論文のメタデータ（タイトル、掲載雑誌名、発行年月）を抽出
+    
+    Args:
+        text (str): 論文の全テキスト
+        api_key (str): AnthropicのAPIキー
+    
+    Returns:
+        dict: 抽出されたメタデータ（タイトル、掲載雑誌名、発行年月）、エラー時はデフォルト値を含む辞書
+    """
+    # テキストが長すぎる場合は、重要な部分を抽出（冒頭、中間、末尾）
+    text_length = len(text)
+    if text_length > 15000:
+        # 冒頭5000文字、末尾3000文字、中間から2000文字を抽出
+        text_start = text[:5000]
+        text_end = text[-3000:]
+        middle_start = text_length // 2 - 1000
+        text_middle = text[middle_start:middle_start + 2000]
+        processed_text = f"{text_start}\n\n[...中略...]\n\n{text_middle}\n\n[...中略...]\n\n{text_end}"
+    else:
+        processed_text = text
+    
+    # Claudeへのプロンプト
+    prompt = """
+論文テキストから以下の情報を抽出してください：
+1. 論文のタイトル
+2. 掲載雑誌名
+3. 発行年月（YYYYMM形式、例：202503）
+
+以下の形式で返してください：
+タイトル: [論文タイトル]
+雑誌名: [掲載雑誌名]
+発行年月: [YYYYMM]
+
+情報が見つからない場合は「不明」と記入してください。
+余計な説明は不要です。
+
+論文テキスト:
+"""
+    
+    try:
+        # Anthropic APIクライアントを初期化
+        client = anthropic.Anthropic(api_key=api_key)
+        
+        # Claudeに問い合わせ
+        message = client.messages.create(
+            model="claude-3-5-haiku-latest",
+            max_tokens=1024,
+            messages=[
+                {"role": "user", "content": f"{prompt}\n\n{processed_text}"}
+            ]
+        )
+        
+        # レスポンスからメタデータを抽出
+        response_text = message.content[0].text.strip()
+        
+        # 正規表現でメタデータを抽出
+        title_match = re.search(r'タイトル:\s*(.+)', response_text)
+        journal_match = re.search(r'雑誌名:\s*(.+)', response_text)
+        date_match = re.search(r'発行年月:\s*(.+)', response_text)
+        
+        # 抽出結果を辞書に格納
+        metadata = {
+            "title": title_match.group(1).strip() if title_match else "不明",
+            "journal": journal_match.group(1).strip() if journal_match else "不明",
+            "date": date_match.group(1).strip() if date_match else "不明"
+        }
+        
+        # 日付形式の正規化（YYYYMM形式に）
+        if metadata["date"] != "不明":
+            # 数字だけを抽出
+            date_digits = re.sub(r'\D', '', metadata["date"])
+            
+            # YYYYMM形式になっているか確認
+            if len(date_digits) >= 6:
+                metadata["date"] = date_digits[:6]  # 先頭6桁を使用
+            else:
+                metadata["date"] = "不明"
+        
+        return metadata
+    
+    except Exception as e:
+        print(f"Claude APIの呼び出しエラー: {e}")
+        return {"title": "不明", "journal": "不明", "date": "不明"}
+
 def extract_paper_title(text, api_key):
     """
-    テキストの冒頭部分からClaudeを使って論文タイトルを抽出
+    テキストの冒頭部分からClaudeを使って論文タイトルを抽出（後方互換性のため維持）
     
     Args:
         text (str): 論文のテキスト
@@ -149,55 +317,51 @@ def extract_paper_title(text, api_key):
     Returns:
         str: 抽出された論文タイトル、エラー時はNone
     """
-    # テキストの冒頭部分（最初の500文字）を抽出
-    text_start = text[:500]
-    
-    # Claudeへのプロンプト
-    prompt = """
-論文の冒頭部分を分析して、論文のタイトルを抽出してください。
-タイトルだけを返してください。余計な説明や引用符は不要です。
+    # メタデータ抽出関数を使用
+    metadata = extract_paper_metadata(text, api_key)
+    return metadata["title"] if metadata["title"] != "不明" else None
 
-論文の冒頭:
-"""
-    
-    try:
-        # Anthropic APIクライアントを初期化
-        client = anthropic.Anthropic(api_key=api_key)
-        
-        # Claudeに問い合わせ - 新しいAPIバージョン用の呼び出し方法
-        message = client.messages.create(
-            model="claude-3-5-haiku-latest",
-            max_tokens=1024,
-            messages=[
-                {"role": "user", "content": f"{prompt}\n\n{text_start}"}
-            ]
-        )
-        
-        # レスポンスからタイトルを抽出
-        title = message.content[0].text.strip()
-        return title
-    
-    except Exception as e:
-        print(f"Claude APIの呼び出しエラー: {e}")
-        return None
-
-def extract_paper_title_openai(text, api_key):
+def extract_paper_metadata_openai(text, api_key):
     """
-    テキストの冒頭部分からOpenAIのモデルを使って論文タイトルを抽出
+    論文テキスト全体からOpenAIのモデルを使って論文のメタデータ（タイトル、掲載雑誌名、発行年月）を抽出
     
     Args:
-        text (str): 論文のテキスト
+        text (str): 論文の全テキスト
         api_key (str): OpenAIのAPIキー
     
     Returns:
-        str: 抽出された論文タイトル、エラー時はNone
+        dict: 抽出されたメタデータ（タイトル、掲載雑誌名、発行年月）、エラー時はデフォルト値を含む辞書
     """
-    # テキストの冒頭部分（最初の500文字）を抽出
-    text_start = text[:500]
+    # テキストが長すぎる場合は、重要な部分を抽出（冒頭、中間、末尾）
+    text_length = len(text)
+    if text_length > 15000:
+        # 冒頭5000文字、末尾3000文字、中間から2000文字を抽出
+        text_start = text[:5000]
+        text_end = text[-3000:]
+        middle_start = text_length // 2 - 1000
+        text_middle = text[middle_start:middle_start + 2000]
+        processed_text = f"{text_start}\n\n[...中略...]\n\n{text_middle}\n\n[...中略...]\n\n{text_end}"
+    else:
+        processed_text = text
     
     # OpenAIへのプロンプト
-    system_prompt = "あなたは論文タイトルを抽出する専門家です。与えられた論文の冒頭からタイトルのみを抽出してください。余計な説明や引用符は不要です。単語間の半角スペースがなければ修正して。"
-    user_prompt = f"以下の論文の冒頭からタイトルを抽出してください:\n\n{text_start}"
+    system_prompt = """あなたは学術論文のメタデータを抽出する専門家です。
+与えられた論文テキストから以下の情報を抽出してください：
+1. 論文のタイトル
+2. 掲載雑誌名
+3. 発行年月（YYYYMM形式、例：202503）
+
+情報が見つからない場合は「不明」と記入してください。
+余計な説明は不要です。"""
+
+    user_prompt = f"""以下の論文テキストからメタデータを抽出し、以下の形式で返してください：
+
+タイトル: [論文タイトル]
+雑誌名: [掲載雑誌名]
+発行年月: [YYYYMM]
+
+論文テキスト:
+{processed_text}"""
     
     try:
         # OpenAI APIクライアントを初期化
@@ -212,24 +376,73 @@ def extract_paper_title_openai(text, api_key):
             ]
         )
         
-        # レスポンスからタイトルを抽出
-        title = response.choices[0].message.content.strip()
-        return title
+        # レスポンスからメタデータを抽出
+        response_text = response.choices[0].message.content.strip()
+        
+        # 正規表現でメタデータを抽出
+        title_match = re.search(r'タイトル:\s*(.+)', response_text)
+        journal_match = re.search(r'雑誌名:\s*(.+)', response_text)
+        date_match = re.search(r'発行年月:\s*(.+)', response_text)
+        
+        # 抽出結果を辞書に格納
+        metadata = {
+            "title": title_match.group(1).strip() if title_match else "不明",
+            "journal": journal_match.group(1).strip() if journal_match else "不明",
+            "date": date_match.group(1).strip() if date_match else "不明"
+        }
+        
+        # 日付形式の正規化（YYYYMM形式に）
+        if metadata["date"] != "不明":
+            # 数字だけを抽出
+            date_digits = re.sub(r'\D', '', metadata["date"])
+            
+            # YYYYMM形式になっているか確認
+            if len(date_digits) >= 6:
+                metadata["date"] = date_digits[:6]  # 先頭6桁を使用
+            else:
+                metadata["date"] = "不明"
+        
+        return metadata
     
     except Exception as e:
         print(f"OpenAI APIの呼び出しエラー: {e}")
-        return None
-def generate_paper_summary(text, api_key):
+        return {"title": "不明", "journal": "不明", "date": "不明"}
+
+def extract_paper_title_openai(text, api_key):
+    """
+    テキストからOpenAIのモデルを使って論文タイトルを抽出（後方互換性のため維持）
+    
+    Args:
+        text (str): 論文のテキスト
+        api_key (str): OpenAIのAPIキー
+    
+    Returns:
+        str: 抽出された論文タイトル、エラー時はNone
+    """
+    # メタデータ抽出関数を使用
+    metadata = extract_paper_metadata_openai(text, api_key)
+    return metadata["title"] if metadata["title"] != "不明" else None
+def generate_paper_summary(text, api_key, metadata=None):
     """
     論文テキストをClaudeに送信して章ごとの要約を生成
     
     Args:
         text (str): 論文の全テキスト
         api_key (str): AnthropicのAPIキー
+        metadata (dict, optional): 論文のメタデータ（タイトル、掲載雑誌名、発行年月）
     
     Returns:
         str: Markdown形式の要約、エラー時はNone
     """
+    # メタデータヘッダーを作成
+    metadata_header = ""
+    if metadata:
+        metadata_header = f"""論文タイトル：{metadata.get('title', '（取得できませんでした）')}
+論文掲載雑誌名：{metadata.get('journal', '（取得できませんでした）')}
+論文発行年月：{metadata.get('date', '（取得できませんでした）')}
+
+"""
+    
     # プロンプトを定義
     prompt = """
 # 以下の論文について、章ごとに、多くの要約項目で日本語を使って要約してください。
@@ -260,23 +473,38 @@ def generate_paper_summary(text, api_key):
         
         # レスポンスから要約を抽出
         summary = message.content[0].text.strip()
+        
+        # メタデータヘッダーを追加
+        if metadata_header:
+            summary = metadata_header + summary
+            
         return summary
     
     except Exception as e:
         print(f"Claude APIの呼び出しエラー: {e}")
         return None
 
-def generate_paper_summary_openai(text, api_key):
+def generate_paper_summary_openai(text, api_key, metadata=None):
     """
     論文テキストをOpenAIのモデルに送信して章ごとの要約を生成
     
     Args:
         text (str): 論文の全テキスト
         api_key (str): OpenAIのAPIキー
+        metadata (dict, optional): 論文のメタデータ（タイトル、掲載雑誌名、発行年月）
     
     Returns:
         str: Markdown形式の要約、エラー時はNone
     """
+    # メタデータヘッダーを作成
+    metadata_header = ""
+    if metadata:
+        metadata_header = f"""論文タイトル：{metadata.get('title', '（取得できませんでした）')}
+論文掲載雑誌名：{metadata.get('journal', '（取得できませんでした）')}
+論文発行年月：{metadata.get('date', '（取得できませんでした）')}
+
+"""
+    
     # システムプロンプトとユーザープロンプトを定義
     system_prompt = """あなたは学術論文の要約を作成する専門家です。
 論文の内容を章ごとに要約し、各章の重要なポイントを箇条書きで示してください。
@@ -309,23 +537,38 @@ def generate_paper_summary_openai(text, api_key):
         
         # レスポンスから要約を抽出
         summary = response.choices[0].message.content.strip()
+        
+        # メタデータヘッダーを追加
+        if metadata_header:
+            summary = metadata_header + summary
+            
         return summary
     
     except Exception as e:
         print(f"OpenAI APIの呼び出しエラー: {e}")
         return None
 
-def generate_paper_review(text, api_key):
+def generate_paper_review(text, api_key, metadata=None):
     """
     論文テキストをClaudeに送信して論文の評価を生成
     
     Args:
         text (str): 論文の全テキスト
         api_key (str): AnthropicのAPIキー
+        metadata (dict, optional): 論文のメタデータ（タイトル、掲載雑誌名、発行年月）
     
     Returns:
         str: Markdown形式の論文評価、エラー時はNone
     """
+    # メタデータヘッダーを作成
+    metadata_header = ""
+    if metadata:
+        metadata_header = f"""論文タイトル：{metadata.get('title', '（取得できませんでした）')}
+論文掲載雑誌名：{metadata.get('journal', '（取得できませんでした）')}
+論文発行年月：{metadata.get('date', '（取得できませんでした）')}
+
+"""
+    
     # プロンプトを定義
     prompt = """
 # あなたはトップジャーナルの論文査読者です。以下の論文について、新規性、言及されている全ての関連研究との相違点、有効性、信頼性を、日本語を使って、まとめてください。
@@ -359,23 +602,38 @@ def generate_paper_review(text, api_key):
         
         # レスポンスから評価を抽出
         review = message.content[0].text.strip()
+        
+        # メタデータヘッダーを追加
+        if metadata_header:
+            review = metadata_header + review
+            
         return review
     
     except Exception as e:
         print(f"Claude APIの呼び出しエラー: {e}")
         return None
 
-def generate_paper_review_openai(text, api_key):
+def generate_paper_review_openai(text, api_key, metadata=None):
     """
     論文テキストをOpenAIのモデルに送信して論文の評価を生成
     
     Args:
         text (str): 論文の全テキスト
         api_key (str): OpenAIのAPIキー
+        metadata (dict, optional): 論文のメタデータ（タイトル、掲載雑誌名、発行年月）
     
     Returns:
         str: Markdown形式の論文評価、エラー時はNone
     """
+    # メタデータヘッダーを作成
+    metadata_header = ""
+    if metadata:
+        metadata_header = f"""論文タイトル：{metadata.get('title', '（取得できませんでした）')}
+論文掲載雑誌名：{metadata.get('journal', '（取得できませんでした）')}
+論文発行年月：{metadata.get('date', '（取得できませんでした）')}
+
+"""
+    
     # システムプロンプトとユーザープロンプトを定義
     system_prompt = """あなたはトップジャーナルの論文査読者です。
 学術論文を評価して、新規性、関連研究との相違点、有効性、信頼性について詳細な査読レポートを作成してください。
@@ -411,6 +669,11 @@ def generate_paper_review_openai(text, api_key):
         
         # レスポンスから評価を抽出
         review = response.choices[0].message.content.strip()
+        
+        # メタデータヘッダーを追加
+        if metadata_header:
+            review = metadata_header + review
+            
         return review
     
     except Exception as e:
@@ -483,28 +746,35 @@ def sanitize_directory_name(title):
     
     return safe_title
 
-def copy_files_with_title_structure(pdf_path, file_hash, title, output_enabled=False):
+def copy_files_with_title_structure(pdf_path, file_hash, metadata, output_enabled=False):
     """
-    論文タイトルに基づいたディレクトリ構造でファイルをコピーする
+    論文メタデータに基づいたディレクトリ構造でファイルをコピーする
     
     Args:
         pdf_path (str): 元のPDFファイルパス
         file_hash (str): ファイルのハッシュ値
-        title (str): 論文のタイトル（ディレクトリ名として使用）
+        metadata (dict): 論文のメタデータ（タイトル、掲載雑誌名、発行年月）
         output_enabled (bool): outputオプションが有効かどうか
     
     Returns:
         list: コピーされたファイルのパスのリスト
     """
-    if not output_enabled or not title:
+    if not output_enabled or not metadata:
+        return []
+    
+    title = metadata.get('title', '')
+    date = metadata.get('date', 'unknown')
+    
+    if not title:
         return []
     
     # 論文タイトルをディレクトリ名として安全に使用できるように整形
     safe_title = sanitize_directory_name(title)
     print(f"ディレクトリ名に変換されたタイトル: {safe_title}")
     
-    # タイトルに基づいたディレクトリパスを生成
-    title_dir = os.path.join('./tmp', safe_title)
+    # 発行年月とタイトルに基づいたディレクトリパスを生成
+    dir_name = f"{date}_{safe_title}"
+    title_dir = os.path.join('./tmp', dir_name)
     
     # ディレクトリが存在しない場合は作成
     os.makedirs(title_dir, exist_ok=True)
@@ -684,13 +954,13 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
         if os.path.exists(twitter_card):
             generated_files.append(twitter_card)
             
-        # メモファイルの作成（タイトル抽出機能を追加）
+        # メモファイルの作成（メタデータ抽出機能を追加）
         memo_path = os.path.join('./memo', f"{file_hash}.txt")
         
-        # タイトルを格納する変数（outputオプション用）
-        extracted_title = None
+        # メタデータを格納する変数
+        paper_metadata = None
         
-        # クリーンテキストからタイトルを抽出
+        # クリーンテキストからメタデータを抽出
         if os.path.exists(clean_text_path):
             try:
                 # テキストファイルの内容を読み込む
@@ -701,53 +971,60 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
                 if openai_enabled:
                     api_key = load_openai_api_key()
                     if api_key:
-                        # タイトルを抽出（OpenAI）
-                        print("論文タイトルをOpenAIで抽出中...")
-                        title = extract_paper_title_openai(text, api_key)
+                        # メタデータを抽出（OpenAI）
+                        print("論文メタデータをOpenAIで抽出中...")
+                        paper_metadata = extract_paper_metadata_openai(text, api_key)
                     else:
                         # OpenAI APIキーが取得できない場合はAnthropicにフォールバック
                         print("OpenAI APIキーが取得できなかったため、Claudeを使用します。")
                         api_key = load_anthropic_api_key()
                         if api_key:
-                            print("論文タイトルをClaudeで抽出中...")
-                            title = extract_paper_title(text, api_key)
+                            print("論文メタデータをClaudeで抽出中...")
+                            paper_metadata = extract_paper_metadata(text, api_key)
                         else:
-                            title = None
+                            paper_metadata = {"title": "不明", "journal": "不明", "date": "不明"}
                 else:
                     # 従来通りAnthropicを使用
                     api_key = load_anthropic_api_key()
                     if api_key:
-                        # タイトルを抽出（Claude）
-                        print("論文タイトルをClaudeで抽出中...")
-                        title = extract_paper_title(text, api_key)
+                        # メタデータを抽出（Claude）
+                        print("論文メタデータをClaudeで抽出中...")
+                        paper_metadata = extract_paper_metadata(text, api_key)
                     else:
-                        title = None
+                        paper_metadata = {"title": "不明", "journal": "不明", "date": "不明"}
                 
-                if title:
+                # タイトルを取得
+                title = paper_metadata.get('title', '不明')
+                
+                if title != '不明':
                     # タイトルを1行目に書き込む（元のファイル名は書き込まない）
                     with open(memo_path, 'w', encoding='utf-8') as memo_file:
                         memo_file.write(f"{title}\n")
                     print(f"論文タイトルを抽出しました: {title}")
+                    print(f"論文掲載雑誌名: {paper_metadata.get('journal', '不明')}")
+                    print(f"論文発行年月: {paper_metadata.get('date', '不明')}")
                     generated_files.append(memo_path)
-                    extracted_title = title  # タイトルを保存
                 else:
                     # タイトル抽出に失敗した場合
                     with open(memo_path, 'w', encoding='utf-8') as memo_file:
                         memo_file.write(os.path.basename(pdf_path) + '\n')
                     print("タイトル抽出に失敗しました。元のファイル名をメモに保存しました。")
                     generated_files.append(memo_path)
+                    paper_metadata = {"title": os.path.basename(pdf_path), "journal": "不明", "date": "不明"}
             except Exception as e:
                 # エラーが発生した場合
-                print(f"タイトル抽出中にエラーが発生しました: {e}")
+                print(f"メタデータ抽出中にエラーが発生しました: {e}")
                 with open(memo_path, 'w', encoding='utf-8') as memo_file:
                     memo_file.write(os.path.basename(pdf_path) + '\n')
                 generated_files.append(memo_path)
+                paper_metadata = {"title": os.path.basename(pdf_path), "journal": "不明", "date": "不明"}
         else:
             # クリーンテキストファイルが見つからない場合
             with open(memo_path, 'w', encoding='utf-8') as memo_file:
                 memo_file.write(os.path.basename(pdf_path) + '\n')
             print("クリーンテキストファイルが見つからないため、元のファイル名をメモに保存しました。")
             generated_files.append(memo_path)
+            paper_metadata = {"title": os.path.basename(pdf_path), "journal": "不明", "date": "不明"}
         
         # 要約の生成と保存
         summary_path = os.path.join('./summary', f"{file_hash}.txt")
@@ -765,14 +1042,14 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
                     if api_key:
                         # 要約を生成（OpenAI）
                         print("論文の要約をOpenAIで生成中...")
-                        summary = generate_paper_summary_openai(text, api_key)
+                        summary = generate_paper_summary_openai(text, api_key, paper_metadata)
                     else:
                         # OpenAI APIキーが取得できない場合はAnthropicにフォールバック
                         print("OpenAI APIキーが取得できなかったため、Claudeを使用します。")
                         api_key = load_anthropic_api_key()
                         if api_key:
                             print("論文の要約をClaudeで生成中...")
-                            summary = generate_paper_summary(text, api_key)
+                            summary = generate_paper_summary(text, api_key, paper_metadata)
                         else:
                             summary = None
                 else:
@@ -781,7 +1058,7 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
                     if api_key:
                         # 要約を生成（Claude）
                         print("論文の要約をClaudeで生成中...")
-                        summary = generate_paper_summary(text, api_key)
+                        summary = generate_paper_summary(text, api_key, paper_metadata)
                     else:
                         summary = None
                 
@@ -814,14 +1091,14 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
                     if api_key:
                         # 論文評価を生成（OpenAI）
                         print("論文評価（査読）をOpenAIで生成中...")
-                        review = generate_paper_review_openai(text, api_key)
+                        review = generate_paper_review_openai(text, api_key, paper_metadata)
                     else:
                         # OpenAI APIキーが取得できない場合はAnthropicにフォールバック
                         print("OpenAI APIキーが取得できなかったため、Claudeを使用します。")
                         api_key = load_anthropic_api_key()
                         if api_key:
                             print("論文評価（査読）をClaudeで生成中...")
-                            review = generate_paper_review(text, api_key)
+                            review = generate_paper_review(text, api_key, paper_metadata)
                         else:
                             review = None
                 else:
@@ -830,7 +1107,7 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
                     if api_key:
                         # 論文評価を生成（Claude）
                         print("論文評価（査読）をClaudeで生成中...")
-                        review = generate_paper_review(text, api_key)
+                        review = generate_paper_review(text, api_key, paper_metadata)
                     else:
                         review = None
                 
@@ -847,15 +1124,15 @@ def process_pdf(pdf_path, output_enabled=False, openai_enabled=False):
         else:
             print(f"クリーンテキストファイル {clean_text_path} が見つからないため、論文評価生成をスキップします。")
         
-        # -outputオプションが有効な場合、論文タイトルに基づいたディレクトリ構造でファイルをコピー
-        if output_enabled and extracted_title:
-            print("\n=== 論文タイトルに基づいたディレクトリにファイルをコピーします ===")
-            copied_files = copy_files_with_title_structure(pdf_path, file_hash, extracted_title, output_enabled)
+        # -outputオプションが有効な場合、論文メタデータに基づいたディレクトリ構造でファイルをコピー
+        if output_enabled and paper_metadata and paper_metadata.get('title') != '不明':
+            print("\n=== 論文メタデータに基づいたディレクトリにファイルをコピーします ===")
+            copied_files = copy_files_with_title_structure(pdf_path, file_hash, paper_metadata, output_enabled)
             if copied_files:
                 generated_files.extend(copied_files)
-                print("タイトルベースのディレクトリにファイルをコピーしました。")
+                print(f"メタデータベースのディレクトリにファイルをコピーしました: {paper_metadata.get('date', 'unknown')}_{paper_metadata.get('title', '')}")
             else:
-                print("タイトルベースのコピーに失敗しました。")
+                print("メタデータベースのコピーに失敗しました。")
         
         # 処理完了とファイル一覧を表示
         print("\n=== 処理が完了しました ===")
@@ -884,12 +1161,12 @@ def show_program_info():
 - 論文の評価（査読）
 
 オプション：
-  -output    論文タイトルに基づいたディレクトリ構造でファイルを別途出力します。
+  -output    論文メタデータに基づいたディレクトリ構造でファイルを別途出力します。
              以下のような形式でファイルがコピーされます：
-             ・tmp/{論文タイトル}/paper.pdf        - 元のPDFファイル
-             ・tmp/{論文タイトル}/al-paper.pdf     - 添付PDFファイル（存在する場合）
-             ・tmp/{論文タイトル}/summary.txt      - 論文の要約
-             ・tmp/{論文タイトル}/summary2.txt     - 論文の評価（査読）
+             ・tmp/{発行年月}_{論文タイトル}/paper.pdf        - 元のPDFファイル
+             ・tmp/{発行年月}_{論文タイトル}/al-paper.pdf     - 添付PDFファイル（存在する場合）
+             ・tmp/{発行年月}_{論文タイトル}/summary.txt      - 論文の要約
+             ・tmp/{発行年月}_{論文タイトル}/summary2.txt     - 論文の評価（査読）
              
   -openai    要約や評価の生成にClaudeの代わりにOpenAIのo3-miniモデルを使用します。
              このオプションが指定されない場合は、従来通りClaudeを使用します。
@@ -904,7 +1181,7 @@ def show_program_info():
   3. ワイルドカードを使用して全てのPDFファイルを処理する:
      python pdf_to_papernote.py *.pdf
   
-  4. タイトルベースのディレクトリ出力を有効にして処理する:
+  4. メタデータベースのディレクトリ出力を有効にして処理する:
      python pdf_to_papernote.py -output example.pdf
      python pdf_to_papernote.py -output *.pdf
      
@@ -918,7 +1195,7 @@ def show_program_info():
 def main():
     parser = argparse.ArgumentParser(description='PDFファイルを処理してPaperNoteシステム用のファイルを生成')
     parser.add_argument('pdf_files', nargs='*', help='処理対象のPDFファイル（複数指定可能）')
-    parser.add_argument('-output', action='store_true', help='論文タイトルに基づいたディレクトリ構造でファイルを別途出力する')
+    parser.add_argument('-output', action='store_true', help='論文メタデータ（発行年月とタイトル）に基づいたディレクトリ構造でファイルを別途出力する')
     parser.add_argument('-openai', action='store_true', help='要約や評価の生成にClaudeの代わりにOpenAIのモデルを使用する')
     args = parser.parse_args()
 
@@ -929,8 +1206,8 @@ def main():
 
     # -outputオプションが指定されている場合のメッセージ
     if args.output:
-        print("\n-outputオプションが有効です。論文タイトルに基づいたディレクトリにファイルをコピーします。")
-        print("出力ディレクトリ: ./tmp/{論文タイトル}/\n")
+        print("\n-outputオプションが有効です。論文メタデータに基づいたディレクトリにファイルをコピーします。")
+        print("出力ディレクトリ: ./tmp/{発行年月}_{論文タイトル}/\n")
         
     # -openaiオプションが指定されている場合のメッセージ
     if args.openai:
