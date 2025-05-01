@@ -351,3 +351,13 @@ code {
     word-wrap: break-word;
 }
 }
+
+/* Qiita風のテーブルヘッダースタイル */
+table thead th {
+  background-color: #55c500;
+  color: white;
+  padding: 10px;
+  border: 1px solid #e1e4e8;
+  font-weight: normal;
+  text-align: center; /* 中央揃えを追加 */
+}
