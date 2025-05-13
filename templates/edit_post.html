@@ -87,6 +87,17 @@
                 } else if (event.ctrlKey && event.key === 's') {
                     event.preventDefault();
                     saveWithoutRedirect();
+                } else if (event.ctrlKey && event.key === 'y') {
+                    event.preventDefault();
+                    const currentDate = getCurrentDate();
+                    insertTextAtCursor(document.getElementById('content'), currentDate);
+                } else if (event.ctrlKey && event.key === 'h') {
+                    event.preventDefault();
+                    const currentTime = getCurrentTime();
+                    insertTextAtCursor(document.getElementById('content'), currentTime);
+                } else if (event.ctrlKey && event.key === '1') {
+                    event.preventDefault();
+                    cycleHeaderLevel(document.getElementById('content'));
                 }
             });
 
@@ -207,21 +218,21 @@
             // 選択部分の前後にテキストを挿入
             if (text === '**') {
                 textArea.value = value.slice(0, start) + ' ' + text + value.slice(start, end) + text + ' ' + value.slice(end);
-                // textArea.selectionStart = start + text.length + 1; // 前後のスペースを考慮
-                // textArea.selectionEnd = end + text.length + 1;
+                textArea.selectionStart = start + text.length + 1; // 前後のスペースを考慮
+                textArea.selectionEnd = end + text.length + 1;
             } else {
                 textArea.value = value.slice(0, start) + text + value.slice(start, end) + text + value.slice(end);
-                // textArea.selectionStart = start + text.length;
-                // textArea.selectionEnd = end + text.length;
+                textArea.selectionStart = start + text.length;
+                textArea.selectionEnd = end + text.length;
             }
-            // textArea.focus();
+            textArea.focus();
 
             // カーソル位置までスクロール
-            // const cursorPosition = textArea.selectionStart;
-            // const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
-            // const scrollTop = textArea.scrollTop;
-            // const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
-            // textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
+            const cursorPosition = textArea.selectionStart;
+            const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
+            const scrollTop = textArea.scrollTop;
+            const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
+            textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
         }
 
         function insertTextAtLineStart(textArea, text) {
@@ -239,10 +250,10 @@
             const newText = selectedLines.split('\n').map(line => text + line).join('\n');
 
             textArea.value = before + newText + after;
-            // textArea.selectionStart = lineStart;
-            // textArea.selectionEnd = lineStart + newText.length;
+            textArea.selectionStart = lineStart;
+            textArea.selectionEnd = lineStart + newText.length;
 
-            // textArea.focus();
+            textArea.focus();
             console.log('Inserted Text at Line Start:', text);
         }
 
@@ -252,15 +263,15 @@
             const end = textArea.selectionEnd;
             const value = textArea.value;
             textArea.value = value.slice(0, start) + text + value.slice(start);
-            // textArea.selectionStart = textArea.selectionEnd = start + text.length;
-            // textArea.focus();
+            textArea.selectionStart = textArea.selectionEnd = start + text.length;
+            textArea.focus();
 
             // カーソル位置までスクロール
-            // const cursorPosition = textArea.selectionStart;
-            // const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
-            // const scrollTop = textArea.scrollTop;
-            // const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
-            // textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
+            const cursorPosition = textArea.selectionStart;
+            const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
+            const scrollTop = textArea.scrollTop;
+            const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
+            textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
         }
 
         function getCurrentDate() {
@@ -343,6 +354,37 @@
             }
         }
 
+        function cycleHeaderLevel(textArea) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const value = textArea.value;
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = value.indexOf('\n', start);
+            const currentLine = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+            
+            // 現在の#の数を数える
+            const match = currentLine.match(/^#{1,3}\s/);
+            let newPrefix = '';
+            
+            if (!match) {
+                newPrefix = '# '; // #なしから#へ
+            } else {
+                const hashCount = match[0].trim().length;
+                if (hashCount < 3) {
+                    newPrefix = '#'.repeat(hashCount + 1) + ' '; // 次のレベルへ
+                }
+                // hashCount === 3 の場合は newPrefix = '' のまま（#を削除）
+            }
+            
+            // 既存の#を削除して新しい#を追加（#がない場合は追加しない）
+            const newLine = currentLine.replace(/^#{1,3}\s/, '');
+            textArea.value = value.slice(0, lineStart) + newPrefix + newLine + value.slice(lineEnd === -1 ? value.length : lineEnd);
+            
+            // カーソル位置を行末に移動
+            const newPosition = lineStart + newPrefix.length + newLine.length;
+            textArea.selectionStart = textArea.selectionEnd = newPosition;
+            textArea.focus();
+        }
     </script>
 </head>
 <body>
