@@ -384,19 +384,17 @@
         }
 
         function archiveFile(filename) {
-            if (confirm('このファイルをアーカイブしますか？')) {
-                $.ajax({
-                    type: 'POST',
-                    url: '/archive_post',
-                    data: { filename: filename, csrf_token: csrf_token },
-                    success: function(response) {
-                        location.reload();
-                    },
-                    error: function(xhr) {
-                        alert('アーカイブに失敗しました。');
-                    }
-                });
-            }
+            $.ajax({
+                type: 'POST',
+                url: '/archive_post',
+                data: { filename: filename, csrf_token: csrf_token },
+                success: function(response) {
+                    location.reload();
+                },
+                error: function(xhr) {
+                    alert('アーカイブに失敗しました。');
+                }
+            });
         }
 
         function duplicateFile(filename) {

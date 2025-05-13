@@ -763,37 +763,39 @@ def get_file_metadata(file_path):
 def get_sorted_post_files_info():
     """投稿ファイルの情報を取得（キャッシング機能付き）"""
     CACHE_FILE = './post/.cache/post_files_info.json'
+    FILELIST_CACHE = './post/.cache/filelist.json'
     search_query = request.args.get('search')
     authenticated = current_user.is_authenticated
     
     # 検索クエリがない場合のみキャッシュを使用
     if not search_query:
         # キャッシュファイルの存在チェック
-        if os.path.exists(CACHE_FILE):
+        if os.path.exists(CACHE_FILE) and os.path.exists(FILELIST_CACHE):
             try:
-                # 最新の投稿ファイルのタイムスタンプを取得
-                post_files = [f for f in os.listdir('./post')
-                            if os.path.isfile(os.path.join('./post', f))
-                            and not f.endswith('.gitkeep')]
-                if post_files:
-                    last_modified = max(os.path.getmtime(os.path.join('./post', f))
-                                    for f in post_files)
-                    cache_modified = os.path.getmtime(CACHE_FILE)
-                    
-                    if last_modified <= cache_modified:
-                        # キャッシュが有効な場合
-                        with open(CACHE_FILE, 'r') as f:
-                                cached_data = json.load(f)
-                                # 認証状態に応じてフィルタリング
-                                if not authenticated:
-                                    filtered_data = {}
-                                    for topic, files in cached_data.items():
-                                        filtered_data[topic] = [
-                                            f for f in files
-                                            if not f['title'].startswith('#')
-                                        ]
-                                    return filtered_data
-                                return cached_data
+                # 現在のファイルリストを取得
+                current_files = set(f for f in os.listdir('./post')
+                                if os.path.isfile(os.path.join('./post', f))
+                                and not f.endswith('.gitkeep'))
+                
+                # 保存されているファイルリストを取得
+                with open(FILELIST_CACHE, 'r') as f:
+                    cached_files = set(json.load(f))
+                
+                # ファイルリストに変更がないかチェック
+                if current_files == cached_files:
+                    # キャッシュが有効な場合
+                    with open(CACHE_FILE, 'r') as f:
+                        cached_data = json.load(f)
+                        # 認証状態に応じてフィルタリング
+                        if not authenticated:
+                            filtered_data = {}
+                            for topic, files in cached_data.items():
+                                filtered_data[topic] = [
+                                    f for f in files
+                                    if not f['title'].startswith('#')
+                                ]
+                            return filtered_data
+                        return cached_data
             except Exception as e:
                 print(f"Error reading cache: {e}")
 
@@ -877,9 +879,20 @@ def get_sorted_post_files_info():
             cache_dir = os.path.dirname(CACHE_FILE)
             os.makedirs(cache_dir, exist_ok=True)
             
-            # インデント付きで保存して可読性を向上
+            # キャッシュディレクトリの作成
+            cache_dir = os.path.dirname(CACHE_FILE)
+            os.makedirs(cache_dir, exist_ok=True)
+            
+            # キャッシュの保存
             with open(CACHE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(sorted_post_files_info, f, ensure_ascii=False, indent=2)
+            
+            # 現在のファイルリストを保存
+            current_files = [f for f in os.listdir('./post')
+                           if os.path.isfile(os.path.join('./post', f))
+                           and not f.endswith('.gitkeep')]
+            with open(FILELIST_CACHE, 'w', encoding='utf-8') as f:
+                json.dump(current_files, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"Error writing cache: {e}")
 
