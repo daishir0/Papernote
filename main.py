@@ -1,3 +1,4 @@
+import json
 import argparse
 import os
 import re
@@ -739,61 +740,127 @@ def post_index():
 
     return render_template('post_index.html', post_files=sorted_post_files_info, authenticated=authenticated, form=form)
 
-def get_sorted_post_files_info():
-    # ブログディレクトリの全ファイルを取得
-    post_dir = './post'
-    post_files = [f for f in os.listdir(post_dir) if os.path.isfile(os.path.join(post_dir, f)) and not f.endswith('.gitkeep')]
-    search_query = request.args.get('search')
+def get_file_metadata(file_path):
+    print(f"Reading metadata from: {file_path}")
+    """ファイルから必要な情報のみを取得"""
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+            first_line = file.readline().strip()  # タイトル
+            second_line = file.readline().strip() # タグ
+            return {
+                'title': first_line,
+                'tags': second_line,
+                'timestamp': os.path.getmtime(file_path)
+            }
+    except Exception as e:
+        print(f"Error reading file {file_path}: {e}")
+        return {
+            'title': '',
+            'tags': '',
+            'timestamp': 0
+        }
 
+def get_sorted_post_files_info():
+    """投稿ファイルの情報を取得（キャッシング機能付き）"""
+    CACHE_FILE = './post/.cache/post_files_info.json'
+    search_query = request.args.get('search')
     authenticated = current_user.is_authenticated
+    
+    # 検索クエリがない場合のみキャッシュを使用
+    if not search_query:
+        # キャッシュファイルの存在チェック
+        if os.path.exists(CACHE_FILE):
+            try:
+                # 最新の投稿ファイルのタイムスタンプを取得
+                post_files = [f for f in os.listdir('./post')
+                            if os.path.isfile(os.path.join('./post', f))
+                            and not f.endswith('.gitkeep')]
+                if post_files:
+                    last_modified = max(os.path.getmtime(os.path.join('./post', f))
+                                    for f in post_files)
+                    cache_modified = os.path.getmtime(CACHE_FILE)
+                    
+                    if last_modified <= cache_modified:
+                        # キャッシュが有効な場合
+                        with open(CACHE_FILE, 'r') as f:
+                                cached_data = json.load(f)
+                                # 認証状態に応じてフィルタリング
+                                if not authenticated:
+                                    filtered_data = {}
+                                    for topic, files in cached_data.items():
+                                        filtered_data[topic] = [
+                                            f for f in files
+                                            if not f['title'].startswith('#')
+                                        ]
+                                    return filtered_data
+                                return cached_data
+            except Exception as e:
+                print(f"Error reading cache: {e}")
+
+    print("Generating new cache")
+    # キャッシュの再生成
     post_files_info = {}
+    post_dir = './post'
+    post_files = [f for f in os.listdir(post_dir)
+                  if os.path.isfile(os.path.join(post_dir, f))
+                  and not f.endswith('.gitkeep')]
 
     for filename in post_files:
         file_path = os.path.join(post_dir, filename)
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-            lines = file.readlines()
-            title = lines[0].strip() if lines else ""
-            tags = lines[1].strip() if len(lines) > 1 else ""
-            if search_query:
-                content = ''.join(lines).lower()  # ファイル全体の内容を取得
-            else:
-                content = ""
-                
-            # 限定公開と非公開の場合はインデックスに掲載しない
-            if not authenticated and title.startswith('#'):
+        
+        # 検索時は全文を読み込む
+        if search_query:
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+                    content = file.read().lower()
+                    first_line = content.split('\n')[0].strip()
+                    second_line = content.split('\n')[1].strip() if len(content.split('\n')) > 1 else ""
+            except Exception as e:
+                print(f"Error reading file for search {file_path}: {e}")
                 continue
+        else:
+            # 検索がない場合は必要な情報のみ取得
+            metadata = get_file_metadata(file_path)
+            first_line = metadata['title']
+            second_line = metadata['tags']
+            content = ""
 
-            # トピックを抽出
-            topic_match = re.match(r'\[(.*?)\]', filename)
-            topic = topic_match.group(1) if topic_match else '_トピック未設定'
+        # 限定公開と非公開の場合はインデックスに掲載しない
+        if not authenticated and first_line.startswith('#'):
+            continue
 
-            if topic not in post_files_info:
-                post_files_info[topic] = []
+        # トピックを抽出
+        topic_match = re.match(r'\[(.*?)\]', filename)
+        topic = topic_match.group(1) if topic_match else '_トピック未設定'
 
-            post_files_info[topic].append({
-                'filename': filename,
-                'title': title,
-                'tags': tags,
-                'content': content,  # ファイル全体の内容を追加
-                'timestamp': os.path.getmtime(file_path)  # 最終更新日時を追加
-            })
+        if topic not in post_files_info:
+            post_files_info[topic] = []
 
+        file_info = {
+            'filename': filename,
+            'title': first_line,
+            'tags': second_line,
+            'timestamp': os.path.getmtime(file_path)
+        }
+
+        # 検索時のみcontentを含める
+        if search_query:
+            file_info['content'] = content
+
+        post_files_info[topic].append(file_info)
+
+    # 検索フィルタリング
     if search_query:
         search_terms = search_query.lower().split()
-        for topic in post_files_info:
-            filtered_files = []
-            for file in post_files_info[topic]:
-                if any(term in file['content'] for term in search_terms):
-
-                    filtered_files.append(file)
-            post_files_info[topic] = filtered_files
-    else:
-        # 検索クエリがない場合、すべてのファイルを表示
-        for topic in post_files_info:
-            post_files_info[topic] = [file for file in post_files_info[topic]]
-            
-    # for topic, files in post_files_info.items():
-    #     print(f"トピック: {topic}, ファイル情報: {files}")
+        filtered_info = {}
+        for topic, files in post_files_info.items():
+            filtered_files = [
+                file for file in files
+                if any(term in file['content'] for term in search_terms)
+            ]
+            if filtered_files:
+                filtered_info[topic] = filtered_files
+        post_files_info = filtered_info
 
     # 各トピック内でファイル名昇順にソート
     for topic in post_files_info:
@@ -801,8 +868,20 @@ def get_sorted_post_files_info():
 
     # トピック名でソート
     sorted_post_files_info = dict(sorted(post_files_info.items()))
-    
-    # print(sorted_post_files_info)
+
+    # キャッシュの保存（キャッシュが無効な場合のみ）
+    if not search_query and (not os.path.exists(CACHE_FILE) or
+                           max(os.path.getmtime(os.path.join('./post', f))
+                               for f in post_files) > os.path.getmtime(CACHE_FILE)):
+        try:
+            cache_dir = os.path.dirname(CACHE_FILE)
+            os.makedirs(cache_dir, exist_ok=True)
+            
+            # インデント付きで保存して可読性を向上
+            with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(sorted_post_files_info, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Error writing cache: {e}")
 
     return sorted_post_files_info
 
