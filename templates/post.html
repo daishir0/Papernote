@@ -127,6 +127,42 @@
 <script src="/static/scripts.js"></script>
 
 <script>
+    document.addEventListener('keydown', function(event) {
+        // ALT + H: 一覧へ戻る
+        if (event.altKey && (event.key === 'h' || event.key === 'H')) {
+            event.preventDefault();
+            document.getElementById('back-to-index').click();
+        }
+        // ALT + 下: ページ最下部へ
+        else if (event.altKey && event.key === 'ArrowDown') {
+            event.preventDefault();
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+        // ALT + 上: ページ最上部へ
+        else if (event.altKey && event.key === 'ArrowUp') {
+            event.preventDefault();
+            window.scrollTo(0, 0);
+        }
+        // ALT + C: Codeボタンをクリック
+        else if (event.altKey && (event.key === 'c' || event.key === 'C')) {
+            event.preventDefault();
+            document.getElementById('toggle-all-codes').click();
+        }
+        // ALT + I: Indexボタンをクリック
+        else if (event.altKey && (event.key === 'i' || event.key === 'I')) {
+            event.preventDefault();
+            document.getElementById('toggle-index').click();
+        }
+        // ALT + D: 編集ボタンをクリック
+        else if (event.altKey && (event.key === 'd' || event.key === 'D')) {
+            event.preventDefault();
+            const editButton = document.querySelector('.btn-success');
+            if (editButton) {
+                editButton.click();
+            }
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
         const markdownText = document.getElementById('markdown-content').content.textContent;
         const renderer = new marked.Renderer();
