@@ -87,17 +87,26 @@
                 } else if (event.ctrlKey && event.key === 's') {
                     event.preventDefault();
                     saveWithoutRedirect();
-                } else if (event.ctrlKey && event.key === 'y') {
+                } else if (event.ctrlKey && event.shiftKey && event.key === 'Y') {
                     event.preventDefault();
                     const currentDate = getCurrentDate();
                     insertTextAtCursor(document.getElementById('content'), currentDate);
-                } else if (event.ctrlKey && event.key === 'h') {
+                } else if (event.ctrlKey && event.shiftKey && event.key === 'H') {
                     event.preventDefault();
                     const currentTime = getCurrentTime();
                     insertTextAtCursor(document.getElementById('content'), currentTime);
                 } else if (event.ctrlKey && event.key === '1') {
                     event.preventDefault();
                     cycleHeaderLevel(document.getElementById('content'));
+                } else if (event.ctrlKey && event.key === '2') {
+                    event.preventDefault();
+                    cycleDashMark(document.getElementById('content'));
+                } else if (event.ctrlKey && event.key === '3') {
+                    event.preventDefault();
+                    cycleNumberMark(document.getElementById('content'));
+                } else if (event.ctrlKey && event.key === '4') {
+                    event.preventDefault();
+                    cycleQuoteMark(document.getElementById('content'));
                 }
             });
 
@@ -384,6 +393,95 @@
             const newPosition = lineStart + newPrefix.length + newLine.length;
             textArea.selectionStart = textArea.selectionEnd = newPosition;
             textArea.focus();
+        }
+
+        function cycleDashMark(textArea) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const value = textArea.value;
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = value.indexOf('\n', start);
+            const currentLine = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+            
+            const hasDash = currentLine.match(/^- /);
+            const newLine = hasDash ?
+                currentLine.replace(/^- /, '') :
+                '- ' + currentLine;
+            
+            textArea.value = value.slice(0, lineStart) + newLine + value.slice(lineEnd === -1 ? value.length : lineEnd);
+            const newPosition = lineStart + newLine.length;
+            textArea.selectionStart = textArea.selectionEnd = newPosition;
+            textArea.focus();
+        }
+
+        function cycleNumberMark(textArea) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const value = textArea.value;
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = value.indexOf('\n', start);
+            const currentLine = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+            
+            const hasNumber = currentLine.match(/^1\. /);
+            const newLine = hasNumber ?
+                currentLine.replace(/^1\. /, '') :
+                '1. ' + currentLine;
+            
+            textArea.value = value.slice(0, lineStart) + newLine + value.slice(lineEnd === -1 ? value.length : lineEnd);
+            const newPosition = lineStart + newLine.length;
+            textArea.selectionStart = textArea.selectionEnd = newPosition;
+            textArea.focus();
+        }
+
+        function cycleQuoteMark(textArea) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const value = textArea.value;
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = value.indexOf('\n', start);
+            const currentLine = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+            
+            const hasQuote = currentLine.match(/^> /);
+            const newLine = hasQuote ?
+                currentLine.replace(/^> /, '') :
+                '> ' + currentLine;
+            
+            textArea.value = value.slice(0, lineStart) + newLine + value.slice(lineEnd === -1 ? value.length : lineEnd);
+            const newPosition = lineStart + newLine.length;
+            textArea.selectionStart = textArea.selectionEnd = newPosition;
+            textArea.focus();
+        }
+
+        function cycleMark(textArea, mark) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const value = textArea.value;
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = value.indexOf('\n', start);
+            const currentLine = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+            
+            const pattern = new RegExp(`^${mark.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+            const hasMark = currentLine.match(pattern);
+            const newLine = hasMark ?
+                currentLine.replace(pattern, '') :
+                mark + currentLine;
+            
+            textArea.value = value.slice(0, lineStart) + newLine + value.slice(lineEnd === -1 ? value.length : lineEnd);
+            const newPosition = lineStart + newLine.length;
+            textArea.selectionStart = textArea.selectionEnd = newPosition;
+            textArea.focus();
+        }
+
+        function cycleDashMark(textArea) {
+            cycleMark(textArea, '- ');
+        }
+
+        function cycleNumberMark(textArea) {
+            cycleMark(textArea, '1. ');
+        }
+
+        function cycleQuoteMark(textArea) {
+            cycleMark(textArea, '> ');
         }
     </script>
 </head>
