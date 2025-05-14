@@ -56,6 +56,9 @@ app = Flask(__name__)
 # secret_keyの設定
 app.secret_key = config['secret_key']
 
+# CSRFトークンの有効期限を3時間に設定
+app.config['WTF_CSRF_TIME_LIMIT'] = 10800  # 3時間（秒）
+
 # Flask-Limiterの設定
 limiter = Limiter(
     get_remote_address,
@@ -1112,7 +1115,7 @@ def add_post():
     with open(file_path, 'w') as new_file:
         new_file.write("##タイトル未設定\n\n")
     
-    return redirect(url_for('post_index'))
+    return redirect(url_for('edit_post', filename=filename))
 
 @app.route('/delete_post', methods=['POST'])
 @login_required
