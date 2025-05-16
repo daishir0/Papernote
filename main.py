@@ -122,6 +122,17 @@ def login():
                     # send_email("Authentication Success", f"User {username} logged in successfully.\n\n{get_client_info()}")
                     with open('./access_log.txt', 'a') as log_file:
                         log_file.write(f"{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - User {username} logged in successfully - {get_client_info()}\n")
+                    
+                    # ログイン時にキャッシュを削除
+                    cache_file = './post/.cache/post_files_info.json'
+                    filelist_cache = './post/.cache/filelist.json'
+                    if os.path.exists(cache_file):
+                        os.remove(cache_file)
+                        print(f"Removed cache file: {cache_file}")
+                    if os.path.exists(filelist_cache):
+                        os.remove(filelist_cache)
+                        print(f"Removed filelist cache: {filelist_cache}")
+                    
                     # Create response object
                     response = make_response(redirect(url_for('post_index')))
                     
