@@ -804,10 +804,11 @@ def get_sorted_post_files_info():
                         if not authenticated:
                             filtered_data = {}
                             for topic, files in cached_data.items():
-                                filtered_data[topic] = [
-                                    f for f in files
-                                    if not f['title'].startswith('#')
-                                ]
+                                # #で始まらない投稿のみをフィルタリング
+                                visible_files = [f for f in files if not f['title'].startswith('#')]
+                                # 表示可能な投稿が存在する場合のみトピックを追加
+                                if visible_files:
+                                    filtered_data[topic] = visible_files
                             return filtered_data
                         return cached_data
             except Exception as e:
@@ -815,11 +816,11 @@ def get_sorted_post_files_info():
 
     print("Generating new cache")
     # キャッシュの再生成
-    post_files_info = {}
+    topic_files = {}
     post_dir = './post'
     post_files = [f for f in os.listdir(post_dir)
-                  if os.path.isfile(os.path.join(post_dir, f))
-                  and not f.endswith('.gitkeep')]
+                   if os.path.isfile(os.path.join(post_dir, f))
+                   and not f.endswith('.gitkeep')]
 
     for filename in post_files:
         file_path = os.path.join(post_dir, filename)
@@ -841,16 +842,16 @@ def get_sorted_post_files_info():
             second_line = metadata['tags']
             content = ""
 
-        # 限定公開と非公開の場合はインデックスに掲載しない
-        if not authenticated and first_line.startswith('#'):
-            continue
-
         # トピックを抽出
         topic_match = re.match(r'\[(.*?)\]', filename)
         topic = topic_match.group(1) if topic_match else '_トピック未設定'
 
-        if topic not in post_files_info:
-            post_files_info[topic] = []
+        if topic not in topic_files:
+            topic_files[topic] = []
+
+        # 非認証ユーザーの場合は#で始まる投稿をスキップ
+        if not authenticated and first_line.startswith('#'):
+            continue
 
         file_info = {
             'filename': filename,
@@ -863,7 +864,10 @@ def get_sorted_post_files_info():
         if search_query:
             file_info['content'] = content
 
-        post_files_info[topic].append(file_info)
+        topic_files[topic].append(file_info)
+
+    # 投稿が存在するトピックのみを結果に含める
+    post_files_info = {topic: files for topic, files in topic_files.items() if files}
 
     # 検索フィルタリング
     if search_query:
@@ -1018,6 +1022,16 @@ def edit_post(filename):
         # バックアップディレクトリ保存
         with open(backup_path, 'w', encoding='utf-8') as f:
             f.write(content)
+            
+        # キャッシュファイルを削除して強制的に再生成を促す
+        cache_file = './post/.cache/post_files_info.json'
+        filelist_cache = './post/.cache/filelist.json'
+        if os.path.exists(cache_file):
+            os.remove(cache_file)
+            print(f"Removed cache file: {cache_file}")
+        if os.path.exists(filelist_cache):
+            os.remove(filelist_cache)
+            print(f"Removed filelist cache: {filelist_cache}")
         
         # .txtを空文字列に置換して削除
         filename_without_txt = filename.replace('.txt', '')
@@ -1159,8 +1173,8 @@ def archive_post():
         return jsonify({'error': 'ファイルが存在しません。'}), 404
 
     try:
-        # [__]を[_archived]に置換
-        new_filename = re.sub(r'\[__\]', '[_archived]', filename)
+        # ファイル名の先頭の[]内の文字列を_archivedに置換
+        new_filename = re.sub(r'^\[(.*?)\]', '[_archived]', filename)
         new_path = os.path.join('./post', new_filename)
         
         os.rename(file_path, new_path)
