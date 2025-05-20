@@ -99,7 +99,7 @@
 <div class="post-header">
     <a id="back-to-index" class="none_print" href="/post"><< post一覧へ</a>
     <div class="align-right">
-        <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;Code/&gt;</button>
+        <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;CodeSection/&gt;</button>
         {% if current_user.is_authenticated %}
         <button class="btn btn-success btn-sm none_print" onclick="editPost('{{ content.filename }}')">
             <i class="fas fa-edit"></i>
@@ -143,8 +143,8 @@
             event.preventDefault();
             window.scrollTo(0, 0);
         }
-        // ALT + C: Codeボタンをクリック
-        else if (event.altKey && (event.key === 'c' || event.key === 'C')) {
+        // ALT + C: CodeSectionボタンをクリック
+        else if (event.altKey && (event.key === 's' || event.key === 'S')) {
             event.preventDefault();
             document.getElementById('toggle-all-codes').click();
         }
@@ -182,7 +182,7 @@
                 const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
                 return `
                     <div>
-                        <button class="btn btn-dark btn-sm" onclick="toggleCode('${codeId}')">&lt;Code/&gt;...</button>
+                        <button class="btn btn-dark btn-sm" onclick="toggleCode('${codeId}')">&lt;CodeSection/&gt;...</button>
                         <button class="btn btn-dark btn-sm" onclick="copyCode('${codeId}')"><i class="fa fa-copy"></i></button>
                         <pre id="${codeId}" style="display:none;"><code>${codeText}</code></pre>
                     </div>
