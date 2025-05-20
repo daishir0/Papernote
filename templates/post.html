@@ -148,13 +148,13 @@
             event.preventDefault();
             document.getElementById('toggle-all-codes').click();
         }
-        // ALT + I: Indexボタンをクリック
-        else if (event.altKey && (event.key === 'i' || event.key === 'I')) {
+        // ALT + X: Indexボタンをクリック
+        else if (event.altKey && (event.key === 'x' || event.key === 'X')) {
             event.preventDefault();
             document.getElementById('toggle-index').click();
         }
-        // ALT + D: 編集ボタンをクリック
-        else if (event.altKey && (event.key === 'd' || event.key === 'D')) {
+        // ALT + T: 編集ボタンをクリック
+        else if (event.altKey && (event.key === 't' || event.key === 'T')) {
             event.preventDefault();
             const editButton = document.querySelector('.btn-success');
             if (editButton) {
