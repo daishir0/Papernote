@@ -73,6 +73,10 @@
             const contentTextArea = document.getElementById('content');
             if (contentTextArea) {
                 contentTextArea.value = contentTextArea.value.replace(/\\n/g, '\n');
+                // Set focus to the textarea and place cursor at the beginning
+                contentTextArea.focus();
+                contentTextArea.selectionStart = 0;
+                contentTextArea.selectionEnd = 0;
             }
 
             autoSaveContent();
@@ -107,6 +111,20 @@
                 } else if (event.altKey && event.key === '4') {
                     event.preventDefault();
                     cycleQuoteMark(document.getElementById('content'));
+                } else if (event.altKey && event.key === 'ArrowUp') {
+                    // ALT+Up: Move cursor to the beginning of the textarea
+                    event.preventDefault();
+                    const textarea = document.getElementById('content');
+                    textarea.selectionStart = 0;
+                    textarea.selectionEnd = 0;
+                    textarea.focus();
+                } else if (event.altKey && event.key === 'ArrowDown') {
+                    // ALT+Down: Move cursor to the end of the textarea
+                    event.preventDefault();
+                    const textarea = document.getElementById('content');
+                    textarea.selectionStart = textarea.value.length;
+                    textarea.selectionEnd = textarea.value.length;
+                    textarea.focus();
                 }
             });
 
