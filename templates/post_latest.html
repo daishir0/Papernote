@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Post</title>
+    <title>Post Latest</title>
     <link href="/static/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
 
@@ -20,8 +20,7 @@
             text-decoration: none;
         }
         .list-group-item {
-            padding: 0.1rem 1rem; /* パディングを狭くする */
-
+            padding: 0.1rem 1rem;
             padding-left: 8px;
             padding-right: 8px;
         }
@@ -47,21 +46,23 @@
         .bg-white{
             background-color: rgb(230, 236, 254) !important;
         }
+        .date-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 0.2em;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="d-flex justify-content-between align-items-center">
-            <h1><a class="no-underline" href="/post">Post</a></h1>
+            <h1><a class="no-underline" href="/post_latest">Post Latest</a></h1>
             <div>
-                {% if current_user.is_authenticated %}
-                <a href="/post_latest" class="me-2">Post Latest</a>
-                {% endif %}
-                &gt;<a href="/" id="review" >Papernote</a>
+                <a href="/post" class="me-2">Post</a>
+                &gt;<a href="/" id="review">Papernote</a>
             </div>
         </div>
         
-        {% if current_user.is_authenticated %}
         <div class="mb-2">
             <div class="d-flex justify-content-between">
                 <div class="btn-group">
@@ -84,11 +85,9 @@
                 <button type="button" class="btn btn-primary" onclick="closeAll()">Close</button>
             </div>
         </div>
-        {% endif %}
 
-        {% if current_user.is_authenticated %}
         <!-- 検索ボックスと検索ボタンを追加 -->
-        <form method="get" action="/post">
+        <form method="get" action="/post_latest">
             <div class="input-group mb-3">
                 <input type="text" class="form-control" placeholder="タイトル検索..." name="search" lang="en" autocapitalize="none">
                 <div class="input-group-append">
@@ -96,54 +95,60 @@
                 </div>
             </div>
         </form>
-        {% endif %}
 
-        {% for topic, files in post_files.items() %}
-            {% if topic != '_トピック未設定' or current_user.is_authenticated %}
-            <h2 class="toggleable bg-white text-dark p-2 rounded border border-primary" onclick="toggleVisibility('{{ topic|escape }}')" style="font-size: medium;">{{ topic }}</h2>
-            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 row-cols-xl-6 " id="{{ topic|escape }}" >
-                {% for file in files %}
-                    <div class="col mb-2">
-                        <div class="card">
-                            <div class="card-body" style="padding: 0.5rem;"> <!-- 余白を狭くする -->
-                                <h5 class="card-title" style="font-size: medium;">
-                                    <a class="no-underline" href="{{ url_for('post', filename=file.filename) }}">
-                                        {{ file.title }}
-                                    </a>
-                                </h5>
-                                {% if current_user.is_authenticated %}
-                                <p class="card-text" style="margin-bottom: 0.1rem">
-                                    <a class="no-underline" href="#" onclick="renameFile('{{ file.filename }}'); return false;" style="font-size: xx-small;">
-                                        {{ file.filename }}
-                                    </a>
-                                </p>
-                                <div class="btn-group" role="group">
-                                    <button class="btn btn-sm" style="background-color: #cce5ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#6699ff'; this.title='copy to clipboard';" onmouseout="this.style.backgroundColor='#cce5ff';" onclick="copyToClipboard('{{ file.filename }}')">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                    <button class="btn btn-sm" style="background-color: #e6e6ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#9999ff'; this.title='duplicate';" onmouseout="this.style.backgroundColor='#e6e6ff';" onclick="duplicateFile('{{ file.filename }}')">
-                                        <i class="fas fa-file-circle-plus"></i>
-                                    </button>
-                                    <button class="btn btn-sm" style="background-color: #d4edda; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#66cc66'; this.title='edit';" onmouseout="this.style.backgroundColor='#d4edda';" onclick="editPost('{{ file.filename }}')">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-sm" style="background-color: #fff3cd; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ffd700'; this.title='archive';" onmouseout="this.style.backgroundColor='#fff3cd';" onclick="archiveFile('{{ file.filename }}')">
-                                        <i class="fas fa-box-archive"></i>
-                                    </button>
-                                    <button class="btn btn-sm" style="background-color: #f8d7da; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ff6666'; this.title='delete';" onmouseout="this.style.backgroundColor='#f8d7da';" onclick="deleteFile('{{ file.filename }}')">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
+        {% for period, files in posts.items() %}
+            {% if files %}
+                {% if period == 'week' %}
+                    {% set period_title = '過去1週間' %}
+                {% elif period == 'month' %}
+                    {% set period_title = '過去1ヶ月' %}
+                {% elif period == 'half_year' %}
+                    {% set period_title = '過去半年' %}
+                {% else %}
+                    {% set period_title = 'それ以前' %}
+                {% endif %}
+                
+                <h2 class="toggleable bg-white text-dark p-2 rounded border border-primary" onclick="toggleVisibility('{{ period }}')" style="font-size: medium;">{{ period_title }}</h2>
+                <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 row-cols-xl-6" id="{{ period }}">
+                    {% for file in files %}
+                        <div class="col mb-2">
+                            <div class="card">
+                                <div class="card-body" style="padding: 0.5rem;">
+                                    <div class="date-label">{{ file.date }}</div>
+                                    <h5 class="card-title" style="font-size: medium;">
+                                        <a class="no-underline" href="{{ url_for('post', filename=file.filename) }}">
+                                            {{ file.title }}
+                                        </a>
+                                    </h5>
+                                    <p class="card-text" style="margin-bottom: 0.1rem">
+                                        <a class="no-underline" href="#" onclick="renameFile('{{ file.filename }}'); return false;" style="font-size: xx-small;">
+                                            {{ file.filename }}
+                                        </a>
+                                    </p>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm" style="background-color: #cce5ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#6699ff'; this.title='copy to clipboard';" onmouseout="this.style.backgroundColor='#cce5ff';" onclick="copyToClipboard('{{ file.filename }}')">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <button class="btn btn-sm" style="background-color: #e6e6ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#9999ff'; this.title='duplicate';" onmouseout="this.style.backgroundColor='#e6e6ff';" onclick="duplicateFile('{{ file.filename }}')">
+                                            <i class="fas fa-file-circle-plus"></i>
+                                        </button>
+                                        <button class="btn btn-sm" style="background-color: #d4edda; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#66cc66'; this.title='edit';" onmouseout="this.style.backgroundColor='#d4edda';" onclick="editPost('{{ file.filename }}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm" style="background-color: #fff3cd; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ffd700'; this.title='archive';" onmouseout="this.style.backgroundColor='#fff3cd';" onclick="archiveFile('{{ file.filename }}')">
+                                            <i class="fas fa-box-archive"></i>
+                                        </button>
+                                        <button class="btn btn-sm" style="background-color: #f8d7da; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ff6666'; this.title='delete';" onmouseout="this.style.backgroundColor='#f8d7da';" onclick="deleteFile('{{ file.filename }}')">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                {% endif %}
                             </div>
                         </div>
-                    </div>
-                {% endfor %}
-            </div>
+                    {% endfor %}
+                </div>
             {% endif %}
         {% endfor %}
-
-
     </div>
 
     <!-- Rename Modal -->
@@ -151,7 +156,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <form id="renameForm" method="post">
-                    {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
+                    {{ form.hidden_tag() }}
                     <div class="modal-header">
                         <h5 class="modal-title" id="renameModalLabel">Rename File</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
@@ -181,7 +186,7 @@
     <script src="/static/jquery-3.7.0.min.js"></script>
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
-    <script src="/static/scripts.js"></script> <!-- Added -->
+    <script src="/static/scripts.js"></script>
 
     <script>
         // CSRFトークンを取得
@@ -201,7 +206,7 @@
 
             // 検索キーワードがある場合、すべてのh2を開く
             const urlParams = new URLSearchParams(window.location.search);
-            const searchKeyword = urlParams.get('search'); // 'search'パラメータ値を取得
+            const searchKeyword = urlParams.get('search');
             if (searchKeyword) {
                 $('input[name="search"]').val(decodeURIComponent(searchKeyword.replace(/\+/g, ' ')));
 
@@ -245,16 +250,16 @@
             // 「/」キーで検索ボックスをアクティブにする
             $(document).on('keydown', function(e) {
                 if (e.key === '/') {
-                    e.preventDefault(); // ブラウザのデフォルトの挙動を防ぐ
+                    e.preventDefault();
                     $('input[name="search"]').focus().select();
                 }
             });
-        
-        // 以下、インクリメンタルサーチ
-        // 検索入力欄にイベントリスナーを追加
-        $('input[name="search"]').on('input', function() {
-            var searchTerm = $(this).val().toLowerCase();
-            filterItems(searchTerm);
+
+            // インクリメンタルサーチ
+            $('input[name="search"]').on('input', function() {
+                var searchTerm = $(this).val().toLowerCase();
+                filterItems(searchTerm);
+            });
         });
 
         function filterItems(searchTerm) {
@@ -272,7 +277,6 @@
                     }
                 });
 
-                // H2要素の表示/非表示を制御
                 if (visibleItems > 0) {
                     h2.show();
                     $(this).show();
@@ -283,10 +287,7 @@
             });
         }
 
-        });
-
         function renameFile(oldFilename) {
-            // 現在のスクロール位置を保存
             var scrollPosition = window.scrollY || document.documentElement.scrollTop;
             localStorage.setItem('scrollPosition', scrollPosition);
 
@@ -296,7 +297,6 @@
             newFilenameInput.value = filenameWithoutExtension;
             $('#renameModal').modal('show');
 
-            // モーダルが表示された後にテキストを選択
             $('#renameModal').on('shown.bs.modal', function () {
                 newFilenameInput.select();
             });
@@ -305,7 +305,7 @@
         function copyToClipboard(filename) {
             var url = '/postdata/' + filename;
             var xhr = new XMLHttpRequest();
-            xhr.open('GET', url, false); // false makes the request synchronous
+            xhr.open('GET', url, false);
             xhr.send(null);
 
             if (xhr.status === 200) {
@@ -316,9 +316,9 @@
                 textarea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
-                showTemporaryMessage('コピーされました'); // コピー成功メッセージを表示
+                showTemporaryMessage('コピーされました');
             } else {
-                showTemporaryMessage('コピーに失敗しました'); // コピー失敗メッセージを表示
+                showTemporaryMessage('コピーに失敗しました');
                 console.error('Failed to copy: ', xhr.statusText);
             }
         }
@@ -328,7 +328,7 @@
                 $.ajax({
                     type: 'POST',
                     url: '{{ url_for("delete_post") }}',
-                    data: { filename: filename, csrf_token: csrf_token }, // CSRFトークンを追加
+                    data: { filename: filename, csrf_token: csrf_token },
                     success: function(response) {
                         location.reload();
                     },
@@ -339,10 +339,10 @@
             }
         }
 
-        function toggleVisibility(topicId) {
-            var element = $('#' + topicId);
+        function toggleVisibility(periodId) {
+            var element = $('#' + periodId);
             element.slideToggle(function() {
-                saveToggleState(topicId, element.is(':visible'));
+                saveToggleState(periodId, element.is(':visible'));
             });
         }
 
@@ -355,22 +355,22 @@
             });
         }
 
-        function saveToggleState(topicId, isVisible) {
+        function saveToggleState(periodId, isVisible) {
             var toggleStates = JSON.parse(localStorage.getItem('toggleStates')) || {};
-            toggleStates[topicId] = isVisible;
+            toggleStates[periodId] = isVisible;
             localStorage.setItem('toggleStates', JSON.stringify(toggleStates));
         }
 
         function restoreToggleStates() {
             var toggleStates = JSON.parse(localStorage.getItem('toggleStates')) || {};
-            for (var topicId in toggleStates) {
-                if (toggleStates.hasOwnProperty(topicId)) {
-                    var element = document.getElementById(topicId);
+            for (var periodId in toggleStates) {
+                if (toggleStates.hasOwnProperty(periodId)) {
+                    var element = document.getElementById(periodId);
                     if (element) {
-                        if (toggleStates[topicId]) {
-                            $(element).show(); // アニメーションなしで表示
+                        if (toggleStates[periodId]) {
+                            $(element).show();
                         } else {
-                            $(element).hide(); // アニメーションなしで表示
+                            $(element).hide();
                         }
                     }
                 }
@@ -378,11 +378,8 @@
         }
 
         function editPost(filename) {
-            // 現在のスクロール位置を保存
             var scrollPosition = window.scrollY || document.documentElement.scrollTop;
             localStorage.setItem('scrollPosition', scrollPosition);
-
-            // 編集ページに遷移
             location.href = '/edit_post/' + filename;
         }
 
@@ -416,15 +413,13 @@
             }
         }
 
-        // ページ読み込み時にスクロール位置を復元
         window.onload = function() {
             var savedScrollPosition = localStorage.getItem('scrollPosition');
             if (savedScrollPosition !== null) {
                 window.scrollTo(0, parseInt(savedScrollPosition, 10));
-                localStorage.removeItem('scrollPosition'); // 一度復元したら削除
+                localStorage.removeItem('scrollPosition');
             }
         };
     </script>
-    
 </body>
 </html>

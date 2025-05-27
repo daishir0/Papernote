@@ -1474,6 +1474,79 @@ def webtomd():
     
     return render_template('webtomd.html', form=form, message=message)
 
+@app.route('/post_latest')
+@login_required
+def post_latest():
+    form = LoginForm()
+    authenticated = current_user.is_authenticated
+    sorted_posts = get_posts_by_date_periods()
+    return render_template('post_latest.html', posts=sorted_posts, authenticated=authenticated, form=form)
+
+def get_posts_by_date_periods():
+    """投稿を日付期間でグループ化して取得"""
+    now = datetime.datetime.now()
+    week_ago = now - datetime.timedelta(days=7)
+    month_ago = now - datetime.timedelta(days=30)
+    half_year_ago = now - datetime.timedelta(days=183)
+
+    posts = {
+        'week': [],      # 1週間以内
+        'month': [],     # 1週間〜1ヶ月
+        'half_year': [], # 1ヶ月〜半年
+        'older': []      # それ以前
+    }
+
+    # 検索クエリの取得
+    search_query = request.args.get('search')
+    
+    # 投稿ファイルの取得
+    post_dir = './post'
+    post_files = [f for f in os.listdir(post_dir)
+                if os.path.isfile(os.path.join(post_dir, f))
+                and not f.endswith('.gitkeep')]
+
+    for filename in post_files:
+        file_path = os.path.join(post_dir, filename)
+        timestamp = os.path.getmtime(file_path)
+        file_date = datetime.datetime.fromtimestamp(timestamp)
+        
+        # メタデータの取得
+        metadata = get_file_metadata(file_path)
+        
+        # 検索時は全文を読み込む
+        if search_query:
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+                    content = file.read().lower()
+                    if not any(term.lower() in content for term in search_query.split()):
+                        continue
+            except Exception as e:
+                print(f"Error reading file for search {file_path}: {e}")
+                continue
+
+        file_info = {
+            'filename': filename,
+            'title': metadata['title'],
+            'date': file_date.strftime('%Y/%m/%d %H:%M'),
+            'timestamp': timestamp
+        }
+
+        # 期間に応じて振り分け
+        if file_date >= week_ago:
+            posts['week'].append(file_info)
+        elif file_date >= month_ago:
+            posts['month'].append(file_info)
+        elif file_date >= half_year_ago:
+            posts['half_year'].append(file_info)
+        else:
+            posts['older'].append(file_info)
+
+    # 各期間内で更新日時の降順にソート
+    for period in posts:
+        posts[period].sort(key=lambda x: x['timestamp'], reverse=True)
+
+    return posts
+
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
     for user_id, user in config['users'].items():
