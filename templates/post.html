@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>{{ content['title'] }}</title>
     <link href="/static/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
@@ -11,6 +11,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            overflow-x: hidden;
         }
         pre{
             margin-bottom: 0rem;
@@ -58,24 +59,49 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-          }
+            margin-bottom: 20px;
+        }
+        .content-wrapper {
+            display: flex;
+            gap: 20px;
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+            overflow-wrap: break-word;
+        }
         .index-container {
-            margin-top: 20px;
-            padding: 10px;
+            width: 250px;
+            padding: 15px;
             border: 1px solid #ddd;
             border-radius: 4px;
             background-color: #f9f9f9;
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            flex-shrink: 0;
+            font-size: 0.9em;
         }
         .index-container ul {
             list-style-type: none;
             padding-left: 0;
+            margin: 0;
         }
         .index-container li {
             margin: 5px 0;
+            font-size: 0.9em;
         }
         .index-container a {
             text-decoration: none;
             color: #007bff;
+            word-break: break-all;
         }
         .index-container a:hover {
             text-decoration: underline;
@@ -91,6 +117,20 @@
         }
         .toggle-button.collapsed::after {
             content: '▲';
+        }
+        @media (max-width: 991px) {
+            .content-wrapper {
+                flex-direction: column;
+            }
+            .main-content {
+                width: 100%;
+            }
+            .index-container {
+                width: 100%;
+                position: relative;
+                top: 0;
+                margin-bottom: 20px;
+            }
         }
     </style>
 </head>
@@ -108,18 +148,21 @@
     </div>
 </div>
 
-<div id="index" class="index-container">
-    <button id="toggle-index" class="btn btn-primary btn-sm toggle-button collapsed none_print" style="float: right;">Index</button>
-    <ul style="display: none;">
-        <!-- インデックスのリストアイテムがここに入ります -->
-    </ul>
-</div>
-
+<div class="content-wrapper">
+    <div class="main-content">
 <template id="markdown-content">
 {{ content['markdown'] | safe }}
 </template>
-
-<div id="content"></div>
+        <div id="content"></div>
+    </div>
+    
+    <div id="index" class="index-container">
+        <h4 style="margin: 0 0 10px 0;">目次</h4>
+        <ul>
+            <!-- インデックスのリストアイテムがここに入ります -->
+        </ul>
+    </div>
+</div>
 
 <script src="/static/jquery-3.7.0.min.js"></script>
 <script src="/static/marked.min.js"></script>
@@ -230,39 +273,30 @@
         // インデックス生成
         const index = document.getElementById('index');
         const indexList = index.querySelector('ul');
-        const toggleButton = document.getElementById('toggle-index');
         const toggleAllCodesButton = document.getElementById('toggle-all-codes');
         const headings = document.querySelectorAll('#content h1, #content h2, #content h3, #content h4, #content h5, #content h6');
 
-        // インデックスがない場合はインデックスエリアを削除
+        // インデックスのリストアイテムを追加
         if (headings.length === 0) {
-            index.remove();
+            const noIndex = document.createElement('li');
+            noIndex.textContent = '目次項目がありません';
+            noIndex.style.color = '#666';
+            indexList.appendChild(noIndex);
+        } else {
+            headings.forEach(heading => {
+                const level = parseInt(heading.tagName.substring(1));
+                const listItem = document.createElement('li');
+                listItem.style.marginLeft = (level - 1) * 20 + 'px'; // インデントを設定
+                const link = document.createElement('a');
+                const id = heading.textContent.replace(/\s+/g, '-').toLowerCase();
+                heading.id = id; // HタグにIDを設定
+                link.href = `#${id}`;
+                link.textContent = heading.textContent;
+                listItem.appendChild(link);
+                indexList.appendChild(listItem);
+            });
         }
 
-        // インデックスのリストアイテムを追加
-        headings.forEach(heading => {
-            const level = parseInt(heading.tagName.substring(1));
-            const listItem = document.createElement('li');
-            listItem.style.marginLeft = (level - 1) * 20 + 'px'; // インデントを設定
-            const link = document.createElement('a');
-            const id = heading.textContent.replace(/\s+/g, '-').toLowerCase();
-            heading.id = id; // HタグにIDを設定
-            link.href = `#${id}`;
-            link.textContent = heading.textContent;
-            listItem.appendChild(link);
-            indexList.appendChild(listItem);
-        });
-
-        // インデックスの開閉ボタンのイベントリスナーを追加
-        toggleButton.addEventListener('click', function() {
-            if (indexList.style.display === 'none') {
-                $(indexList).slideDown();
-                toggleButton.classList.remove('collapsed');
-            } else {
-                $(indexList).slideUp();
-                toggleButton.classList.add('collapsed');
-            }
-        });
 
         toggleAllCodesButton.addEventListener('click', function() {
             const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
