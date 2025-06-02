@@ -74,6 +74,9 @@
             min-width: 0;
             width: 100%;
             overflow-wrap: break-word;
+            overflow-y: auto;
+            height: calc(100vh - 100px);
+            padding-right: 20px;
         }
         .index-container {
             width: 250px;
@@ -179,12 +182,24 @@
         // ALT + 下: ページ最下部へ
         else if (event.altKey && event.key === 'ArrowDown') {
             event.preventDefault();
-            window.scrollTo(0, document.body.scrollHeight);
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) {
+                mainContent.scrollTo({
+                    top: mainContent.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
         }
         // ALT + 上: ページ最上部へ
         else if (event.altKey && event.key === 'ArrowUp') {
             event.preventDefault();
-            window.scrollTo(0, 0);
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) {
+                mainContent.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            }
         }
         // ALT + C: CodeSectionボタンをクリック
         else if (event.altKey && (event.key === 's' || event.key === 'S')) {

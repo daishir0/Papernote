@@ -72,11 +72,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             const contentTextArea = document.getElementById('content');
             if (contentTextArea) {
+                contentTextArea.dataset.initialLoad = 'true';
                 contentTextArea.value = contentTextArea.value.replace(/\\n/g, '\n');
-                // Set focus to the textarea and place cursor at the beginning
-                contentTextArea.focus();
-                contentTextArea.selectionStart = 0;
-                contentTextArea.selectionEnd = 0;
+                
+                if (contentTextArea.dataset.initialLoad === 'true') {
+                    contentTextArea.focus();
+                    contentTextArea.selectionStart = 0;
+                    contentTextArea.selectionEnd = 0;
+                    contentTextArea.scrollTop = 0;
+                    delete contentTextArea.dataset.initialLoad;
+                }
             }
 
             autoSaveContent();

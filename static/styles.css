@@ -193,6 +193,10 @@ margin: 5px 0; /* 上下のマージンを設定 */
   margin: 16px 0;
 }
 
+#content li p {
+  margin: 0;
+}
+
 
 #content pre {
   padding: 16px;
