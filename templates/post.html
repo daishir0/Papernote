@@ -12,6 +12,7 @@
         body {
             font-family: Arial, sans-serif;
             overflow-x: hidden;
+            overflow-y: hidden; /* bodyのスクロールバーを非表示にする */
         }
         pre{
             margin-bottom: 0rem;
@@ -60,6 +61,12 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: white;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .content-wrapper {
             display: flex;
@@ -68,16 +75,50 @@
             width: 100%;
             max-width: 100%;
             overflow-x: hidden;
+            overflow-y: hidden; /* 縦スクロールバーを非表示にする */
+        }
+        /* 目次非表示時のコンテンツラッパーのスタイル */
+        .content-wrapper.toc-hidden {
+            /* flexを維持しつつ、子要素の配置を調整 */
+            display: flex;
+            gap: 0; /* 目次とメインコンテンツの間隔をなくす */
+        }
+        /* 目次非表示時のインデックスコンテナのスタイル */
+        .content-wrapper.toc-hidden .index-container {
+            flex: 0 0 0; /* 幅を0に */
+            width: 0;
+            padding: 0;
+            margin: 0;
+            border: none;
+            overflow: hidden;
+        }
+        /* 目次非表示時のメインコンテンツのスタイル */
+        .content-wrapper.toc-hidden .main-content {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+            max-width: 100% !important;
         }
         .main-content {
             flex: 1;
             min-width: 0;
-            width: 100%;
+            width: calc(100% - 250px); /* 通常時の幅 */
             overflow-wrap: break-word;
             overflow-y: auto;
             height: calc(100vh - 100px);
             padding-right: 20px;
+            transition: width 0.3s ease; /* 幅の変更をアニメーション化 */
         }
+        .main-content.full-width {
+            width: 100% !important; /* 目次非表示時は全幅 */
+            max-width: 100% !important;
+            flex: 1 1 100% !important;
+            transition: width 0.3s ease;
+        }
+        /* 目次ボタンのスタイル */
+        #toggle-toc {
+            margin-right: 5px;
+        }
+        /* 目次の表示/非表示のアニメーション */
         .index-container {
             width: 250px;
             padding: 15px;
@@ -91,6 +132,8 @@
             overflow-y: auto;
             flex-shrink: 0;
             font-size: 0.9em;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            display: block !important; /* 明示的に表示を設定 */
         }
         .index-container ul {
             list-style-type: none;
@@ -112,6 +155,10 @@
         blockquote p {
             white-space: pre-wrap; /* 改行を反映させる */
         }
+        /* ページ内リンク遷移時のスクロールマージンを設定 */
+        h1, h2, h3, h4, h5, h6 {
+            scroll-margin-top: 70px; /* ヘッダーの高さ + 余白 */
+        }
         .align-right {
             margin-left: auto;
         }
@@ -121,18 +168,45 @@
         .toggle-button.collapsed::after {
             content: '▲';
         }
+        #toggle-index {
+            cursor: pointer;
+            user-select: none;
+        }
+        #toggle-index:hover {
+            color: #007bff;
+        }
+        .toggle-icon {
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
         @media (max-width: 991px) {
             .content-wrapper {
                 flex-direction: column;
+                overflow-y: auto; /* 解決策1: スクロールを有効にする */
             }
             .main-content {
-                width: 100%;
+                width: 100% !important; /* !importantを追加して優先度を上げる */
+                height: auto; /* 解決策2: 高さの制限を解除 */
+                order: 1; /* 解決策3: 表示順序を変更（上に表示） */
+                transition: none; /* スマホ表示時はアニメーションを無効化 */
             }
             .index-container {
                 width: 100%;
                 position: relative;
                 top: 0;
                 margin-bottom: 20px;
+                order: 2; /* 解決策3: 表示順序を変更（下に表示） */
+            }
+            #index-content {
+                display: none; /* スマホ表示時にデフォルトで非表示 */
+            }
+            /* 目次非表示時のスタイル */
+            .content-wrapper.toc-hidden .index-container {
+                margin-bottom: 0 !important;
+                border-bottom: none !important;
+                padding-bottom: 0 !important;
+                min-height: 0 !important;
+                height: auto !important;
             }
         }
     </style>
@@ -142,7 +216,8 @@
 <div class="post-header">
     <a id="back-to-index" class="none_print" href="/post"><< post一覧へ</a>
     <div class="align-right">
-        <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;CodeSection/&gt;</button>
+        <button id="toggle-toc" class="btn btn-dark btn-sm none_print">目次 <span class="toc-icon">▲</span></button>
+        <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;Code&gt;</button>
         {% if current_user.is_authenticated %}
         <button class="btn btn-success btn-sm none_print" onclick="editPost('{{ content.filename }}')">
             <i class="fas fa-edit"></i>
@@ -152,6 +227,14 @@
 </div>
 
 <div class="content-wrapper">
+
+    <div id="index" class="index-container">
+        <h4 id="toggle-index" style="margin: 0 0 10px 0; cursor: pointer;">目次 <span class="toggle-icon">▼</span></h4>
+        <ul id="index-content">
+            <!-- インデックスのリストアイテムがここに入ります -->
+        </ul>
+    </div>
+    
     <div class="main-content">
 <template id="markdown-content">
 {{ content['markdown'] | safe }}
@@ -159,12 +242,6 @@
         <div id="content"></div>
     </div>
     
-    <div id="index" class="index-container">
-        <h4 style="margin: 0 0 10px 0;">目次</h4>
-        <ul>
-            <!-- インデックスのリストアイテムがここに入ります -->
-        </ul>
-    </div>
 </div>
 
 <script src="/static/jquery-3.7.0.min.js"></script>
@@ -173,6 +250,23 @@
 <script src="/static/scripts.js"></script>
 
 <script>
+    // デバッグ用のログ
+    console.log('スクリプトが読み込まれました');
+    
+    // DOMContentLoadedイベントが発火したことを確認
+    // グローバル変数の定義
+    let isMobile = false;
+    let tocVisible = true;
+    let allCodesOpen = false;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOMContentLoadedイベントが発火しました');
+        
+        // モバイル判定
+        isMobile = window.innerWidth <= 991;
+        console.log('isMobile:', isMobile);
+    });
+    
     document.addEventListener('keydown', function(event) {
         // ALT + H: 一覧へ戻る
         if (event.altKey && (event.key === 'h' || event.key === 'H')) {
@@ -307,30 +401,286 @@
                 heading.id = id; // HタグにIDを設定
                 link.href = `#${id}`;
                 link.textContent = heading.textContent;
+                
+                // 目次内のリンクにクリックイベントを追加（モバイル表示時のみ動作）
+                link.addEventListener('click', function(e) {
+                    // クリック時にisMobileの値を確認
+                    if (window.innerWidth <= 991) { // 現在のウィンドウ幅で判定
+                        // 通常のリンク動作は維持しつつ、目次を非表示にする
+                        setTimeout(function() {
+                            console.log('目次内リンクがクリックされました');
+                            try {
+                                // 目次を非表示にする
+                                if (indexContent) {
+                                    $(indexContent).slideUp();
+                                }
+                                if (toggleIcon) {
+                                    toggleIcon.textContent = '▲';
+                                }
+                                
+                                // 目次ボタンのアイコンも更新
+                                if (tocIcon) {
+                                    tocIcon.textContent = '▲';
+                                }
+                                
+                                // 目次の表示状態を更新
+                                tocVisible = false;
+                                
+                                // content-wrapperにtoc-hiddenクラスを追加（この処理を追加）
+                                const contentWrapper = document.querySelector('.content-wrapper');
+                                if (contentWrapper) {
+                                    contentWrapper.classList.add('toc-hidden');
+                                    console.log('目次内リンククリック時: content-wrapperにtoc-hiddenクラスを追加しました');
+                                }
+                            } catch (error) {
+                                console.error('目次内リンクのクリックイベントでエラーが発生しました:', error);
+                            }
+                        }, 100); // 少し遅延させて、リンクのジャンプ後に実行
+                    }
+                });
+                
                 listItem.appendChild(link);
                 indexList.appendChild(listItem);
             });
         }
 
 
-        toggleAllCodesButton.addEventListener('click', function() {
-            const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
-            if (allCodesOpen) {
-                codeBlocks.forEach(codeBlock => {
-                    if (codeBlock.style.display !== 'none') {
-                        $(codeBlock).slideUp();
+        // Codeボタンの機能
+        console.log('Codeボタンの設定を開始します');
+        console.log('toggleAllCodesButton:', toggleAllCodesButton);
+        
+        // toggleAllCodesButtonが存在するか確認してからイベントリスナーを追加
+        if (toggleAllCodesButton) {
+            console.log('Codeボタンにイベントリスナーを追加します');
+            
+            // 明示的にクリックイベントを設定
+            toggleAllCodesButton.onclick = function() {
+                console.log('Codeボタンがクリックされました');
+                try {
+                    const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
+                    console.log('コードブロック数:', codeBlocks.length);
+                    
+                    if (allCodesOpen) {
+                        console.log('コードブロックを非表示にします');
+                        codeBlocks.forEach(codeBlock => {
+                            codeBlock.style.display = 'none';
+                        });
+                        allCodesOpen = false;
+                        toggleAllCodesButton.classList.add('collapsed');
+                    } else {
+                        console.log('コードブロックを表示します');
+                        codeBlocks.forEach(codeBlock => {
+                            codeBlock.style.display = 'block';
+                        });
+                        allCodesOpen = true;
+                        toggleAllCodesButton.classList.remove('collapsed');
                     }
-                });
-                allCodesOpen = false;
-                toggleAllCodesButton.classList.add('collapsed');
-            } else {
-                codeBlocks.forEach(codeBlock => {
-                    if (codeBlock.style.display === 'none') {
-                        $(codeBlock).slideDown();
+                } catch (error) {
+                    console.error('Codeボタンのクリックイベントでエラーが発生しました:', error);
+                }
+                
+                // イベントの伝播を停止
+                return false;
+            };
+        } else {
+            console.error('Codeボタン(#toggle-all-codes)が見つかりません');
+        }
+
+        // 目次の折りたたみ機能
+        const toggleIndex = document.getElementById('toggle-index');
+        const toggleToc = document.getElementById('toggle-toc');
+        const indexContent = document.getElementById('index-content');
+        const indexContainer = document.getElementById('index');
+        const mainContent = document.querySelector('.main-content');
+        
+        // 要素が存在するか確認してから参照する
+        const toggleIcon = toggleIndex ? toggleIndex.querySelector('.toggle-icon') : null;
+        const tocIcon = toggleToc ? toggleToc.querySelector('.toc-icon') : null;
+        
+        // グローバル変数を更新
+        isMobile = window.innerWidth <= 991;
+        tocVisible = true; // 目次の表示状態を管理
+        
+        // 初期状態設定
+        if (isMobile) {
+            // スマホ表示時の初期状態
+            if (indexContent) indexContent.style.display = 'none';
+            if (toggleIcon) toggleIcon.textContent = '▲';
+            if (tocIcon) tocIcon.textContent = '▲';
+            tocVisible = false;
+        } else {
+            // PC表示時の初期状態
+            if (indexContent) indexContent.style.display = 'block';
+            if (indexContainer) indexContainer.style.display = 'block'; // 明示的に表示を設定
+            if (toggleIcon) toggleIcon.textContent = '▼';
+            if (tocIcon) tocIcon.textContent = '▼';
+            tocVisible = true;
+        }
+        
+        // 目次の表示/非表示を切り替える関数
+        function toggleTableOfContents() {
+            console.log('toggleTableOfContents関数が呼び出されました');
+            console.log('現在の状態:', { tocVisible, isMobile });
+            
+            try {
+                if (isMobile) {
+                    // スマホ表示時の動作（完全に非表示）
+                    if (!tocVisible) {
+                        console.log('スマホ表示: 目次を表示します');
+                        if (indexContent) {
+                            indexContent.style.display = 'block';
+                            $(indexContent).slideDown();
+                        }
+                        if (toggleIcon) toggleIcon.textContent = '▼';
+                        if (tocIcon) tocIcon.textContent = '▼';
+                        tocVisible = true;
+                        
+                        // content-wrapperからtoc-hiddenクラスを削除（PC表示と同様）
+                        const contentWrapper = document.querySelector('.content-wrapper');
+                        if (contentWrapper) {
+                            contentWrapper.classList.remove('toc-hidden');
+                            console.log('content-wrapperからtoc-hiddenクラスを削除しました');
+                        }
+                    } else {
+                        console.log('スマホ表示: 目次を非表示にします');
+                        if (indexContent) {
+                            $(indexContent).slideUp(function() {
+                                indexContent.style.display = 'none';
+                            });
+                        }
+                        if (toggleIcon) toggleIcon.textContent = '▲';
+                        if (tocIcon) tocIcon.textContent = '▲';
+                        tocVisible = false;
+                        
+                        // content-wrapperにtoc-hiddenクラスを追加（PC表示と同様）
+                        const contentWrapper = document.querySelector('.content-wrapper');
+                        if (contentWrapper) {
+                            contentWrapper.classList.add('toc-hidden');
+                            console.log('content-wrapperにtoc-hiddenクラスを追加しました');
+                        }
                     }
-                });
-                allCodesOpen = true;
-                toggleAllCodesButton.classList.remove('collapsed');
+                } else {
+                    // PC表示時の動作
+                    if (!tocVisible) {
+                        console.log('PC表示: 目次を表示します');
+                        
+                        // content-wrapperからtoc-hiddenクラスを削除
+                        const contentWrapper = document.querySelector('.content-wrapper');
+                        if (contentWrapper) {
+                            contentWrapper.classList.remove('toc-hidden');
+                            console.log('content-wrapperからtoc-hiddenクラスを削除しました');
+                        }
+                        
+                        // 目次を表示
+                        if (indexContainer) {
+                            indexContainer.style.display = 'block';
+                            indexContainer.style.opacity = '1';
+                            indexContainer.style.visibility = 'visible';
+                        }
+                        
+                        // レイアウトの強制再計算を促す
+                        document.body.offsetHeight; // reflow
+                        
+                        if (mainContent) {
+                            // インラインスタイルをリセット
+                            mainContent.style.width = 'calc(100% - 250px)';
+                            mainContent.style.maxWidth = '';
+                            mainContent.style.flex = '1';
+                            console.log('メインコンテンツ幅を設定:', mainContent.style.width);
+                            
+                            // CSSクラスを削除
+                            mainContent.classList.remove('full-width');
+                            
+                            // もう一度レイアウトの再計算を促す
+                            mainContent.offsetHeight; // reflow
+                        }
+                        if (tocIcon) tocIcon.textContent = '▼';
+                        tocVisible = true;
+                    } else {
+                        console.log('PC表示: 目次を非表示にします');
+                        
+                        // content-wrapperにtoc-hiddenクラスを追加
+                        const contentWrapper = document.querySelector('.content-wrapper');
+                        if (contentWrapper) {
+                            contentWrapper.classList.add('toc-hidden');
+                            console.log('content-wrapperにtoc-hiddenクラスを追加しました');
+                        }
+                        
+                        // 目次を非表示 - アニメーション時間を短縮
+                        if (indexContainer) {
+                            indexContainer.style.opacity = '0';
+                            indexContainer.style.visibility = 'hidden';
+                            setTimeout(function() {
+                                if (indexContainer) indexContainer.style.display = 'none';
+                            }, 100); // 300msから100msに短縮
+                        }
+                        
+                        // レイアウトの強制再計算を促す
+                        document.body.offsetHeight; // reflow
+                        
+                        if (mainContent) {
+                            // インラインスタイルの設定方法を改善
+                            mainContent.style.width = '100%';
+                            mainContent.style.maxWidth = '100%';
+                            mainContent.style.flex = '1 1 100%';
+                            console.log('メインコンテンツ幅を100%に設定:', mainContent.style.width);
+                            
+                            // CSSクラスでも制御
+                            mainContent.classList.add('full-width');
+                            
+                            // もう一度レイアウトの再計算を促す
+                            mainContent.offsetHeight; // reflow
+                        }
+                        if (tocIcon) tocIcon.textContent = '▲';
+                        tocVisible = false;
+                    }
+                }
+            } catch (error) {
+                console.error('toggleTableOfContents関数でエラーが発生しました:', error);
+            }
+        }
+        
+        // 目次タイトルクリック時のイベント
+        console.log('目次タイトルの設定を開始します');
+        console.log('toggleIndex:', toggleIndex);
+        
+        if (toggleIndex) {
+            console.log('目次タイトルにイベントリスナーを追加します');
+            
+            // 明示的にクリックイベントを設定
+            toggleIndex.onclick = function() {
+                console.log('目次タイトルがクリックされました');
+                if (isMobile) {
+                    toggleTableOfContents();
+                }
+                return false;
+            };
+        } else {
+            console.error('目次タイトル(#toggle-index)が見つかりません');
+        }
+        
+        // 目次ボタンクリック時のイベント
+        console.log('目次ボタンの設定を開始します');
+        console.log('toggleToc:', toggleToc);
+        
+        if (toggleToc) {
+            console.log('目次ボタンにイベントリスナーを追加します');
+            
+            // 明示的にクリックイベントを設定
+            toggleToc.onclick = function() {
+                console.log('目次ボタンがクリックされました');
+                toggleTableOfContents();
+                return false;
+            };
+        } else {
+            console.error('目次ボタン(#toggle-toc)が見つかりません');
+        }
+        
+        // ウィンドウサイズ変更時の処理
+        window.addEventListener('resize', function() {
+            const newIsMobile = window.innerWidth <= 991;
+            if (newIsMobile !== isMobile) {
+                location.reload(); // モバイル/PCの切り替え時にページをリロード
             }
         });
 
@@ -363,7 +713,7 @@
         location.href = '/edit_post/' + filename;
     }
 
-    let allCodesOpen = false;
+    // allCodesOpenはグローバル変数として既に宣言済み
 
     function openAllCodes() {
         const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
@@ -398,6 +748,5 @@
         });
     });
 </script>
-<script src="/static/postx.js"></script>
 </body>
 </html>
