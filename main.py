@@ -134,7 +134,7 @@ def login():
                         print(f"Removed filelist cache: {filelist_cache}")
                     
                     # Create response object
-                    response = make_response(redirect(url_for('post_index')))
+                    response = make_response(redirect(url_for('post_latest')))
                     
                     # Set domain-specific cookie
                     host = request.host
