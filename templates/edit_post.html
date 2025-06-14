@@ -96,24 +96,24 @@
                 } else if (event.ctrlKey && event.key === 's') {
                     event.preventDefault();
                     saveWithoutRedirect();
-                } else if (event.altKey && (event.key === 'y' || event.key === 'Y')) {
+                } else if (event.altKey && (event.code === 'KeyY' || event.key === 'y' || event.key === 'Y')) {
                     event.preventDefault();
                     const currentDate = getCurrentDate();
                     insertTextAtCursor(document.getElementById('content'), currentDate);
-                } else if (event.altKey && (event.key === 'h' || event.key === 'H')) {
+                } else if (event.altKey && (event.code === 'KeyH' || event.key === 'h' || event.key === 'H')) {
                     event.preventDefault();
                     const currentTime = getCurrentTime();
                     insertTextAtCursor(document.getElementById('content'), currentTime);
-                } else if (event.altKey && event.key === '1') {
+                } else if (event.altKey && (event.code === 'Digit1' || event.key === '1')) {
                     event.preventDefault();
                     cycleHeaderLevel(document.getElementById('content'));
-                } else if (event.altKey && event.key === '2') {
+                } else if (event.altKey && (event.code === 'Digit2' || event.key === '2')) {
                     event.preventDefault();
                     cycleDashMark(document.getElementById('content'));
-                } else if (event.altKey && event.key === '3') {
+                } else if (event.altKey && (event.code === 'Digit3' || event.key === '3')) {
                     event.preventDefault();
                     cycleNumberMark(document.getElementById('content'));
-                } else if (event.altKey && event.key === '4') {
+                } else if (event.altKey && (event.code === 'Digit4' || event.key === '4')) {
                     event.preventDefault();
                     cycleQuoteMark(document.getElementById('content'));
                 } else if (event.altKey && event.key === 'ArrowUp') {
