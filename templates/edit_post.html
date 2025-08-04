@@ -249,9 +249,10 @@
 
             // 選択部分の前後にテキストを挿入
             if (text === '**') {
-                textArea.value = value.slice(0, start) + ' ' + text + value.slice(start, end) + text + ' ' + value.slice(end);
-                textArea.selectionStart = start + text.length + 1; // 前後のスペースを考慮
-                textArea.selectionEnd = end + text.length + 1;
+                //textArea.value = value.slice(0, start) + ' ' + text + value.slice(start, end) + text + ' ' + value.slice(end);
+                textArea.value = value.slice(0, start) + text + value.slice(start, end) + text + value.slice(end);
+                textArea.selectionStart = start + text.length; // 前後のスペースを考慮
+                textArea.selectionEnd = end + text.length;
             } else {
                 textArea.value = value.slice(0, start) + text + value.slice(start, end) + text + value.slice(end);
                 textArea.selectionStart = start + text.length;
