@@ -163,6 +163,146 @@
                 font-size: 16px; /* iOS zoom prevention */
             }
         }
+
+        /* プレビュー機能: PC専用（768px以上） */
+        @media (min-width: 769px) {
+            /* コンテナ */
+            .editor-container {
+                display: flex;
+                gap: 0;
+                height: calc(100vh - 200px);
+            }
+
+            /* 編集エリア */
+            .editor-pane {
+                flex: 1;
+                min-width: 200px;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .editor-pane textarea {
+                flex: 1;
+                resize: none;
+            }
+
+            /* リサイザー（ドラッグハンドル） */
+            .resizer {
+                width: 8px;
+                background: #dee2e6;
+                cursor: col-resize;
+                user-select: none;
+                flex-shrink: 0;
+                position: relative;
+            }
+
+            .resizer:hover {
+                background: #0d6efd;
+            }
+
+            /* リサイザーの視覚的ヒント */
+            .resizer::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 3px;
+                height: 30px;
+                background: repeating-linear-gradient(
+                    to bottom,
+                    #fff 0px,
+                    #fff 2px,
+                    transparent 2px,
+                    transparent 6px
+                );
+            }
+
+            /* プレビューエリア */
+            .preview-pane {
+                flex: 1;
+                min-width: 200px;
+                padding: 20px;
+                background: #f8f9fa;
+                overflow-y: auto;
+                border-left: 1px solid #dee2e6;
+            }
+
+            .preview-pane.hidden {
+                display: none;
+            }
+
+            /* プレビューが非表示の時は編集エリアが全幅 */
+            .editor-container.preview-hidden .editor-pane {
+                flex: 1 1 100%;
+            }
+
+            .editor-container.preview-hidden .resizer,
+            .editor-container.preview-hidden .preview-pane {
+                display: none;
+            }
+
+            /* プレビュートグルボタン */
+            .preview-toggle {
+                display: inline-block;
+            }
+
+            /* プレビュー内のスタイル */
+            .preview-pane h1, .preview-pane h2, .preview-pane h3 {
+                margin-top: 1.5rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .preview-pane code {
+                background: #f4f4f4;
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+
+            .preview-pane pre {
+                background: #f4f4f4;
+                padding: 10px;
+                border-radius: 4px;
+                overflow-x: auto;
+            }
+
+            .preview-pane blockquote {
+                border-left: 4px solid #ddd;
+                padding-left: 10px;
+                color: #666;
+                margin: 10px 0;
+            }
+
+            .preview-pane table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 10px 0;
+            }
+
+            .preview-pane th, .preview-pane td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+
+            .preview-pane th {
+                background-color: #f4f4f4;
+            }
+        }
+
+        /* スマホ（768px未満）: プレビュー機能を完全無効化 */
+        @media (max-width: 768px) {
+            .resizer,
+            .preview-pane,
+            .preview-toggle {
+                display: none !important;
+            }
+
+            .editor-container {
+                display: block;
+            }
+        }
     </style>
     <script>
         const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
@@ -482,6 +622,149 @@
                     sendAIRequest();
                 }
             });
+
+            // ========== プレビュー機能 ==========
+            const previewToggleButton = document.getElementById('previewToggleButton');
+            const previewPane = document.getElementById('previewPane');
+            const resizer = document.getElementById('resizer');
+            const editorContainer = document.querySelector('.editor-container');
+            const editorPane = document.querySelector('.editor-pane');
+
+            if (previewToggleButton && previewPane && resizer) {
+                let previewVisible = false;
+
+                // Marked.js設定（post.htmlと同じ設定）
+                const renderer = new marked.Renderer();
+                renderer.code = function(code, language) {
+                    const codeText = (typeof code === 'string' ? code : code.text).trim()
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+                    const lang = (language === undefined) ? code.lang : language;
+
+                    if (lang === 'mermaid') {
+                        return `<div class="mermaid">${codeText}</div>`;
+                    } else {
+                        return `<pre><code>${codeText}</code></pre>`;
+                    }
+                };
+
+                renderer.image = function(href, title, text) {
+                    return `<img src="${href}" alt="${text}" title="${title || ''}" style="max-width: 100%; height: auto;">`;
+                };
+
+                marked.setOptions({
+                    renderer: renderer,
+                    breaks: true,
+                    gfm: true
+                });
+
+                // Mermaid初期化
+                mermaid.initialize({ startOnLoad: false });
+
+                // プレビュー更新関数
+                let updateTimeout;
+                function updatePreview() {
+                    clearTimeout(updateTimeout);
+                    updateTimeout = setTimeout(() => {
+                        const markdown = contentTextArea.value;
+
+                        // タイトルとタグを除外（3行目以降をプレビュー）
+                        const lines = markdown.split('\n');
+                        const contentOnly = lines.slice(2).join('\n');
+
+                        try {
+                            const html = marked.parse(contentOnly);
+                            previewPane.innerHTML = html;
+
+                            // Mermaidダイアグラムを再レンダリング
+                            const mermaidElements = previewPane.querySelectorAll('.mermaid');
+                            mermaidElements.forEach((element, index) => {
+                                const id = `mermaid-${Date.now()}-${index}`;
+                                mermaid.render(id, element.textContent).then(result => {
+                                    element.innerHTML = result.svg;
+                                }).catch(error => {
+                                    console.error('Mermaid rendering error:', error);
+                                    element.innerHTML = `<pre>Mermaid Error: ${error.message}</pre>`;
+                                });
+                            });
+                        } catch (error) {
+                            console.error('Markdown rendering error:', error);
+                            previewPane.innerHTML = '<p>Markdown rendering error</p>';
+                        }
+                    }, 300); // 300ms debounce
+                }
+
+                // プレビュートグルボタン
+                previewToggleButton.addEventListener('click', () => {
+                    previewVisible = !previewVisible;
+
+                    if (previewVisible) {
+                        previewPane.classList.remove('hidden');
+                        editorContainer.classList.remove('preview-hidden');
+                        editorPane.style.flex = '1';
+                        previewPane.style.flex = '1';
+                        updatePreview();
+                    } else {
+                        previewPane.classList.add('hidden');
+                        editorContainer.classList.add('preview-hidden');
+                    }
+                });
+
+                // リアルタイムプレビュー更新
+                contentTextArea.addEventListener('input', () => {
+                    if (previewVisible) {
+                        updatePreview();
+                    }
+                });
+
+                // リサイザーのドラッグ機能
+                let isResizing = false;
+                let startX = 0;
+                let startEditorWidth = 0;
+                let startPreviewWidth = 0;
+
+                resizer.addEventListener('mousedown', (e) => {
+                    if (!previewVisible) return;
+
+                    isResizing = true;
+                    startX = e.clientX;
+                    startEditorWidth = editorPane.offsetWidth;
+                    startPreviewWidth = previewPane.offsetWidth;
+
+                    document.body.style.cursor = 'col-resize';
+                    document.body.style.userSelect = 'none';
+
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isResizing) return;
+
+                    const deltaX = e.clientX - startX;
+                    const containerWidth = editorContainer.offsetWidth;
+                    const resizerWidth = resizer.offsetWidth;
+
+                    const newEditorWidth = startEditorWidth + deltaX;
+                    const newPreviewWidth = startPreviewWidth - deltaX;
+
+                    // 最小幅チェック（200px）
+                    if (newEditorWidth >= 200 && newPreviewWidth >= 200) {
+                        const editorFlex = newEditorWidth / (containerWidth - resizerWidth);
+                        const previewFlex = newPreviewWidth / (containerWidth - resizerWidth);
+
+                        editorPane.style.flex = editorFlex;
+                        previewPane.style.flex = previewFlex;
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isResizing) {
+                        isResizing = false;
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = '';
+                    }
+                });
+            }
         });
 
         function wrapSelectedTextWith(textArea, text) {
@@ -788,11 +1071,20 @@
             <button type="button" class="btn btn-info" title="ページを閲覧" onclick="window.open('{{ url_for('post', filename=request.view_args['filename']) }}', '_blank')">
                 <i class="fas fa-eye"></i>
             </button>
+            <button id="previewToggleButton" type="button" class="btn btn-success preview-toggle" title="プレビューを表示/非表示">
+                <i class="fas fa-columns"></i> プレビュー
+            </button>
         </div>
         <input type="file" id="fileInput" style="display:none;">
 
         行1:タイトル(#限定公開、##非公開)　行2:タグ
-        <textarea id="content" name="content" class="form-control" rows="10">{{ content|safe }}</textarea>
+        <div class="editor-container">
+            <div class="editor-pane">
+                <textarea id="content" name="content" class="form-control" rows="10">{{ content|safe }}</textarea>
+            </div>
+            <div class="resizer" id="resizer"></div>
+            <div class="preview-pane hidden" id="previewPane"></div>
+        </div>
         <input type="submit" value="Save" class="btn btn-success mt-2 btn-block">
     </form>
 
@@ -828,7 +1120,11 @@
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
     <script src="/static/scripts.js"></script>
-    <script src="/static/upload.js"></script> 
+    <script src="/static/upload.js"></script>
+
+    <!-- Markdown rendering libraries for preview -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 
 </body>
 </html>
