@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/bootstrap.min.css">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
+    <link rel="stylesheet" href="/static/post-content-style.css">
     <style>
         body, html {
             height: 100%;
@@ -248,46 +249,11 @@
                 display: inline-block;
             }
 
-            /* プレビュー内のスタイル */
-            .preview-pane h1, .preview-pane h2, .preview-pane h3 {
-                margin-top: 1.5rem;
-                margin-bottom: 0.5rem;
-            }
-
-            .preview-pane code {
-                background: #f4f4f4;
-                padding: 2px 6px;
-                border-radius: 3px;
-            }
-
-            .preview-pane pre {
-                background: #f4f4f4;
-                padding: 10px;
-                border-radius: 4px;
-                overflow-x: auto;
-            }
-
-            .preview-pane blockquote {
-                border-left: 4px solid #ddd;
-                padding-left: 10px;
-                color: #666;
-                margin: 10px 0;
-            }
-
-            .preview-pane table {
-                border-collapse: collapse;
+            /* プレビューペイン内の .main-content スタイル調整 */
+            .preview-pane.main-content {
+                height: auto; /* edit_post.html では高さ制限なし */
                 width: 100%;
-                margin: 10px 0;
-            }
-
-            .preview-pane th, .preview-pane td {
-                border: 1px solid #ddd;
-                padding: 8px;
-                text-align: left;
-            }
-
-            .preview-pane th {
-                background-color: #f4f4f4;
+                padding: 20px;
             }
         }
 
@@ -1083,7 +1049,7 @@
                 <textarea id="content" name="content" class="form-control" rows="10">{{ content|safe }}</textarea>
             </div>
             <div class="resizer" id="resizer"></div>
-            <div class="preview-pane hidden" id="previewPane"></div>
+            <div class="preview-pane main-content hidden" id="previewPane"></div>
         </div>
         <input type="submit" value="Save" class="btn btn-success mt-2 btn-block">
     </form>
@@ -1123,8 +1089,8 @@
     <script src="/static/upload.js"></script>
 
     <!-- Markdown rendering libraries for preview -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script src="/static/marked.min.js"></script>
+    <script src="/static/mermaid.min.js"></script>
 
 </body>
 </html>
