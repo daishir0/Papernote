@@ -66,7 +66,7 @@
             }
 
             /* よく使うボタンを左側に固定表示 */
-            .btn-toolbar > .btn-info {    /* AI、閲覧、プレビュー（プレビューはスマホでは非表示） */
+            .btn-toolbar > .btn-primary {    /* 挿入、LINE、AI、閲覧、プレビュー（プレビューはスマホでは非表示） */
                 position: sticky;
                 left: 0;
                 z-index: 2;
@@ -1065,12 +1065,12 @@
             </div>
 
             <!-- グループ3: 特殊機能（使用頻度: 中〜高） -->
-            <button id="aiButton" type="button" class="btn btn-info" title="AIアシスタント"><i class="fas fa-robot"></i> AI</button>
-            <button type="button" class="btn btn-info" title="ページを閲覧" onclick="window.open('{{ url_for('post', filename=request.view_args['filename']) }}', '_blank')">
+            <button id="aiButton" type="button" class="btn btn-primary" title="AIアシスタント"><i class="fas fa-robot"></i></button>
+            <button type="button" class="btn btn-primary" title="ページを閲覧" onclick="window.open('{{ url_for('post', filename=request.view_args['filename']) }}', '_blank')">
                 <i class="fas fa-external-link-alt"></i>
             </button>
-            <button id="previewToggleButton" type="button" class="btn btn-info preview-toggle" title="プレビューを表示/非表示">
-                <i class="fas fa-columns"></i> プレビュー
+            <button id="previewToggleButton" type="button" class="btn btn-primary preview-toggle" title="プレビューを表示/非表示">
+                <i class="fas fa-columns"></i>
             </button>
         </div>
         <input type="file" id="fileInput" style="display:none;">
