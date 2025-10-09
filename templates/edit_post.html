@@ -18,13 +18,26 @@
         .container {
             display: flex;
             flex-direction: column;
-            height: 100%;
+            height: calc(100vh - 50px); /* Saveボタン(50px)分を引いた高さ */
         }
         textarea {
             font-size: 16px; /* フォントサイズを16px以上に設定 */
             flex-grow: 1; /* 残りのスペースを占める */
             width: 100%; /* 横幅を100%に設定 */
             margin-bottom: 0; /* 余白をなくす */
+        }
+        /* Saveボタンを画面下部に固定 */
+        input[type="submit"] {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
         }
         .fixed-bottom-btn {
             position: fixed;
@@ -170,7 +183,7 @@
             .editor-container {
                 display: flex;
                 gap: 0;
-                height: calc(100vh - 200px);
+                flex: 1; /* 残りのスペースを占める */
             }
 
             /* 編集エリア */
@@ -260,14 +273,6 @@
 
         /* スマホ（768px未満）: プレビュー機能を完全無効化 */
         @media (max-width: 768px) {
-            body, html {
-                height: 100vh; /* スマホでは画面全体の高さ */
-            }
-
-            .container {
-                height: 100vh; /* スマホでは画面全体の高さ */
-            }
-
             .resizer,
             .preview-pane,
             .preview-toggle {
