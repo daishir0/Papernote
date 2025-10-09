@@ -260,6 +260,14 @@
 
         /* スマホ（768px未満）: プレビュー機能を完全無効化 */
         @media (max-width: 768px) {
+            body, html {
+                height: auto; /* スマホでは高さ制限を解除 */
+            }
+
+            .container {
+                height: auto; /* スマホでは高さ制限を解除 */
+            }
+
             .resizer,
             .preview-pane,
             .preview-toggle {
