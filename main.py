@@ -1163,7 +1163,7 @@ def duplicate_post():
     original_path = os.path.join('./post', filename)
     new_filename = filename.replace('.txt', '(copy).txt')
     new_path = os.path.join('./post', new_filename)
-    
+
     if os.path.exists(original_path):
         try:
             with open(original_path, 'r', encoding='utf-8') as f:
@@ -1175,7 +1175,62 @@ def duplicate_post():
             return jsonify({'error': f'ファイルの複製に失敗しました: {str(e)}'}), 500
     else:
         return jsonify({'error': 'ファイルが存在しません。'}), 404
-    
+
+@app.route('/add_comment', methods=['POST'])
+@login_required
+def add_comment():
+    filename = request.form.get('filename')
+    comment = request.form.get('comment', '').strip()
+    position = request.form.get('position', 'top')
+
+    # バリデーション
+    if not is_valid_filename(filename):
+        return jsonify({'error': '無効なファイル名です。'}), 400
+
+    if not comment:
+        return jsonify({'error': 'コメントが空です。'}), 400
+
+    file_path = os.path.join('./post', filename)
+
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'ファイルが存在しません。'}), 404
+
+    try:
+        # ファイル読み込み
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()
+
+        # コメント行を作成
+        new_comment = f"- {comment}\n"
+
+        # 位置に応じて挿入
+        if position == 'top':
+            # 3行目に挿入（先頭）
+            title = lines[0] if len(lines) > 0 else "\n"
+            tags = lines[1] if len(lines) > 1 else "\n"
+            body = lines[2:] if len(lines) > 2 else []
+
+            new_content = [title, tags, new_comment] + body
+        else:  # position == 'bottom'
+            # 末尾に追加
+            new_content = lines + [new_comment]
+
+        # ファイル書き込み
+        with open(file_path, 'w', encoding='utf-8', errors='replace') as f:
+            f.writelines(new_content)
+
+        # キャッシュ削除
+        cache_file_old = './post/.cache/post_files_info.json'
+        cache_file_all = './post/.cache/post_files_info_all.json'
+        filelist_cache = './post/.cache/filelist.json'
+        for cf in [cache_file_old, cache_file_all, filelist_cache]:
+            if os.path.exists(cf):
+                os.remove(cf)
+
+        return jsonify({'success': 'コメントが追加されました。'}), 200
+    except Exception as e:
+        return jsonify({'error': f'コメント追加に失敗しました: {str(e)}'}), 500
+
 
 @app.route('/summary/<filename>')
 def summary(filename):

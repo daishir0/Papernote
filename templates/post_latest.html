@@ -51,6 +51,16 @@
             color: #666;
             margin-bottom: 0.2em;
         }
+        /* ドロップダウンメニューのスタイル */
+        .dropdown-menu {
+            min-width: 140px;
+            z-index: 1050;
+        }
+        .dropdown-item i {
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -126,21 +136,36 @@
                                         </a>
                                     </p>
                                     <div class="btn-group" role="group">
+                                        <!-- Add Comment -->
+                                        <button class="btn btn-sm" style="background-color: #fff9c4; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ffeb3b'; this.title='add comment';" onmouseout="this.style.backgroundColor='#fff9c4';" onclick="openCommentModal('{{ file.filename }}')">
+                                            <i class="fas fa-circle-plus"></i>
+                                        </button>
+                                        <!-- Copy to Clipboard -->
                                         <button class="btn btn-sm" style="background-color: #cce5ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#6699ff'; this.title='copy to clipboard';" onmouseout="this.style.backgroundColor='#cce5ff';" onclick="copyToClipboard('{{ file.filename }}')">
                                             <i class="fas fa-copy"></i>
                                         </button>
-                                        <button class="btn btn-sm" style="background-color: #e6e6ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#9999ff'; this.title='duplicate';" onmouseout="this.style.backgroundColor='#e6e6ff';" onclick="duplicateFile('{{ file.filename }}')">
-                                            <i class="fas fa-file-circle-plus"></i>
-                                        </button>
+                                        <!-- Edit -->
                                         <button class="btn btn-sm" style="background-color: #d4edda; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#66cc66'; this.title='edit';" onmouseout="this.style.backgroundColor='#d4edda';" onclick="editPost('{{ file.filename }}')">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-sm" style="background-color: #fff3cd; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ffd700'; this.title='archive';" onmouseout="this.style.backgroundColor='#fff3cd';" onclick="archiveFile('{{ file.filename }}')">
-                                            <i class="fas fa-box-archive"></i>
-                                        </button>
-                                        <button class="btn btn-sm" style="background-color: #f8d7da; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ff6666'; this.title='delete';" onmouseout="this.style.backgroundColor='#f8d7da';" onclick="deleteFile('{{ file.filename }}')">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
+                                        <!-- More Options Dropdown -->
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm dropdown-toggle" style="background-color: #e9ecef; border: 1px solid #ccc;" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="more options">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><a class="dropdown-item" href="#" onclick="duplicateFile('{{ file.filename }}'); return false;">
+                                                    <i class="fas fa-file-circle-plus"></i> 複製
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="archiveFile('{{ file.filename }}'); return false;">
+                                                    <i class="fas fa-box-archive"></i> アーカイブ
+                                                </a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteFile('{{ file.filename }}'); return false;">
+                                                    <i class="fas fa-trash-alt"></i> 削除
+                                                </a></li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -179,6 +204,40 @@
                         <button type="submit" class="btn btn-primary">Rename</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comment Modal -->
+    <div class="modal fade" id="commentModal" tabindex="-1" aria-labelledby="commentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="commentModalLabel">コメントを追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="commentFilename">
+                    <div class="form-group mb-3">
+                        <label for="commentText">コメント</label>
+                        <input type="text" id="commentText" class="form-control" placeholder="メモやコメントを入力..." maxlength="200">
+                    </div>
+                    <div class="form-group">
+                        <label>追加位置</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="commentPosition" id="positionTop" value="top" checked>
+                            <label class="form-check-label" for="positionTop">本文の先頭（3行目）</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="commentPosition" id="positionBottom" value="bottom">
+                            <label class="form-check-label" for="positionBottom">本文の末尾</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" onclick="submitComment()">追加</button>
+                </div>
             </div>
         </div>
     </div>
@@ -411,6 +470,55 @@
                     }
                 });
             }
+        }
+
+        function openCommentModal(filename) {
+            $('#commentFilename').val(filename);
+            $('#commentText').val('');
+            $('#positionTop').prop('checked', true);
+            $('#commentModal').modal('show');
+
+            setTimeout(function() {
+                $('#commentText').focus();
+
+                // Enterキーでsubmitするイベントリスナーを追加
+                $('#commentText').off('keypress').on('keypress', function(e) {
+                    if (e.which === 13 || e.keyCode === 13) {
+                        e.preventDefault();
+                        submitComment();
+                    }
+                });
+            }, 500);
+        }
+
+        function submitComment() {
+            var filename = $('#commentFilename').val();
+            var comment = $('#commentText').val().trim();
+            var position = $('input[name="commentPosition"]:checked').val();
+
+            if (!comment) {
+                alert('コメントを入力してください');
+                return;
+            }
+
+            $.ajax({
+                type: 'POST',
+                url: '/add_comment',
+                data: {
+                    filename: filename,
+                    comment: comment,
+                    position: position,
+                    csrf_token: csrf_token
+                },
+                success: function(response) {
+                    $('#commentModal').modal('hide');
+                    location.reload();
+                },
+                error: function(xhr) {
+                    var errorMessage = xhr.responseJSON ? xhr.responseJSON.error : 'コメント追加に失敗しました';
+                    alert(errorMessage);
+                }
+            });
         }
 
         window.onload = function() {
