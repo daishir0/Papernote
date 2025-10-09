@@ -255,6 +255,143 @@
                 width: 100%;
                 padding: 20px;
             }
+
+            /* プレビューペイン内のコンテンツに #content と同じスタイルを適用 */
+            #preview-content h1::before,
+            #preview-content h2::before,
+            #preview-content h3::before,
+            #preview-content h4::before,
+            #preview-content h5::before,
+            #preview-content h6::before {
+                content: "■";
+            }
+
+            #preview-content h1 {
+                font-size: 2em;
+                border-bottom: solid;
+                margin-top: 50px;
+                margin-bottom: 20px;
+                font-weight: bold;
+            }
+
+            #preview-content h2 {
+                font-size: 1.5em;
+                font-weight: bold;
+                margin-top: 30px;
+            }
+
+            #preview-content h3 {
+                font-size: 1.25em;
+                font-weight: bold;
+                margin-top: 30px;
+            }
+
+            #preview-content h4 {
+                font-size: 1.2em;
+                font-weight: bold;
+                margin-top: 30px;
+            }
+
+            #preview-content h5 {
+                font-size: 1.1em;
+                font-weight: bold;
+                margin-top: 30px;
+            }
+
+            #preview-content h6 {
+                font-size: 1.0em;
+                font-weight: bold;
+                margin-top: 30px;
+            }
+
+            #preview-content ul {
+                list-style-type: disc;
+                padding-left: 1.5em;
+                margin: 16px 0;
+            }
+
+            #preview-content ol {
+                list-style-type: decimal;
+                padding-left: 1.5em;
+                margin: 16px 0;
+            }
+
+            #preview-content p {
+                margin: 16px 0;
+            }
+
+            #preview-content blockquote {
+                color: #666666;
+                margin: 0 24px;
+                padding-left: 10px;
+                border-left: 0.5em #eee solid;
+            }
+
+            #preview-content img {
+                border: 2px solid #d3d3d3;
+                max-width: 100%;
+            }
+
+            #preview-content code {
+                background-color: #f5f5f5;
+                border-radius: 3px;
+                padding: 0.2em 0.4em;
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 0.95em;
+            }
+
+            #preview-content pre {
+                padding: 16px;
+                display: block;
+                border-radius: 4px;
+                overflow-x: auto;
+                border: 1px solid #d3d3d3;
+            }
+
+            #preview-content pre code {
+                background-color: #1c1b1b;
+                color: #f8f8f2;
+                padding: 16px;
+                display: block;
+                border-radius: 4px;
+                overflow-x: auto;
+            }
+
+            #preview-content pre:has(> code) {
+                padding: 0;
+            }
+
+            #preview-content table {
+                width: 100%;
+                margin-bottom: 1rem;
+                border-collapse: collapse;
+            }
+
+            #preview-content th {
+                background-color: #55c500;
+                color: white;
+                padding: 10px;
+                border: 1px solid #e1e4e8;
+                font-weight: normal;
+                text-align: center;
+            }
+
+            #preview-content td {
+                padding: 0.75rem;
+                border: 1px solid #dee2e6;
+            }
+
+            #preview-content strong {
+                font-weight: bold;
+            }
+
+            #preview-content em {
+                font-style: italic;
+            }
+
+            #preview-content del {
+                text-decoration: line-through;
+            }
         }
 
         /* スマホ（768px未満）: プレビュー機能を完全無効化 */
@@ -668,10 +805,12 @@
                                 escapedHtml = escapedHtml.replace(regex, `&lt;${tag}&gt;`).replace(closingRegex, `&lt;/${tag}&gt;`);
                             });
 
-                            previewPane.innerHTML = escapedHtml;
+                            // preview-content div に挿入（styles.cssの#contentスタイルを適用するため）
+                            const previewContent = document.getElementById('preview-content');
+                            previewContent.innerHTML = escapedHtml;
 
                             // Mermaidダイアグラムを再レンダリング
-                            const mermaidElements = previewPane.querySelectorAll('.mermaid');
+                            const mermaidElements = previewContent.querySelectorAll('.mermaid');
                             mermaidElements.forEach((element, index) => {
                                 const id = `mermaid-${Date.now()}-${index}`;
                                 mermaid.render(id, element.textContent).then(result => {
@@ -683,7 +822,8 @@
                             });
                         } catch (error) {
                             console.error('Markdown rendering error:', error);
-                            previewPane.innerHTML = '<p>Markdown rendering error</p>';
+                            const previewContent = document.getElementById('preview-content');
+                            previewContent.innerHTML = '<p>Markdown rendering error</p>';
                         }
                     }, 300); // 300ms debounce
                 }
@@ -1077,7 +1217,9 @@
                 <textarea id="content" name="content" class="form-control" rows="10">{{ content|safe }}</textarea>
             </div>
             <div class="resizer" id="resizer"></div>
-            <div class="preview-pane main-content hidden" id="previewPane"></div>
+            <div class="preview-pane main-content hidden" id="previewPane">
+                <div id="preview-content"></div>
+            </div>
         </div>
         <input type="submit" value="Save" class="btn btn-success mt-2 btn-block">
     </form>
