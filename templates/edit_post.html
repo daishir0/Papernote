@@ -263,7 +263,7 @@
 
             /* プレビューペイン内の .main-content スタイル調整 */
             .preview-pane.main-content {
-                height: auto; /* edit_post.html では高さ制限なし */
+                /* height: auto を削除 - 親の flex: 1 と overflow-y: auto に従う */
                 width: 100%;
                 padding: 20px;
             }
