@@ -1176,6 +1176,56 @@ def duplicate_post():
     else:
         return jsonify({'error': 'ファイルが存在しません。'}), 404
 
+@app.route('/ai_assist', methods=['POST'])
+@login_required
+def ai_assist():
+    """AI編集アシスタント機能"""
+    data = request.json
+    prompt = data.get('prompt', '')
+    context = data.get('context', '')
+
+    # config.yamlから設定を読み込み
+    api_key = config.get('openai_api_key')
+    model = config.get('ai_model', 'gpt-4o-mini')  # デフォルトはgpt-4o-mini
+
+    if not api_key:
+        return jsonify({'error': 'OpenAI APIキーが設定されていません'}), 500
+
+    if not prompt:
+        return jsonify({'error': 'プロンプトが空です'}), 400
+
+    try:
+        import openai
+        client = openai.OpenAI(api_key=api_key)
+
+        # メッセージ構築
+        if context:
+            # テキスト選択時: コンテキスト付き
+            messages = [
+                {"role": "system", "content": "あなたは優秀な編集アシスタントです。簡潔で分かりやすい回答を心がけてください。"},
+                {"role": "user", "content": f"以下のテキストに関して：\n\n{context}\n\n{prompt}"}
+            ]
+        else:
+            # 未選択時: コンテキストなし
+            messages = [
+                {"role": "system", "content": "あなたは優秀な編集アシスタントです。簡潔で分かりやすい回答を心がけてください。"},
+                {"role": "user", "content": prompt}
+            ]
+
+        # OpenAI APIを呼び出し
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        ai_response = response.choices[0].message.content
+        return jsonify({'response': ai_response}), 200
+
+    except Exception as e:
+        return jsonify({'error': f'AI処理に失敗しました: {str(e)}'}), 500
+
 @app.route('/add_comment', methods=['POST'])
 @login_required
 def add_comment():
