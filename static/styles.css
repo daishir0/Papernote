@@ -132,7 +132,8 @@ margin: 5px 0; /* 上下のマージンを設定 */
 }
 
 /* postのスタイル */
-#content {
+#content,
+#preview-content {
   font-family: "YakuHanJPs", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
   font-size: var(--font-size-body-1);
   line-height: var(--line-height-body);
@@ -146,7 +147,13 @@ margin: 5px 0; /* 上下のマージンを設定 */
 #content h3::before,
 #content h4::before,
 #content h5::before,
-#content h6::before {
+#content h6::before,
+#preview-content h1::before,
+#preview-content h2::before,
+#preview-content h3::before,
+#preview-content h4::before,
+#preview-content h5::before,
+#preview-content h6::before {
   content: "■";
 }
 
@@ -155,50 +162,65 @@ margin: 5px 0; /* 上下のマージンを設定 */
 #content h3,
 #content h4,
 #content h5,
-#content h6 {
+#content h6,
+#preview-content h1,
+#preview-content h2,
+#preview-content h3,
+#preview-content h4,
+#preview-content h5,
+#preview-content h6 {
   font-weight: bold;
   font-feature-settings: "palt";
   margin-top: 30px; /* 上のマージンを設定 */
 }
 
-#content h1 {
+#content h1,
+#preview-content h1 {
   font-size: 2em;
   border-bottom: solid;
   margin-top: 50px; /* 上のマージンを設定 */
   margin-bottom: 20px; /* 下のマージンを設定 */
 }
 
-#content h2 {
+#content h2,
+#preview-content h2 {
   font-size: 1.5em;
 }
 
-#content h3 {
+#content h3,
+#preview-content h3 {
   font-size: 1.25em;
 }
 
-#content h4 {
+#content h4,
+#preview-content h4 {
   font-size: 1.2em;
 }
 
-#content h5 {
+#content h5,
+#preview-content h5 {
   font-size: 1.1em;
 }
 
-#content h6 {
+#content h6,
+#preview-content h6 {
   font-size: 1.0em;
 }
 
 
-#content p {
+#content p,
+#preview-content p {
   margin: 16px 0;
 }
 
-#content li p {
+#content li p,
+#preview-content li p {
   margin: 0;
 }
 
 
-#content pre {
+#content pre,
+#preview-content pre {
   padding: 16px;
   display: block;
   border-radius: 4px;
@@ -208,7 +230,8 @@ margin: 5px 0; /* 上下のマージンを設定 */
   border: 1px solid #d3d3d3; /* 灰色の枠 */
 }
 
-#content pre code {
+#content pre code,
+#preview-content pre code {
   background-color: #1c1b1b;
   color: #f8f8f2;
   padding: 16px;
@@ -219,24 +242,29 @@ margin: 5px 0; /* 上下のマージンを設定 */
   overflow-x: auto;
 }
 
-#content pre:has(> code) {
+#content pre:has(> code),
+#preview-content pre:has(> code) {
   padding: 0; /* pre内にcodeがある場合のpaddingを0に設定 */
 }
 
-#content strong {
+#content strong,
+#preview-content strong {
   font-weight: bold;
 }
 
-#content em {
+#content em,
+#preview-content em {
   font-style: italic;
 }
 
-#content del {
+#content del,
+#preview-content del {
   text-decoration: line-through;
 }
 
 
-#content blockquote {
+#content blockquote,
+#preview-content blockquote {
   color: var(--color-mediumEmphasis);
   padding: 8px 16px;
   position: relative;
@@ -251,38 +279,46 @@ blockquote {
   }
 
 #content ul,
-#content ol {
+#content ol,
+#preview-content ul,
+#preview-content ol {
   padding-left: 1.5em;
   margin: 16px 0;
 }
 
-#content ul {
+#content ul,
+#preview-content ul {
   list-style-type: disc;
 }
 
-#content ol {
+#content ol,
+#preview-content ol {
   list-style-type: decimal;
 }
 
-#content img {
+#content img,
+#preview-content img {
   background-color: var(--color-gray0);
   border: 2px solid #d3d3d3; /* 薄いグレーの枠を追加 */
   max-width: 100%;
 }
 
-#content table {
+#content table,
+#preview-content table {
     width: 100%;
     margin-bottom: 1rem;
     border-collapse: collapse;
 }
 
-#content th {
+#content th,
+#preview-content th {
     padding: 0.75rem;
     border: 1px solid #dee2e6;
     min-width: 120px;  /* 最小幅を設定 */
 }
 
-#content td {
+#content td,
+#preview-content td {
     padding: 0.75rem;
     border: 1px solid #dee2e6;
     min-width: 120px;  /* 最小幅を設定 */
@@ -304,7 +340,8 @@ blockquote {
         min-width: 200px;
     }
 
-#content hr {
+#content hr,
+#preview-content hr {
   height: 2px;
 }
 
