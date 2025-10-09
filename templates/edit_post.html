@@ -261,11 +261,11 @@
         /* スマホ（768px未満）: プレビュー機能を完全無効化 */
         @media (max-width: 768px) {
             body, html {
-                height: auto; /* スマホでは高さ制限を解除 */
+                height: 100vh; /* スマホでは画面全体の高さ */
             }
 
             .container {
-                height: auto; /* スマホでは高さ制限を解除 */
+                height: 100vh; /* スマホでは画面全体の高さ */
             }
 
             .resizer,
@@ -275,8 +275,19 @@
             }
 
             .editor-container {
-                display: block;
-                height: auto; /* PC用の高さ制限を解除 */
+                display: flex; /* flexコンテナにする */
+                flex-direction: column;
+                flex: 1; /* 残りのスペースを占める */
+            }
+
+            .editor-pane {
+                display: flex; /* flexコンテナにする */
+                flex-direction: column;
+                flex: 1; /* 残りのスペースを占める */
+            }
+
+            .editor-pane textarea {
+                flex: 1; /* 残りのスペースを占める */
             }
         }
     </style>
