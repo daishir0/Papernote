@@ -151,17 +151,17 @@
                                         </a>
                                     </p>
                                     <div class="btn-group" role="group">
-                                        <!-- Edit -->
-                                        <button class="btn btn-sm" style="background-color: #d4edda; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#66cc66'; this.title='edit';" onmouseout="this.style.backgroundColor='#d4edda';" onclick="editPost('{{ file.filename }}')">
-                                            <i class="fas fa-edit"></i>
+                                        <!-- Copy to Clipboard -->
+                                        <button class="btn btn-sm" style="background-color: #cce5ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#6699ff'; this.title='copy to clipboard';" onmouseout="this.style.backgroundColor='#cce5ff';" onclick="copyToClipboard('{{ file.filename }}')">
+                                            <i class="fas fa-copy"></i>
                                         </button>
                                         <!-- Add Comment -->
                                         <button class="btn btn-sm" style="background-color: #fff9c4; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#ffeb3b'; this.title='add comment';" onmouseout="this.style.backgroundColor='#fff9c4';" onclick="openCommentModal('{{ file.filename }}')">
                                             <i class="fas fa-circle-plus"></i>
                                         </button>
-                                        <!-- Copy to Clipboard -->
-                                        <button class="btn btn-sm" style="background-color: #cce5ff; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#6699ff'; this.title='copy to clipboard';" onmouseout="this.style.backgroundColor='#cce5ff';" onclick="copyToClipboard('{{ file.filename }}')">
-                                            <i class="fas fa-copy"></i>
+                                        <!-- Edit -->
+                                        <button class="btn btn-sm" style="background-color: #d4edda; border: 1px solid #ccc;" onmouseover="this.style.backgroundColor='#66cc66'; this.title='edit';" onmouseout="this.style.backgroundColor='#d4edda';" onclick="editPost('{{ file.filename }}')">
+                                            <i class="fas fa-edit"></i>
                                         </button>
                                         <!-- More Options Dropdown -->
                                         <div class="btn-group" role="group">
