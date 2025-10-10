@@ -103,6 +103,10 @@ class LoginForm(FlaskForm):
 def login():
     print(f"current_user.is_authenticated: {current_user.is_authenticated}")
     if request.method == 'GET' and current_user.is_authenticated:
+        # 既にログイン済みの場合、nextパラメータがあればそこへ、なければpost_indexへ
+        next_page = request.args.get('next')
+        if next_page and next_page.startswith('/'):
+            return redirect(next_page)
         return redirect(url_for('post_index'))
     
     form = LoginForm()
@@ -131,9 +135,17 @@ def login():
                         if os.path.exists(cf):
                             os.remove(cf)
                             print(f"Removed cache file: {cf}")
-                    
+
+                    # ログイン前にアクセスしようとしていたURLを取得
+                    next_page = request.args.get('next')
+                    # nextパラメータが存在し、かつ相対URLであることを確認（セキュリティ対策）
+                    if next_page and next_page.startswith('/'):
+                        redirect_url = next_page
+                    else:
+                        redirect_url = url_for('post_latest')
+
                     # Create response object
-                    response = make_response(redirect(url_for('post_latest')))
+                    response = make_response(redirect(redirect_url))
                     
                     # Set domain-specific cookie
                     host = request.host
