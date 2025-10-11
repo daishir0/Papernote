@@ -1,0 +1,56 @@
+{
+  "summarize": {
+    "name": "要約",
+    "icon": "📝",
+    "prompt": "この文章を簡潔に要約してください。",
+    "builtin": true
+  },
+  "elaborate": {
+    "name": "詳述",
+    "icon": "📖",
+    "prompt": "この文章をもっと詳しく説明してください。具体例も交えて説明してください。",
+    "builtin": true
+  },
+  "translate": {
+    "name": "翻訳",
+    "icon": "🌐",
+    "prompt": "この文章を英語に翻訳してください。",
+    "builtin": true
+  },
+  "proofread": {
+    "name": "校正",
+    "icon": "✏️",
+    "prompt": "この文章を校正してください。誤字脱字、文法ミス、より良い表現があれば指摘してください。",
+    "builtin": true
+  },
+  "improve": {
+    "name": "改善",
+    "icon": "✨",
+    "prompt": "この文章をより分かりやすく、読みやすく改善してください。",
+    "builtin": true
+  },
+  "question": {
+    "name": "質問",
+    "icon": "❓",
+    "prompt": "この文章について質問に答えてください：",
+    "builtin": true
+  },
+  "suggest": {
+    "name": "提案",
+    "icon": "💡",
+    "prompt": "この内容についてブログ記事のタイトル案を10個提案してください。",
+    "builtin": true
+  },
+  "verify": {
+    "name": "検証",
+    "icon": "🔍",
+    "prompt": "この文章の内容に事実誤認や論理的な矛盾がないか検証してください。",
+    "builtin": true
+  },
+  "format": {
+    "name": "整形",
+    "icon": "📋",
+    "prompt": "この文章をMarkdown形式で見やすく整形してください。",
+    "builtin": true
+  }
+}

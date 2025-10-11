@@ -174,6 +174,22 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+        /* テンプレートボタン用スタイル */
+        .template-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .template-buttons .btn {
+            padding: 10px;
+            font-size: 0.9em;
+            text-align: center;
+            white-space: normal;
+            height: auto;
+            min-height: 50px;
+        }
+
         /* レスポンシブ対応 */
         @media (max-width: 768px) {
             #aiOverlay .dialog {
@@ -182,6 +198,9 @@
             }
             #aiPromptInput {
                 font-size: 16px; /* iOS zoom prevention */
+            }
+            .template-buttons {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
@@ -493,7 +512,7 @@
                 });
             }
 
-            // AI機能の実装
+            // AI機能の実装（プリセット対応）
             const aiButton = document.getElementById('aiButton');
             const aiOverlay = document.getElementById('aiOverlay');
             const aiPromptInput = document.getElementById('aiPromptInput');
@@ -502,9 +521,94 @@
             const aiCancelButton = document.getElementById('aiCancelButton');
             const aiButtonText = document.getElementById('aiButtonText');
             const aiSpinner = document.getElementById('aiSpinner');
+            const templateButtons = document.getElementById('templateButtons');
+            const systemPromptSelect = document.getElementById('systemPromptSelect');
 
             let aiContextText = '';
             let aiCursorPosition = 0;
+            let aiPresets = null;
+            let selectedTemplateId = null;
+
+            // AIプリセットを読み込む
+            async function loadAIPresets() {
+                try {
+                    const response = await fetch('/ai_presets', {
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        }
+                    });
+                    if (response.ok) {
+                        aiPresets = await response.json();
+                        renderTemplateButtons();
+                        renderSystemPromptSelect();
+                    } else {
+                        console.error('Failed to load AI presets');
+                    }
+                } catch (error) {
+                    console.error('Error loading AI presets:', error);
+                }
+            }
+
+            // テンプレートボタンを描画
+            function renderTemplateButtons() {
+                if (!aiPresets || !aiPresets.prompt_templates) return;
+
+                templateButtons.innerHTML = '';
+                Object.entries(aiPresets.prompt_templates).forEach(([id, template]) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-outline-primary';
+                    btn.innerHTML = `${template.icon}<br><small>${template.name}</small>`;
+                    btn.addEventListener('click', () => {
+                        selectedTemplateId = id;
+                        aiPromptInput.value = template.prompt;
+                        // 選択状態を表示
+                        document.querySelectorAll('.template-buttons .btn').forEach(b => {
+                            b.classList.remove('active');
+                        });
+                        btn.classList.add('active');
+                    });
+                    templateButtons.appendChild(btn);
+                });
+            }
+
+            // システムプロンプトセレクトを描画
+            function renderSystemPromptSelect() {
+                if (!aiPresets || !aiPresets.system_prompts) return;
+
+                systemPromptSelect.innerHTML = '';
+                const selectedPromptId = aiPresets.user_presets?.selected_system_prompt || 'default';
+
+                Object.entries(aiPresets.system_prompts).forEach(([id, prompt]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = prompt.name;
+                    if (id === selectedPromptId) {
+                        option.selected = true;
+                    }
+                    systemPromptSelect.appendChild(option);
+                });
+            }
+
+            // システムプロンプトの選択変更を保存
+            systemPromptSelect.addEventListener('change', async () => {
+                const selectedId = systemPromptSelect.value;
+                try {
+                    await fetch('/ai_presets/system_prompt', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ preset_id: selectedId })
+                    });
+                } catch (error) {
+                    console.error('Error saving system prompt:', error);
+                }
+            });
+
+            // ページロード時にプリセットを読み込む
+            loadAIPresets();
 
             // AIボタンクリック
             aiButton.addEventListener('click', () => {
@@ -526,15 +630,20 @@
                 }
 
                 aiOverlay.style.display = 'flex';
-                aiPromptInput.value = '';
                 aiPromptInput.focus();
             });
 
             // AI送信ボタンクリック
             async function sendAIRequest() {
-                const prompt = aiPromptInput.value.trim();
+                let prompt = aiPromptInput.value.trim();
+
+                // テンプレートが選択されていてプロンプト入力がない場合、テンプレートのプロンプトを使用
+                if (selectedTemplateId && !prompt && aiPresets.prompt_templates[selectedTemplateId]) {
+                    prompt = aiPresets.prompt_templates[selectedTemplateId].prompt;
+                }
+
                 if (!prompt) {
-                    alert('問い合わせ内容を入力してください');
+                    alert('テンプレートを選択するか、問い合わせ内容を入力してください');
                     return;
                 }
 
@@ -546,6 +655,7 @@
                 aiPromptInput.disabled = true;
 
                 try {
+                    const systemPromptId = systemPromptSelect.value;
                     const response = await fetch('/ai_assist', {
                         method: 'POST',
                         headers: {
@@ -554,7 +664,8 @@
                         },
                         body: JSON.stringify({
                             prompt: prompt,
-                            context: aiContextText
+                            context: aiContextText,
+                            system_prompt_id: systemPromptId
                         })
                     });
 
@@ -576,6 +687,13 @@
 
                         // モーダルを閉じる
                         aiOverlay.style.display = 'none';
+
+                        // リセット
+                        selectedTemplateId = null;
+                        aiPromptInput.value = '';
+                        document.querySelectorAll('.template-buttons .btn').forEach(b => {
+                            b.classList.remove('active');
+                        });
                     } else {
                         alert('エラー: ' + (data.error || '不明なエラーが発生しました'));
                     }
@@ -597,12 +715,22 @@
             // AIキャンセルボタンクリック
             aiCancelButton.addEventListener('click', () => {
                 aiOverlay.style.display = 'none';
+                selectedTemplateId = null;
+                aiPromptInput.value = '';
+                document.querySelectorAll('.template-buttons .btn').forEach(b => {
+                    b.classList.remove('active');
+                });
             });
 
             // AIオーバーレイクリック（背景クリック）
             aiOverlay.addEventListener('click', (event) => {
                 if (event.target === aiOverlay) {
                     aiOverlay.style.display = 'none';
+                    selectedTemplateId = null;
+                    aiPromptInput.value = '';
+                    document.querySelectorAll('.template-buttons .btn').forEach(b => {
+                        b.classList.remove('active');
+                    });
                 }
             });
 
@@ -1134,20 +1262,56 @@
         </div>
     </div>
 
-    <!-- AIモーダル -->
+    <!-- AIモーダル（2タブ構成） -->
     <div id="aiOverlay" class="overlay">
-        <div class="dialog">
+        <div class="dialog ai-dialog">
             <h5>AIアシスタント</h5>
-            <div id="aiContextPreview" class="ai-context-preview" style="display:none;"></div>
-            <textarea id="aiPromptInput" class="form-control" rows="3" placeholder="AIへの問い合わせを入力してください（Ctrl+Enterで送信）"></textarea>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button id="aiSendButton" class="btn btn-primary" style="flex: 1;">
-                    <span id="aiButtonText">送信</span>
-                    <span id="aiSpinner" style="display: none;">
-                        <i class="fas fa-spinner fa-spin"></i> 処理中...
-                    </span>
-                </button>
-                <button id="aiCancelButton" class="btn btn-secondary">キャンセル</button>
+
+            <!-- タブナビゲーション -->
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="template-tab" data-bs-toggle="tab" data-bs-target="#template-panel" type="button" role="tab">テンプレート</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-panel" type="button" role="tab">設定</button>
+                </li>
+            </ul>
+
+            <!-- タブコンテンツ -->
+            <div class="tab-content" style="margin-top: 10px;">
+                <!-- テンプレートタブ -->
+                <div class="tab-pane fade show active" id="template-panel" role="tabpanel">
+                    <div id="aiContextPreview" class="ai-context-preview" style="display:none;"></div>
+
+                    <!-- プロンプトテンプレートボタン -->
+                    <div id="templateButtons" class="template-buttons">
+                        <!-- JavaScriptで動的に生成 -->
+                    </div>
+
+                    <!-- 追加指示入力欄 -->
+                    <textarea id="aiPromptInput" class="form-control" rows="3" placeholder="追加の指示があればこちらに入力してください（Ctrl+Enterで送信）"></textarea>
+
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button id="aiSendButton" class="btn btn-primary" style="flex: 1;">
+                            <span id="aiButtonText">送信</span>
+                            <span id="aiSpinner" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i> 処理中...
+                            </span>
+                        </button>
+                        <button id="aiCancelButton" class="btn btn-secondary">キャンセル</button>
+                    </div>
+                </div>
+
+                <!-- 設定タブ -->
+                <div class="tab-pane fade" id="settings-panel" role="tabpanel">
+                    <div style="margin-top: 10px;">
+                        <label for="systemPromptSelect" class="form-label">システムプロンプト</label>
+                        <select id="systemPromptSelect" class="form-select">
+                            <!-- JavaScriptで動的に生成 -->
+                        </select>
+                        <div class="form-text">AIの振る舞いを設定できます</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -1188,13 +1188,69 @@ def duplicate_post():
     else:
         return jsonify({'error': 'ファイルが存在しません。'}), 404
 
+# Helper functions for AI presets
+def load_json_file(filepath):
+    """Load JSON file, return empty dict if not found"""
+    try:
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        print(f"Error loading {filepath}: {e}")
+        return {}
+
+def save_json_file(filepath, data):
+    """Save data to JSON file"""
+    try:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving {filepath}: {e}")
+        return False
+
+@app.route('/ai_presets', methods=['GET'])
+@login_required
+def get_ai_presets():
+    """AIプリセットとテンプレートを取得"""
+    system_prompts = load_json_file('./ai_presets/system_prompts.json')
+    prompt_templates = load_json_file('./ai_presets/prompt_templates.json')
+    user_presets = load_json_file('./ai_presets/user_presets.json')
+
+    return jsonify({
+        'system_prompts': system_prompts,
+        'prompt_templates': prompt_templates,
+        'user_presets': user_presets
+    })
+
+@app.route('/ai_presets/system_prompt', methods=['POST'])
+@login_required
+def save_system_prompt():
+    """システムプロンプトの選択を保存"""
+    data = request.json
+    preset_id = data.get('preset_id')
+
+    if not preset_id:
+        return jsonify({'error': 'preset_idが必要です'}), 400
+
+    user_presets = load_json_file('./ai_presets/user_presets.json')
+    user_presets['selected_system_prompt'] = preset_id
+
+    if save_json_file('./ai_presets/user_presets.json', user_presets):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': '設定の保存に失敗しました'}), 500
+
 @app.route('/ai_assist', methods=['POST'])
 @login_required
 def ai_assist():
-    """AI編集アシスタント機能"""
+    """AI編集アシスタント機能（システムプロンプト対応）"""
     data = request.json
     prompt = data.get('prompt', '')
     context = data.get('context', '')
+    system_prompt_id = data.get('system_prompt_id', 'default')
 
     # config.yamlから設定を読み込み
     api_key = config.get('openai_api_key')
@@ -1210,17 +1266,24 @@ def ai_assist():
         import openai
         client = openai.OpenAI(api_key=api_key)
 
+        # システムプロンプトの取得
+        system_prompts = load_json_file('./ai_presets/system_prompts.json')
+        system_prompt_content = "あなたは優秀な編集アシスタントです。簡潔で分かりやすい回答を心がけてください。"
+
+        if system_prompt_id in system_prompts:
+            system_prompt_content = system_prompts[system_prompt_id].get('content', system_prompt_content)
+
         # メッセージ構築
         if context:
             # テキスト選択時: コンテキスト付き
             messages = [
-                {"role": "system", "content": "あなたは優秀な編集アシスタントです。簡潔で分かりやすい回答を心がけてください。"},
+                {"role": "system", "content": system_prompt_content},
                 {"role": "user", "content": f"以下のテキストに関して：\n\n{context}\n\n{prompt}"}
             ]
         else:
             # 未選択時: コンテキストなし
             messages = [
-                {"role": "system", "content": "あなたは優秀な編集アシスタントです。簡潔で分かりやすい回答を心がけてください。"},
+                {"role": "system", "content": system_prompt_content},
                 {"role": "user", "content": prompt}
             ]
 
