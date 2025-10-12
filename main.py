@@ -91,6 +91,42 @@ def load_user(user_id):
         return User(user_id, user['username'], user['password'])
     return None
 
+# セキュアなURL検証関数
+def is_safe_url(target):
+    """
+    nextパラメータが安全なURLかどうかを検証
+    Open Redirect脆弱性を防ぐため、以下をチェック：
+    - プロトコル相対URL (//evil.com) を拒否
+    - 絶対URL (http://evil.com) を拒否
+    - JavaScriptスキーム (javascript:) を拒否
+    - バックスラッシュを含むURLを拒否
+    """
+    if not target:
+        return False
+
+    # スキームがある場合は拒否（http:, javascript: など）
+    if ':' in target:
+        return False
+
+    # プロトコル相対URL（//evil.com）を拒否
+    if target.startswith('//'):
+        return False
+
+    # バックスラッシュを含む場合は拒否（IEの挙動対策）
+    if '\\' in target:
+        return False
+
+    # 相対パス以外を拒否
+    if not target.startswith('/'):
+        return False
+
+    # urlparseでネットワークロケーション（ドメイン部分）が存在しないことを確認
+    parsed = urlparse(target)
+    if parsed.netloc:
+        return False
+
+    return True
+
 # ログインフォームの定義
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -105,7 +141,7 @@ def login():
     if request.method == 'GET' and current_user.is_authenticated:
         # 既にログイン済みの場合、nextパラメータがあればそこへ、なければpost_indexへ
         next_page = request.args.get('next')
-        if next_page and next_page.startswith('/'):
+        if next_page and is_safe_url(next_page):
             return redirect(next_page)
         return redirect(url_for('post_index'))
     
@@ -137,9 +173,10 @@ def login():
                             print(f"Removed cache file: {cf}")
 
                     # ログイン前にアクセスしようとしていたURLを取得
-                    next_page = request.args.get('next')
-                    # nextパラメータが存在し、かつ相対URLであることを確認（セキュリティ対策）
-                    if next_page and next_page.startswith('/'):
+                    # GETパラメータとPOSTパラメータの両方をチェック
+                    next_page = request.args.get('next') or request.form.get('next')
+                    # nextパラメータが存在し、かつ安全なURLであることを確認（Open Redirect対策）
+                    if next_page and is_safe_url(next_page):
                         redirect_url = next_page
                     else:
                         redirect_url = url_for('post_latest')

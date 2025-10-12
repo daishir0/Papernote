@@ -31,6 +31,9 @@
                         {% endif %}
                         <form method="POST" action="{{ url_for('login') }}">
                             {{ form.hidden_tag() }}
+                            {% if request.args.get('next') %}
+                            <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+                            {% endif %}
                             <div class="form-group">
                                 {{ form.username.label }}
                                 {{ form.username(class="form-control") }}
