@@ -174,21 +174,6 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
-        /* テンプレートボタン用スタイル */
-        .template-buttons {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .template-buttons .btn {
-            padding: 10px;
-            font-size: 0.9em;
-            text-align: center;
-            white-space: normal;
-            height: auto;
-            min-height: 50px;
-        }
 
         /* レスポンシブ対応 */
         @media (max-width: 768px) {
@@ -199,8 +184,8 @@
             #aiPromptInput {
                 font-size: 16px; /* iOS zoom prevention */
             }
-            .template-buttons {
-                grid-template-columns: repeat(2, 1fr);
+            #templateSelect {
+                font-size: 16px; /* iOS zoom prevention */
             }
         }
 
@@ -521,7 +506,7 @@
             const aiCancelButton = document.getElementById('aiCancelButton');
             const aiButtonText = document.getElementById('aiButtonText');
             const aiSpinner = document.getElementById('aiSpinner');
-            const templateButtons = document.getElementById('templateButtons');
+            const templateSelect = document.getElementById('templateSelect');
             const systemPromptSelect = document.getElementById('systemPromptSelect');
 
             let aiContextText = '';
@@ -539,7 +524,7 @@
                     });
                     if (response.ok) {
                         aiPresets = await response.json();
-                        renderTemplateButtons();
+                        renderTemplateSelect();
                         renderSystemPromptSelect();
                     } else {
                         console.error('Failed to load AI presets');
@@ -549,28 +534,31 @@
                 }
             }
 
-            // テンプレートボタンを描画
-            function renderTemplateButtons() {
+            // テンプレートドロップダウンを描画
+            function renderTemplateSelect() {
                 if (!aiPresets || !aiPresets.prompt_templates) return;
 
-                templateButtons.innerHTML = '';
+                templateSelect.innerHTML = '<option value="">-- テンプレートを選択 --</option>';
+
                 Object.entries(aiPresets.prompt_templates).forEach(([id, template]) => {
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.className = 'btn btn-outline-primary';
-                    btn.innerHTML = `${template.icon}<br><small>${template.name}</small>`;
-                    btn.addEventListener('click', () => {
-                        selectedTemplateId = id;
-                        aiPromptInput.value = template.prompt;
-                        // 選択状態を表示
-                        document.querySelectorAll('.template-buttons .btn').forEach(b => {
-                            b.classList.remove('active');
-                        });
-                        btn.classList.add('active');
-                    });
-                    templateButtons.appendChild(btn);
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `${template.icon} ${template.name}`;
+                    templateSelect.appendChild(option);
                 });
             }
+
+            // テンプレート選択時の処理
+            templateSelect.addEventListener('change', () => {
+                const selectedId = templateSelect.value;
+                if (selectedId && aiPresets.prompt_templates[selectedId]) {
+                    selectedTemplateId = selectedId;
+                    aiPromptInput.value = aiPresets.prompt_templates[selectedId].prompt;
+                } else {
+                    selectedTemplateId = null;
+                    aiPromptInput.value = '';
+                }
+            });
 
             // システムプロンプトセレクトを描画
             function renderSystemPromptSelect() {
@@ -691,9 +679,7 @@
                         // リセット
                         selectedTemplateId = null;
                         aiPromptInput.value = '';
-                        document.querySelectorAll('.template-buttons .btn').forEach(b => {
-                            b.classList.remove('active');
-                        });
+                        templateSelect.value = '';
                     } else {
                         alert('エラー: ' + (data.error || '不明なエラーが発生しました'));
                     }
@@ -717,9 +703,7 @@
                 aiOverlay.style.display = 'none';
                 selectedTemplateId = null;
                 aiPromptInput.value = '';
-                document.querySelectorAll('.template-buttons .btn').forEach(b => {
-                    b.classList.remove('active');
-                });
+                templateSelect.value = '';
             });
 
             // AIオーバーレイクリック（背景クリック）
@@ -728,9 +712,7 @@
                     aiOverlay.style.display = 'none';
                     selectedTemplateId = null;
                     aiPromptInput.value = '';
-                    document.querySelectorAll('.template-buttons .btn').forEach(b => {
-                        b.classList.remove('active');
-                    });
+                    templateSelect.value = '';
                 }
             });
 
@@ -1283,9 +1265,13 @@
                 <div class="tab-pane fade show active" id="template-panel" role="tabpanel">
                     <div id="aiContextPreview" class="ai-context-preview" style="display:none;"></div>
 
-                    <!-- プロンプトテンプレートボタン -->
-                    <div id="templateButtons" class="template-buttons">
-                        <!-- JavaScriptで動的に生成 -->
+                    <!-- プロンプトテンプレート選択 -->
+                    <div class="mb-3">
+                        <label for="templateSelect" class="form-label">テンプレート</label>
+                        <select id="templateSelect" class="form-select">
+                            <option value="">-- テンプレートを選択 --</option>
+                            <!-- JavaScriptで動的に生成 -->
+                        </select>
                     </div>
 
                     <!-- 追加指示入力欄 -->
