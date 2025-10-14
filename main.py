@@ -1035,9 +1035,9 @@ def edit_post(filename):
         with open(post_path, 'w', encoding='utf-8', errors='replace') as f:
             f.write(content)
         
-        # 現在日付を3で割った余りの数を取得
-        remainder = datetime.datetime.now().day % 3
-        backup_filename = f"{filename}_{remainder}"
+        # 日時（年月日-時）形式のタイムスタンプを取得
+        timestamp = datetime.datetime.now().strftime('%Y%m%d-%H')
+        backup_filename = f"{filename}_{timestamp}"
         backup_path = os.path.join(backup_dir, backup_filename)
         
         # バックアップディレクトリ保存
