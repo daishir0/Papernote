@@ -1060,12 +1060,16 @@ def edit_post(filename):
     if os.path.exists(post_path):
         with open(post_path, 'r', encoding='utf-8', errors='replace') as f:
             content = f.read()
+            # 1行目からタイトルを抽出（#を除去）
+            first_line = content.split('\n')[0] if content else ""
+            title = first_line.lstrip('#').strip()
             content = content.replace('\n', '\\n')  # 改行をエスケープ文字に置換
             content = html.escape(content)  # HTMLエスケープ処理
     else:
         content = ""
+        title = "新規ファイル"
 
-    return render_template('edit_post.html', filename=filename, content=content, form=form)
+    return render_template('edit_post.html', filename=filename, content=content, title=title, form=form)
 
 class UploadTextForm(FlaskForm):
     content = TextAreaField('Content', validators=[DataRequired()])
