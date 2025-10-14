@@ -743,6 +743,12 @@
             if (previewToggleButton && previewPane && resizer) {
                 let previewVisible = false;
 
+                // localStorageから前回の状態を復元
+                const savedPreviewState = localStorage.getItem('previewVisible');
+                if (savedPreviewState === 'true') {
+                    previewVisible = true;
+                }
+
                 // Marked.js設定（post.htmlと同じ設定）
                 const renderer = new marked.Renderer();
 
@@ -839,6 +845,9 @@
                 previewToggleButton.addEventListener('click', () => {
                     previewVisible = !previewVisible;
 
+                    // localStorageに状態を保存
+                    localStorage.setItem('previewVisible', previewVisible);
+
                     if (previewVisible) {
                         previewPane.classList.remove('hidden');
                         editorContainer.classList.remove('preview-hidden');
@@ -857,6 +866,15 @@
                         updatePreview();
                     }
                 });
+
+                // localStorageの状態に基づいてプレビューを初期表示
+                if (previewVisible) {
+                    previewPane.classList.remove('hidden');
+                    editorContainer.classList.remove('preview-hidden');
+                    editorPane.style.flex = '1';
+                    previewPane.style.flex = '1';
+                    updatePreview();
+                }
 
                 // リサイザーのドラッグ機能
                 let isResizing = false;
