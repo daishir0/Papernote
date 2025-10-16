@@ -1080,7 +1080,7 @@
 
             // 選択範囲を含む行の開始と終了を取得
             const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-            const lineEnd = value.indexOf('\n', end - 1);
+            const lineEnd = value.indexOf('\n', end);
             const before = value.slice(0, lineStart);
             const after = value.slice(lineEnd === -1 ? value.length : lineEnd);
 
@@ -1122,7 +1122,7 @@
 
             // 選択範囲を含む行の開始と終了を取得
             const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-            const lineEnd = value.indexOf('\n', end - 1);
+            const lineEnd = value.indexOf('\n', end);
             const before = value.slice(0, lineStart);
             const after = value.slice(lineEnd === -1 ? value.length : lineEnd);
 
@@ -1149,7 +1149,7 @@
 
             // 選択範囲を含む行の開始と終了を取得
             const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-            const lineEnd = value.indexOf('\n', end - 1);
+            const lineEnd = value.indexOf('\n', end);
             const before = value.slice(0, lineStart);
             const after = value.slice(lineEnd === -1 ? value.length : lineEnd);
 
@@ -1176,7 +1176,7 @@
 
             // 選択範囲を含む行の開始と終了を取得
             const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-            const lineEnd = value.indexOf('\n', end - 1);
+            const lineEnd = value.indexOf('\n', end);
             const before = value.slice(0, lineStart);
             const after = value.slice(lineEnd === -1 ? value.length : lineEnd);
 
