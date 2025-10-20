@@ -367,6 +367,10 @@
                     if (start !== end) { // 選択範囲がある場合のみ実行
                         wrapSelectedTextWith(textarea, '**');
                     }
+                } else if (event.altKey && (event.code === 'Digit6' || event.key === '6')) {
+                    // ALT+6: 4スペーストグル
+                    event.preventDefault();
+                    cycleFourSpaces(document.getElementById('content'));
                 } else if (event.altKey && event.key === 'ArrowUp') {
                     // ALT+Up: Move cursor to the beginning of the textarea
                     event.preventDefault();
@@ -424,7 +428,7 @@
             const insertSpaceButton = document.getElementById('insertSpaceButton');
             if (insertSpaceButton) {
                 insertSpaceButton.addEventListener('click', () => {
-                    insertTextAtLineStart(contentTextArea, ' ');
+                    cycleFourSpaces(contentTextArea);
                 });
             }
 
@@ -1196,6 +1200,33 @@
             const newText = selectedLines.split('\n').map(line => {
                 const hasQuote = line.match(/^> /);
                 return hasQuote ? line.replace(/^> /, '') : '> ' + line;
+            }).join('\n');
+
+            textArea.value = before + newText + after;
+            textArea.selectionStart = lineStart;
+            textArea.selectionEnd = lineStart + newText.length;
+            textArea.focus();
+        }
+
+        function cycleFourSpaces(textArea) {
+            if (!textArea) return;
+            const start = textArea.selectionStart;
+            const end = textArea.selectionEnd;
+            const value = textArea.value;
+
+            // 選択範囲を含む行の開始と終了を取得
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = value.indexOf('\n', end);
+            const before = value.slice(0, lineStart);
+            const after = value.slice(lineEnd === -1 ? value.length : lineEnd);
+
+            // 選択範囲内の行を取得
+            const selectedLines = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
+
+            // 各行を独立してトグル
+            const newText = selectedLines.split('\n').map(line => {
+                const hasFourSpaces = line.match(/^    /); // 4つのスペースで始まるか
+                return hasFourSpaces ? line.replace(/^    /, '') : '    ' + line;
             }).join('\n');
 
             textArea.value = before + newText + after;
