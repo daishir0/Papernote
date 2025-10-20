@@ -358,6 +358,15 @@
                 } else if (event.altKey && (event.code === 'Digit4' || event.key === '4')) {
                     event.preventDefault();
                     cycleQuoteMark(document.getElementById('content'));
+                } else if (event.altKey && (event.code === 'Digit5' || event.key === '5')) {
+                    // ALT+5: Bold（選択範囲がある場合のみ）
+                    event.preventDefault();
+                    const textarea = document.getElementById('content');
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    if (start !== end) { // 選択範囲がある場合のみ実行
+                        wrapSelectedTextWith(textarea, '**');
+                    }
                 } else if (event.altKey && event.key === 'ArrowUp') {
                     // ALT+Up: Move cursor to the beginning of the textarea
                     event.preventDefault();
