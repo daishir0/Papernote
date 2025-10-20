@@ -76,7 +76,6 @@
             .btn-toolbar {
                 flex-wrap: nowrap; /* 折り返しなし */
                 overflow-x: auto; /* 横スクロール有効 */
-                overflow-y: hidden;
                 -webkit-overflow-scrolling: touch; /* iOS でスムーズスクロール */
                 gap: 2px; /* 隙間を狭く */
                 padding-bottom: 4px;
@@ -87,13 +86,14 @@
             }
 
             /* よく使うボタンを左側に固定表示 */
-            .btn-toolbar > .btn-primary {    /* 挿入、LINE、AI、閲覧、プレビュー（プレビューはスマホでは非表示） */
+            .btn-toolbar > .btn-primary {    /* LINE、AI、閲覧、プレビュー（プレビューはスマホでは非表示） */
                 position: sticky;
                 left: 0;
                 z-index: 2;
                 background: #0d6efd;
                 box-shadow: 2px 0 4px rgba(0,0,0,0.1); /* 固定されていることを示す影 */
             }
+
 
             /* グループの区切り線をスマホでは非表示 */
             .btn-group {
@@ -392,6 +392,10 @@
             if (pasteMermaidButton) {
                 pasteMermaidButton.addEventListener('click', () => {
                     insertTextAtCursor(contentTextArea, '\n```mermaid\n\n```');
+                    const insertOverlay = document.getElementById('insertOverlay');
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
                 });
             }
 
@@ -482,12 +486,48 @@
                 }
             });
 
+            // 挿入ボタンの機能追加
+            const insertButton = document.getElementById('insertButton');
+            const insertOverlay = document.getElementById('insertOverlay');
+            const insertCancelButton = document.getElementById('insertCancelButton');
+            const uploadFileButton = document.getElementById('uploadFileButton');
+
+            if (insertButton && insertOverlay) {
+                insertButton.addEventListener('click', () => {
+                    insertOverlay.style.display = 'flex';
+                });
+
+                // 背景クリックでオーバーレイを閉じる
+                insertOverlay.addEventListener('click', (event) => {
+                    if (event.target === insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
+                });
+
+                // キャンセルボタン
+                if (insertCancelButton) {
+                    insertCancelButton.addEventListener('click', () => {
+                        insertOverlay.style.display = 'none';
+                    });
+                }
+
+                // ファイルアップロードボタンクリック時にオーバーレイを閉じる
+                if (uploadFileButton) {
+                    uploadFileButton.addEventListener('click', () => {
+                        insertOverlay.style.display = 'none';
+                    });
+                }
+            }
+
             // ESCキーが押されたときにオーバーレイを非表示にする
             document.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape') {
                     overlay.style.display = 'none';
                     if (document.getElementById('aiOverlay')) {
                         document.getElementById('aiOverlay').style.display = 'none';
+                    }
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
                     }
                 }
             });
@@ -500,6 +540,9 @@
                 insertDateButton.addEventListener('click', () => {
                     const currentDate = getCurrentDate();
                     insertTextAtCursor(contentTextArea, currentDate);
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
                 });
             }
 
@@ -507,6 +550,9 @@
                 insertTimeButton.addEventListener('click', () => {
                     const currentTime = getCurrentTime();
                     insertTextAtCursor(contentTextArea, currentTime);
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
                 });
             }
 
@@ -1256,15 +1302,7 @@
 
             <!-- グループ2: ユーティリティ（使用頻度: 中） -->
             <div class="btn-group" role="group" aria-label="Utilities">
-                <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="挿入オプションを表示">
-                    挿入
-                </button>
-                <ul class="dropdown-menu">
-                    <li><button id="insertDateButton" type="button" class="dropdown-item" title="現在の日付を挿入">YYYYMMDD</button></li>
-                    <li><button id="insertTimeButton" type="button" class="dropdown-item" title="現在の時刻を挿入">hhmmss</button></li>
-                    <li><button id="uploadFileButton" type="button" class="dropdown-item" title="ファイルをアップロード">ファイル</button></li>
-                    <li><button id="pasteMermaidButton" type="button" class="dropdown-item" title="Mermaid書式を挿入">Mermaid書式</button></li>
-                </ul>
+                <button id="insertButton" type="button" class="btn btn-primary" title="挿入オプションを表示">挿入</button>
                 <button id="lineButton" type="button" class="btn btn-primary" title="チャット入力モードを開く"><i class="fas fa-comment-dots"></i></button>
             </div>
 
@@ -1298,6 +1336,28 @@
             <input type="text" id="lineTextInput" class="form-control" placeholder="Enter text">
             <button id="lineAttachButton" class="btn btn-secondary">
                 <i class="fas fa-paperclip"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 挿入オーバーレイ -->
+    <div id="insertOverlay" class="overlay">
+        <div class="dialog">
+            <h5>挿入</h5>
+            <button id="insertDateButton" type="button" class="btn btn-primary btn-block mb-2" title="現在の日付を挿入">
+                📅 日付 (YYYYMMDD)
+            </button>
+            <button id="insertTimeButton" type="button" class="btn btn-primary btn-block mb-2" title="現在の時刻を挿入">
+                🕐 時刻 (hhmmss)
+            </button>
+            <button id="uploadFileButton" type="button" class="btn btn-primary btn-block mb-2" title="ファイルをアップロード">
+                📎 ファイル
+            </button>
+            <button id="pasteMermaidButton" type="button" class="btn btn-primary btn-block mb-2" title="Mermaid書式を挿入">
+                📊 Mermaid書式
+            </button>
+            <button id="insertCancelButton" type="button" class="btn btn-secondary btn-block">
+                キャンセル
             </button>
         </div>
     </div>
