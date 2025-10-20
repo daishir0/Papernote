@@ -156,6 +156,15 @@
             right: 10px;
             z-index: 1000;
         }
+        /* 挿入オーバーレイ用のスタイル */
+        #insertOverlay {
+            z-index: 2500;
+        }
+        #insertOverlay .dialog {
+            max-width: 400px;
+            width: 90%;
+        }
+
         /* AIモーダル用のスタイル */
         #aiOverlay {
             z-index: 3000;
@@ -177,6 +186,10 @@
 
         /* レスポンシブ対応 */
         @media (max-width: 768px) {
+            #insertOverlay .dialog {
+                width: 95%;
+                padding: 15px;
+            }
             #aiOverlay .dialog {
                 width: 95%;
                 padding: 15px;
