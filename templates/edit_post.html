@@ -1147,13 +1147,13 @@
                 });
 
                 if (response.ok) {
-                    showTemporaryMessage('保存しました');
+                    showTemporaryMessage('保存成功!');
                 } else {
-                    showTemporaryMessage('保存に失敗しました');
+                    showTemporaryMessage('保存失敗!');
                 }
             } catch (error) {
                 console.error('保存中にエラーが発生しました:', error);
-                showTemporaryMessage('保存に失敗しました');
+                showTemporaryMessage('保存失敗!');
             }
         }
 

@@ -75,10 +75,10 @@ function autoSaveContent() {
                     showTemporaryMessage('保存成功!');
                     return response.text(); // レスポンスの内容に応じて変更が必要かもしれません
                 } else {
-                    throw new Error('保存に失敗しました');
+                    throw new Error('保存失敗!');
                 }
             }).catch(error => {
-                showTemporaryMessage('保存中にエラーが発生しました:', error);
+                showTemporaryMessage('保存失敗!');
             });
             
             // showTemporaryMessage('変更を保存中...'); // 実際にはここでサーバーへの非同期通信を行う
