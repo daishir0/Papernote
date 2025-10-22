@@ -108,6 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
             contentTextArea.value = value.slice(0, cursorPos) + '\n' + insertedText + value.slice(cursorPos);
             contentTextArea.selectionStart = contentTextArea.selectionEnd = cursorPos + insertedText.length + 1;
             contentTextArea.focus();
+
+            // プレビュー更新のために input イベントを手動で発火
+            const event = new Event('input', { bubbles: true });
+            contentTextArea.dispatchEvent(event);
         }
 
         // スピナー非表示
