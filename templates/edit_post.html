@@ -1023,13 +1023,6 @@
             }
             textArea.focus();
 
-            // カーソル位置までスクロール
-            const cursorPosition = textArea.selectionStart;
-            const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
-            const scrollTop = textArea.scrollTop;
-            const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
-            textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
-
             // プレビュー更新のために input イベントを発火
             const event = new Event('input', { bubbles: true });
             textArea.dispatchEvent(event);
@@ -1065,13 +1058,6 @@
             textArea.value = value.slice(0, start) + text + value.slice(start);
             textArea.selectionStart = textArea.selectionEnd = start + text.length;
             textArea.focus();
-
-            // カーソル位置までスクロール
-            const cursorPosition = textArea.selectionStart;
-            const lineHeight = parseInt(window.getComputedStyle(textArea).lineHeight);
-            const scrollTop = textArea.scrollTop;
-            const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
-            textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
 
             // プレビュー更新のために input イベントを手動で発火
             const event = new Event('input', { bubbles: true });
