@@ -1029,6 +1029,10 @@
             const scrollTop = textArea.scrollTop;
             const cursorY = Math.floor(cursorPosition / textArea.cols) * lineHeight;
             textArea.scrollTop = cursorY - (textArea.clientHeight / 2) + (lineHeight / 2);
+
+            // プレビュー更新のために input イベントを発火
+            const event = new Event('input', { bubbles: true });
+            textArea.dispatchEvent(event);
         }
 
         function insertTextAtLineStart(textArea, text) {
@@ -1199,6 +1203,10 @@
             textArea.selectionStart = lineStart;
             textArea.selectionEnd = lineStart + newText.length;
             textArea.focus();
+
+            // プレビュー更新のために input イベントを発火
+            const event = new Event('input', { bubbles: true });
+            textArea.dispatchEvent(event);
         }
 
         function cycleDashMark(textArea) {
@@ -1226,6 +1234,10 @@
             textArea.selectionStart = lineStart;
             textArea.selectionEnd = lineStart + newText.length;
             textArea.focus();
+
+            // プレビュー更新のために input イベントを発火
+            const event = new Event('input', { bubbles: true });
+            textArea.dispatchEvent(event);
         }
 
         function cycleNumberMark(textArea) {
@@ -1253,6 +1265,10 @@
             textArea.selectionStart = lineStart;
             textArea.selectionEnd = lineStart + newText.length;
             textArea.focus();
+
+            // プレビュー更新のために input イベントを発火
+            const event = new Event('input', { bubbles: true });
+            textArea.dispatchEvent(event);
         }
 
         function cycleQuoteMark(textArea) {
@@ -1280,6 +1296,10 @@
             textArea.selectionStart = lineStart;
             textArea.selectionEnd = lineStart + newText.length;
             textArea.focus();
+
+            // プレビュー更新のために input イベントを発火
+            const event = new Event('input', { bubbles: true });
+            textArea.dispatchEvent(event);
         }
 
         function cycleFourSpaces(textArea) {
@@ -1307,6 +1327,10 @@
             textArea.selectionStart = lineStart;
             textArea.selectionEnd = lineStart + newText.length;
             textArea.focus();
+
+            // プレビュー更新のために input イベントを発火
+            const event = new Event('input', { bubbles: true });
+            textArea.dispatchEvent(event);
         }
 
     </script>
