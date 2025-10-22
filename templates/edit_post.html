@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/static/bootstrap.min.css">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
     <link rel="stylesheet" href="/static/post-content-style.css">
+    <link rel="stylesheet" href="/static/slideshow.css">
     <style>
         body, html {
             height: 100%;
@@ -905,6 +906,11 @@
                                     element.innerHTML = `<pre>Mermaid Error: ${error.message}</pre>`;
                                 });
                             });
+
+                            // スライドショー機能を初期化
+                            if (typeof initializeSlideshowImages === 'function') {
+                                initializeSlideshowImages('#preview-content');
+                            }
                         } catch (error) {
                             console.error('Markdown rendering error:', error);
                             const previewContent = document.getElementById('preview-content');
@@ -1442,6 +1448,22 @@
     <!-- Markdown rendering libraries for preview -->
     <script src="/static/marked.min.js"></script>
     <script src="/static/mermaid.min.js"></script>
+    <script src="/static/slideshow.js"></script>
+
+<!-- スライドショーモーダル -->
+<div class="slideshow-modal" id="slideshow-modal">
+    <div class="slideshow-container" id="slideshow-container">
+        <button class="slideshow-close" onclick="closeSlideshowModal()">&times;</button>
+        <button class="slideshow-nav prev" onclick="navigateSlideshow(-1)">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <img class="slideshow-image" id="slideshow-image" src="" alt="">
+        <button class="slideshow-nav next" onclick="navigateSlideshow(1)">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <div class="slideshow-counter" id="slideshow-counter">1 / 1</div>
+    </div>
+</div>
 
 </body>
 </html>
