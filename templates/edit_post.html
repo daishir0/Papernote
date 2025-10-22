@@ -746,6 +746,10 @@
                         contentTextArea.selectionStart = contentTextArea.selectionEnd = newPosition;
                         contentTextArea.focus();
 
+                        // プレビュー更新のために input イベントを発火
+                        const event = new Event('input', { bubbles: true });
+                        contentTextArea.dispatchEvent(event);
+
                         // モーダルを閉じる
                         aiOverlay.style.display = 'none';
 
