@@ -15,8 +15,12 @@ from urllib.parse import urlparse
 from pathlib import Path
 from pdf2image import convert_from_path
 from PIL import Image, ExifTags
+from pillow_heif import register_heif_opener
 import string
 import hashlib
+
+# HEIFフォーマット（HEIC）のサポートを有効化
+register_heif_opener()
 import threading
 import datetime
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -451,8 +455,41 @@ def attach_upload():
         with open(file_path, 'wb') as f:
             f.write(file_content)
 
-        is_image = file_ext in {'jpg', 'jpeg', 'png', 'gif'}
+        is_image = file_ext in {'jpg', 'jpeg', 'png', 'gif', 'heic', 'heif'}
         file_url = f"/attach/{new_filename}"
+
+        # HEIC/HEIF形式の場合はJPEGに変換
+        if file_ext in {'heic', 'heif'}:
+            try:
+                # HEICファイルをPILで開く
+                heic_image = Image.open(file_path)
+
+                # JPEG用の新しいファイル名を生成
+                jpeg_filename = f"{file_hash}.jpg"
+                jpeg_path = os.path.join(UPLOAD_FOLDER, jpeg_filename)
+
+                # RGBモードに変換（HEIC→JPEG変換時に必要な場合がある）
+                if heic_image.mode in ('RGBA', 'LA', 'P'):
+                    heic_image = heic_image.convert('RGB')
+
+                # JPEG形式で保存（品質90%）
+                heic_image.save(jpeg_path, 'JPEG', quality=90, optimize=True)
+
+                # 元のHEICファイルを削除
+                os.remove(file_path)
+
+                # 以降の処理はJPEGファイルを使用
+                file_path = jpeg_path
+                new_filename = jpeg_filename
+                file_url = f"/attach/{jpeg_filename}"
+
+                print(f"HEIC→JPEG変換成功: {original_filename} -> {jpeg_filename}")
+            except Exception as e:
+                print(f"HEIC変換エラー: {str(e)}")
+                # エラー時は元のファイルを削除してエラーを返す
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                return jsonify({'error': f'HEIC変換に失敗しました: {str(e)}'}), 500
 
         if is_image:
             # Save a smaller size image with 's_' prefix if it's an image file
