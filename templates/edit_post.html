@@ -27,36 +27,13 @@
         .container {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 50px); /* Saveボタン(50px)分を引いた高さ */
+            height: 100vh;
         }
         textarea {
             font-size: 16px; /* フォントサイズを16px以上に設定 */
             flex-grow: 1; /* 残りのスペースを占める */
             width: 100%; /* 横幅を100%に設定 */
             margin-bottom: 0; /* 余白をなくす */
-        }
-        /* 画面下部の固定ボタングループ */
-        .fixed-bottom-btn-group {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
-            display: flex;
-        }
-        .fixed-save-btn {
-            flex: 1;
-            border-radius: 0;
-            padding: 10px;
-            border: none;
-            font-size: 16px;
-        }
-        .fixed-preview-btn {
-            flex: 1;
-            border-radius: 0;
-            padding: 10px;
-            border: none;
-            font-size: 16px;
         }
         .btn-toolbar {
             display: flex;
@@ -77,8 +54,8 @@
         }
         /* Markdown編集ボタンの最小幅を設定（スマホで押しやすく） */
         .btn-group .btn {
-            min-width: 44px;
-            padding: 8px 12px;
+            min-width: 38px;
+            padding: 8px 10px;
         }
         /* スマホ対応 - 横スクロール1行 */
         @media (max-width: 768px) {
@@ -479,11 +456,19 @@
                 }
             });
 
-            // Saveボタン（画面下部）
+            // Saveボタン（ツールバー）
             const saveButton = document.getElementById('saveButton');
             if (saveButton) {
                 saveButton.addEventListener('click', () => {
                     saveWithoutRedirect();
+                });
+            }
+
+            // Previewボタン（ツールバー）
+            const viewPageButton = document.getElementById('viewPageButton');
+            if (viewPageButton) {
+                viewPageButton.addEventListener('click', () => {
+                    window.open('{{ url_for('post', filename=request.view_args['filename']) }}', '_blank');
                 });
             }
 
@@ -1433,6 +1418,10 @@
                 <button id="insertSpaceButton" type="button" class="btn btn-sm btn-outline-secondary" title="行の先頭にスペースを挿入">Sp</button>
             </div>
 
+            <!-- グループ2: 保存・プレビュー -->
+            <button id="saveButton" type="button" class="btn btn-primary" title="保存 (Ctrl+S)"><i class="fas fa-save"></i></button>
+            <button id="viewPageButton" type="button" class="btn btn-primary" title="プレビュー（別タブ）"><i class="fas fa-eye"></i></button>
+
             <!-- グループ3: 特殊機能（使用頻度: 中〜高） -->
             <button id="switchPageButton" type="button" class="btn btn-primary" title="他のページへ移動 (Ctrl+K)"><i class="fas fa-arrow-right-arrow-left"></i></button>
             <button id="aiButton" type="button" class="btn btn-primary" title="AIアシスタント"><i class="fas fa-robot"></i></button>
@@ -1454,10 +1443,6 @@
             <div class="preview-pane main-content hidden" id="previewPane">
                 <div id="preview-content"></div>
             </div>
-        </div>
-        <div class="fixed-bottom-btn-group">
-            <button type="button" id="saveButton" class="btn btn-success fixed-save-btn">Save</button>
-            <button type="button" id="viewPageButton" class="btn btn-primary fixed-preview-btn" onclick="window.open('{{ url_for('post', filename=request.view_args['filename']) }}', '_blank')">Preview</button>
         </div>
     </form>
 
