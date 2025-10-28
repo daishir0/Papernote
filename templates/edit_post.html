@@ -410,6 +410,12 @@
 
             document.addEventListener('keydown', function(event) {
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                    // ページ切り替えモーダルが開いている場合はスキップ
+                    const switchPageOverlay = document.getElementById('switchPageOverlay');
+                    if (switchPageOverlay && switchPageOverlay.style.display === 'flex') {
+                        return;
+                    }
+
                     event.preventDefault();
                     // フォームを送信（保存して遷移）
                     const form = document.querySelector('form');
@@ -1557,8 +1563,7 @@
                 {% for post in recent_posts %}
                 <div class="page-item"
                      data-filename="{{ post.filename }}"
-                     data-index="{{ loop.index0 }}"
-                     onclick="navigateToPage('{{ post.filename }}')">
+                     data-index="{{ loop.index0 }}">
                     <div class="page-date">
                         <i class="fas fa-clock"></i> {{ post.date }}
                     </div>
@@ -1672,9 +1677,16 @@
 
             case 'Enter':
                 event.preventDefault();
+                event.stopPropagation(); // イベント伝播を停止（グローバルハンドラーを防ぐ）
                 if (pageItems[selectedIndex]) {
                     const filename = pageItems[selectedIndex].dataset.filename;
-                    navigateToPage(filename);
+                    // Ctrl+Enter: 新しいタブで開く（モーダルは残す）
+                    if (event.ctrlKey || event.metaKey) {
+                        navigateToPage(filename, true);
+                    } else {
+                        // 通常Enter: 現在のタブで遷移（モーダルを閉じる）
+                        navigateToPage(filename, false);
+                    }
                 }
                 break;
 
@@ -1699,8 +1711,15 @@
     }
 
     // ページに移動
-    window.navigateToPage = function(filename) {
-        location.href = '/edit_post/' + filename;
+    window.navigateToPage = function(filename, openInNewTab = false) {
+        if (openInNewTab) {
+            // 新しいタブで開く（モーダルは残す）
+            window.open('/edit_post/' + filename, '_blank');
+        } else {
+            // 現在のタブで遷移（モーダルを閉じる）
+            closeSwitchPageOverlay();
+            location.href = '/edit_post/' + filename;
+        }
     };
 
     // ページ切り替えボタン
@@ -1731,6 +1750,19 @@
         item.addEventListener('mouseenter', function() {
             selectedIndex = index;
             updateSelection();
+        });
+
+        // クリックイベント（Ctrl+クリック対応）
+        item.addEventListener('click', function(event) {
+            const filename = item.dataset.filename;
+            // Ctrl+クリック または Cmd+クリック: 新しいタブで開く（モーダルは残す）
+            if (event.ctrlKey || event.metaKey) {
+                event.preventDefault();
+                navigateToPage(filename, true);
+            } else {
+                // 通常クリック: 現在のタブで遷移（モーダルを閉じる）
+                navigateToPage(filename, false);
+            }
         });
     });
 })();
