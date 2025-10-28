@@ -35,25 +35,28 @@
             width: 100%; /* 横幅を100%に設定 */
             margin-bottom: 0; /* 余白をなくす */
         }
-        /* Saveボタンを画面下部に固定 */
-        input[type="submit"] {
+        /* 画面下部の固定ボタングループ */
+        .fixed-bottom-btn-group {
             position: fixed;
             bottom: 0;
             left: 0;
             width: 100%;
             z-index: 1000;
-            padding: 10px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            cursor: pointer;
+            display: flex;
         }
-        .fixed-bottom-btn {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
+        .fixed-save-btn {
+            flex: 1;
+            border-radius: 0;
+            padding: 10px;
+            border: none;
+            font-size: 16px;
+        }
+        .fixed-preview-btn {
+            flex: 1;
+            border-radius: 0;
+            padding: 10px;
+            border: none;
+            font-size: 16px;
         }
         .btn-toolbar {
             display: flex;
@@ -71,6 +74,11 @@
         }
         .btn-group:last-child {
             border-right: none;
+        }
+        /* Markdown編集ボタンの最小幅を設定（スマホで押しやすく） */
+        .btn-group .btn {
+            min-width: 44px;
+            padding: 8px 12px;
         }
         /* スマホ対応 - 横スクロール1行 */
         @media (max-width: 768px) {
@@ -403,9 +411,10 @@
             document.addEventListener('keydown', function(event) {
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                     event.preventDefault();
-                    const submitButton = document.querySelector('input[type="submit"]');
-                    if (submitButton) {
-                        submitButton.click();
+                    // フォームを送信（保存して遷移）
+                    const form = document.querySelector('form');
+                    if (form) {
+                        form.submit();
                     }
                 } else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                     event.preventDefault();
@@ -463,6 +472,14 @@
                     document.getElementById('aiButton').click();
                 }
             });
+
+            // Saveボタン（画面下部）
+            const saveButton = document.getElementById('saveButton');
+            if (saveButton) {
+                saveButton.addEventListener('click', () => {
+                    saveWithoutRedirect();
+                });
+            }
 
             const pasteMermaidButton = document.getElementById('pasteMermaidButton');
             if (pasteMermaidButton) {
@@ -528,6 +545,9 @@
             const lineAttachButton = document.getElementById('lineAttachButton');
 
             lineButton.addEventListener('click', () => {
+                // オプション画面を閉じる
+                insertOverlay.style.display = 'none';
+                // チャット入力画面を開く
                 overlay.style.display = 'flex';
                 lineTextInput.focus(); // オーバーレイが表示されたときにフォーカスを設定
             });
@@ -985,8 +1005,8 @@
                     }, 300); // 300ms debounce
                 }
 
-                // プレビュートグルボタン
-                previewToggleButton.addEventListener('click', () => {
+                // プレビュートグル関数
+                const togglePreview = () => {
                     previewVisible = !previewVisible;
 
                     // localStorageに状態を保存
@@ -1002,7 +1022,10 @@
                         previewPane.classList.add('hidden');
                         editorContainer.classList.add('preview-hidden');
                     }
-                });
+                };
+
+                // プレビュートグルボタン（ツールバー）
+                previewToggleButton.addEventListener('click', togglePreview);
 
                 // リアルタイムプレビュー更新
                 contentTextArea.addEventListener('input', () => {
@@ -1404,20 +1427,15 @@
                 <button id="insertSpaceButton" type="button" class="btn btn-sm btn-outline-secondary" title="行の先頭にスペースを挿入">Sp</button>
             </div>
 
-            <!-- グループ2: ユーティリティ（使用頻度: 中） -->
-            <div class="btn-group" role="group" aria-label="Utilities">
-                <button id="insertButton" type="button" class="btn btn-primary" title="挿入オプションを表示">挿入</button>
-                <button id="lineButton" type="button" class="btn btn-primary" title="チャット入力モードを開く"><i class="fas fa-comment-dots"></i></button>
-            </div>
-
             <!-- グループ3: 特殊機能（使用頻度: 中〜高） -->
+            <button id="switchPageButton" type="button" class="btn btn-primary" title="他のページへ移動 (Ctrl+K)"><i class="fas fa-arrow-right-arrow-left"></i></button>
             <button id="aiButton" type="button" class="btn btn-primary" title="AIアシスタント"><i class="fas fa-robot"></i></button>
-            <button type="button" class="btn btn-primary" title="ページを閲覧" onclick="window.open('{{ url_for('post', filename=request.view_args['filename']) }}', '_blank')">
-                <i class="fas fa-external-link-alt"></i>
-            </button>
             <button id="previewToggleButton" type="button" class="btn btn-primary preview-toggle" title="プレビューを表示/非表示">
                 <i class="fas fa-columns"></i>
             </button>
+
+            <!-- オプションボタン（一番右に配置） -->
+            <button id="insertButton" type="button" class="btn btn-primary" title="オプション"><i class="fas fa-ellipsis-v"></i></button>
         </div>
         <input type="file" id="fileInput" style="display:none;">
 
@@ -1431,7 +1449,10 @@
                 <div id="preview-content"></div>
             </div>
         </div>
-        <input type="submit" value="Save" class="btn btn-success mt-2 btn-block">
+        <div class="fixed-bottom-btn-group">
+            <button type="button" id="saveButton" class="btn btn-success fixed-save-btn">Save</button>
+            <button type="button" id="viewPageButton" class="btn btn-primary fixed-preview-btn" onclick="window.open('{{ url_for('post', filename=request.view_args['filename']) }}', '_blank')">Preview</button>
+        </div>
     </form>
 
     <div id="overlay" class="overlay">
@@ -1447,7 +1468,7 @@
     <!-- 挿入オーバーレイ -->
     <div id="insertOverlay" class="overlay">
         <div class="dialog">
-            <h5>挿入</h5>
+            <h5>オプション</h5>
             <button id="insertDateButton" type="button" class="btn btn-primary btn-block mb-2" title="現在の日付を挿入">
                 📅 日付 (YYYYMMDD)
             </button>
@@ -1459,6 +1480,9 @@
             </button>
             <button id="pasteMermaidButton" type="button" class="btn btn-primary btn-block mb-2" title="Mermaid書式を挿入">
                 📊 Mermaid書式
+            </button>
+            <button id="lineButton" type="button" class="btn btn-primary btn-block mb-2" title="チャット入力モードを開く">
+                💬 チャット入力
             </button>
             <button id="insertCancelButton" type="button" class="btn btn-secondary btn-block">
                 キャンセル
@@ -1678,6 +1702,14 @@
     window.navigateToPage = function(filename) {
         location.href = '/edit_post/' + filename;
     };
+
+    // ページ切り替えボタン
+    const switchPageButton = document.getElementById('switchPageButton');
+    if (switchPageButton) {
+        switchPageButton.addEventListener('click', function() {
+            openSwitchPageOverlay();
+        });
+    }
 
     // キャンセルボタン
     const cancelButton = document.getElementById('switchPageCancelButton');
