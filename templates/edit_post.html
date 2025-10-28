@@ -321,6 +321,64 @@
                 flex: 1; /* 残りのスペースを占める */
             }
         }
+
+        /* ページ切り替えオーバーレイ用スタイル */
+        #switchPageOverlay {
+            z-index: 2500;
+        }
+
+        #switchPageOverlay .dialog {
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .page-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background-color: white;
+        }
+
+        .page-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .page-item.selected {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .page-item.selected .page-date,
+        .page-item.selected .page-filename {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .page-date {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .page-title {
+            font-size: 1em;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .page-filename {
+            font-size: 0.75em;
+            color: #999;
+        }
+
+        .page-list {
+            max-height: 60vh;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
     </style>
     <script>
         const csrfToken = "{{ form.csrf_token._value() }}";  // CSRFトークンをJavaScriptに渡す
@@ -343,13 +401,13 @@
             autoSaveContent();
 
             document.addEventListener('keydown', function(event) {
-                if (event.ctrlKey && event.key === 'Enter') {
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                     event.preventDefault();
                     const submitButton = document.querySelector('input[type="submit"]');
                     if (submitButton) {
                         submitButton.click();
                     }
-                } else if (event.ctrlKey && event.key === 's') {
+                } else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                     event.preventDefault();
                     saveWithoutRedirect();
                 } else if (event.altKey && (event.code === 'KeyY' || event.key === 'y' || event.key === 'Y')) {
@@ -808,7 +866,7 @@
 
             // AIプロンプト入力でのCtrl+Enter送信
             aiPromptInput.addEventListener('keydown', (event) => {
-                if (event.ctrlKey && event.key === 'Enter' && !isAIComposing) {
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !isAIComposing) {
                     event.preventDefault();
                     sendAIRequest();
                 }
@@ -1466,6 +1524,32 @@
         </div>
     </div>
 
+    <!-- ページ切り替えオーバーレイ（新規追加） -->
+    <div id="switchPageOverlay" class="overlay">
+        <div class="dialog">
+            <h5>他のページへ移動 <small class="text-muted">(Ctrl+K)</small></h5>
+
+            <div class="page-list" id="pageList">
+                {% for post in recent_posts %}
+                <div class="page-item"
+                     data-filename="{{ post.filename }}"
+                     data-index="{{ loop.index0 }}"
+                     onclick="navigateToPage('{{ post.filename }}')">
+                    <div class="page-date">
+                        <i class="fas fa-clock"></i> {{ post.date }}
+                    </div>
+                    <div class="page-title">{{ post.title }}</div>
+                    <div class="page-filename">{{ post.filename }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button id="switchPageCancelButton" type="button" class="btn btn-secondary btn-block">
+                キャンセル (ESC)
+            </button>
+        </div>
+    </div>
+
     <script src="/static/jquery-3.7.0.min.js"></script>
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
@@ -1511,6 +1595,114 @@
         </div>
     </div>
 </div>
+
+<script>
+// ページ切り替え機能
+(function() {
+    const overlay = document.getElementById('switchPageOverlay');
+    const pageList = document.getElementById('pageList');
+    const pageItems = pageList ? pageList.querySelectorAll('.page-item') : [];
+    let selectedIndex = 0;
+
+    // Ctrl+K でオーバーレイを開く
+    document.addEventListener('keydown', function(event) {
+        // Ctrl+K または Cmd+K
+        if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+            event.preventDefault();
+            openSwitchPageOverlay();
+        }
+    });
+
+    // オーバーレイを開く
+    function openSwitchPageOverlay() {
+        overlay.style.display = 'flex';
+        selectedIndex = 0;
+        updateSelection();
+
+        // オーバーレイ内のキーボードイベント
+        document.addEventListener('keydown', handleOverlayKeydown);
+    }
+
+    // オーバーレイを閉じる
+    function closeSwitchPageOverlay() {
+        overlay.style.display = 'none';
+        document.removeEventListener('keydown', handleOverlayKeydown);
+    }
+
+    // オーバーレイ内でのキーボード操作
+    function handleOverlayKeydown(event) {
+        if (overlay.style.display !== 'flex') return;
+
+        switch(event.key) {
+            case 'ArrowDown':
+                event.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, pageItems.length - 1);
+                updateSelection();
+                break;
+
+            case 'ArrowUp':
+                event.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                updateSelection();
+                break;
+
+            case 'Enter':
+                event.preventDefault();
+                if (pageItems[selectedIndex]) {
+                    const filename = pageItems[selectedIndex].dataset.filename;
+                    navigateToPage(filename);
+                }
+                break;
+
+            case 'Escape':
+                event.preventDefault();
+                closeSwitchPageOverlay();
+                break;
+        }
+    }
+
+    // 選択状態を更新
+    function updateSelection() {
+        pageItems.forEach((item, index) => {
+            if (index === selectedIndex) {
+                item.classList.add('selected');
+                // スクロールして表示
+                item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    // ページに移動
+    window.navigateToPage = function(filename) {
+        location.href = '/edit_post/' + filename;
+    };
+
+    // キャンセルボタン
+    const cancelButton = document.getElementById('switchPageCancelButton');
+    if (cancelButton) {
+        cancelButton.addEventListener('click', function() {
+            closeSwitchPageOverlay();
+        });
+    }
+
+    // オーバーレイの背景クリックで閉じる
+    overlay.addEventListener('click', function(event) {
+        if (event.target === overlay) {
+            closeSwitchPageOverlay();
+        }
+    });
+
+    // マウスホバーで選択状態を変更
+    pageItems.forEach((item, index) => {
+        item.addEventListener('mouseenter', function() {
+            selectedIndex = index;
+            updateSelection();
+        });
+    });
+})();
+</script>
 
 </body>
 </html>

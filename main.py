@@ -1106,7 +1106,10 @@ def edit_post(filename):
         content = ""
         title = "新規ファイル"
 
-    return render_template('edit_post.html', filename=filename, content=content, title=title, form=form)
+    # 最新10件を取得（現在編集中のファイルを除外）
+    recent_posts = get_latest_posts(limit=10, exclude=filename)
+
+    return render_template('edit_post.html', filename=filename, content=content, title=title, form=form, recent_posts=recent_posts)
 
 class UploadTextForm(FlaskForm):
     content = TextAreaField('Content', validators=[DataRequired()])
@@ -1775,6 +1778,29 @@ def get_posts_by_date_periods():
         posts[period].sort(key=lambda x: x['timestamp'], reverse=True)
 
     return posts
+
+def get_latest_posts(limit=10, exclude=None):
+    """最新N件の投稿を取得（指定ファイルを除外可能）"""
+    post_dir = './post'
+    post_files = [f for f in os.listdir(post_dir)
+                  if os.path.isfile(os.path.join(post_dir, f))
+                  and not f.endswith('.gitkeep')
+                  and f != exclude]  # 現在編集中のファイルを除外
+
+    files_with_time = []
+    for filename in post_files:
+        file_path = os.path.join(post_dir, filename)
+        timestamp = os.path.getmtime(file_path)
+        metadata = get_file_metadata(file_path)
+        files_with_time.append({
+            'filename': filename,
+            'title': metadata['title'],
+            'date': datetime.datetime.fromtimestamp(timestamp).strftime('%Y/%m/%d %H:%M'),
+            'timestamp': timestamp
+        })
+
+    files_with_time.sort(key=lambda x: x['timestamp'], reverse=True)
+    return files_with_time[:limit]
 
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
