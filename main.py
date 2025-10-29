@@ -60,8 +60,8 @@ app = Flask(__name__)
 # secret_keyの設定
 app.secret_key = config['secret_key']
 
-# CSRFトークンの有効期限を3時間に設定
-app.config['WTF_CSRF_TIME_LIMIT'] = 10800  # 3時間（秒）
+# CSRFトークンの有効期限を8時間に設定
+app.config['WTF_CSRF_TIME_LIMIT'] = 28800  # 8時間（秒）
 
 # Flask-Limiterの設定
 limiter = Limiter(
