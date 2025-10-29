@@ -1802,6 +1802,79 @@ def get_latest_posts(limit=10, exclude=None):
     files_with_time.sort(key=lambda x: x['timestamp'], reverse=True)
     return files_with_time[:limit]
 
+def get_relative_time(timestamp):
+    """相対的な時間表示を生成"""
+    now = datetime.datetime.now()
+    diff = now - datetime.datetime.fromtimestamp(timestamp)
+
+    if diff.days > 0:
+        return f"{diff.days}日前"
+    elif diff.seconds >= 3600:
+        hours = diff.seconds // 3600
+        return f"{hours}時間前"
+    elif diff.seconds >= 60:
+        minutes = diff.seconds // 60
+        return f"{minutes}分前"
+    else:
+        return "数秒前"
+
+@app.route('/api/backups/<filename>', methods=['GET'])
+@login_required
+def get_backups(filename):
+    """指定ファイルの最新10件のバックアップを返す"""
+    backup_dir = './post/bk'
+
+    # ファイル名バリデーション
+    if not is_valid_filename(filename):
+        return jsonify({'error': '無効なファイル名'}), 400
+
+    # バックアップディレクトリが存在しない場合
+    if not os.path.exists(backup_dir):
+        return jsonify({'backups': []})
+
+    # バックアップファイルを検索
+    backup_files = [
+        f for f in os.listdir(backup_dir)
+        if f.startswith(filename + '_')
+    ]
+
+    # タイムスタンプでソート（新しい順）
+    backup_info = []
+    for bf in backup_files:
+        path = os.path.join(backup_dir, bf)
+        timestamp = os.path.getmtime(path)
+        backup_info.append({
+            'filename': bf,
+            'timestamp': timestamp,
+            'date': datetime.datetime.fromtimestamp(timestamp).strftime('%Y/%m/%d %H:%M'),
+            'relative_time': get_relative_time(timestamp)
+        })
+
+    backup_info.sort(key=lambda x: x['timestamp'], reverse=True)
+
+    return jsonify({'backups': backup_info[:10]})
+
+@app.route('/api/backup_content/<path:backup_filename>', methods=['GET'])
+@login_required
+def get_backup_content(backup_filename):
+    """バックアップファイルの内容を返す"""
+
+    # ファイル名バリデーション（ディレクトリトラバーサル対策）
+    if '..' in backup_filename or backup_filename.startswith('/'):
+        return jsonify({'error': '無効なファイル名'}), 400
+
+    backup_path = os.path.join('./post/bk', backup_filename)
+
+    if not os.path.exists(backup_path):
+        return jsonify({'error': 'ファイルが存在しません'}), 404
+
+    try:
+        with open(backup_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+        return jsonify({'content': content})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
     for user_id, user in config['users'].items():

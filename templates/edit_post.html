@@ -317,6 +317,12 @@
             width: 90%;
         }
 
+        /* バックアップ一覧の横幅をページ切り替えと同じに */
+        #backupListOverlay .dialog {
+            max-width: 600px;
+            width: 90%;
+        }
+
         .page-item {
             padding: 12px 16px;
             border-bottom: 1px solid #dee2e6;
@@ -363,6 +369,173 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
             margin-bottom: 12px;
+        }
+
+        /* バックアップ関連のオーバーレイ */
+        #backupListOverlay {
+            z-index: 3000;
+        }
+
+        #backupContentOverlay {
+            z-index: 3500;
+        }
+
+        #backupContentOverlay .dialog {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .backup-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background-color: white;
+        }
+
+        .backup-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .backup-item.selected {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .backup-date {
+            font-size: 0.9em;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .backup-relative-time {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 8px;
+        }
+
+        .backup-item.selected .backup-relative-time {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .backup-filename {
+            font-size: 0.75em;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .backup-item.selected .backup-filename {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* 差分ハイライト用のスタイル */
+        #backupContentDiff {
+            font-size: 14px;
+        }
+
+        .diff-line {
+            padding: 2px 0;
+            margin: 0;
+        }
+
+        .diff-line-deleted {
+            background-color: #ffe6e6;
+            color: #cc0000;
+            text-decoration: line-through;
+        }
+
+        .diff-line-added {
+            background-color: #e6ffe6;
+            color: #006600;
+        }
+
+        .diff-line-normal {
+            background-color: white;
+            color: #333;
+        }
+
+        .diff-line-number {
+            display: inline-block;
+            width: 40px;
+            color: #999;
+            text-align: right;
+            padding-right: 10px;
+            margin-right: 10px;
+            border-right: 1px solid #dee2e6;
+            user-select: none;
+        }
+
+        /* 差分ボタンのアクティブ状態 */
+        #backupDiffButton.active {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+
+        /* バックアップ内容モーダルのレイアウト（スマホ対応） */
+        .backup-content-dialog {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
+        .backup-content-header {
+            flex-shrink: 0;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 15px;
+        }
+
+        .backup-content-header h5 {
+            margin: 0;
+        }
+
+        .backup-content-body {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .backup-content-footer {
+            flex-shrink: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+            margin-top: 15px;
+        }
+
+        .backup-content-footer .btn {
+            padding: 12px 16px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* PC表示（768px以上）：横1列配置 */
+        @media (min-width: 768px) {
+            .backup-content-footer {
+                grid-template-columns: auto auto auto 1fr;
+                gap: 8px;
+            }
+
+            .backup-content-footer .btn {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+
+            .backup-content-footer #backupContentCloseButton {
+                margin-left: auto;
+            }
+        }
+
+        /* スマホ表示でのボタン調整 */
+        @media (max-width: 767px) {
+            .backup-content-footer .btn i {
+                margin-right: 6px;
+            }
         }
     </style>
     <script>
@@ -1472,6 +1645,9 @@
             <button id="pasteMermaidButton" type="button" class="btn btn-primary btn-block mb-2" title="Mermaid書式を挿入">
                 📊 Mermaid書式
             </button>
+            <button id="backupButton" type="button" class="btn btn-primary btn-block mb-2" title="バックアップを確認">
+                🗄️ バックアップ確認
+            </button>
             <button id="lineButton" type="button" class="btn btn-primary btn-block mb-2" title="チャット入力モードを開く">
                 💬 チャット入力
             </button>
@@ -1563,6 +1739,59 @@
             </button>
         </div>
     </div>
+
+    <!-- バックアップ一覧オーバーレイ -->
+    <div id="backupListOverlay" class="overlay">
+        <div class="dialog">
+            <h5>バックアップ一覧 <small class="text-muted">（最新10件）</small></h5>
+
+            <div class="page-list" id="backupList">
+                <!-- JavaScriptで動的生成 -->
+            </div>
+
+            <button id="backupListCancelButton" type="button" class="btn btn-secondary btn-block">
+                キャンセル (ESC)
+            </button>
+        </div>
+    </div>
+
+    <!-- バックアップ内容表示オーバーレイ -->
+    <div id="backupContentOverlay" class="overlay" style="z-index: 3500;">
+        <div class="dialog backup-content-dialog" style="max-width: 90%; width: 1200px; max-height: 90vh;">
+            <!-- ヘッダー -->
+            <div class="backup-content-header">
+                <h5 id="backupContentTitle">バックアップ内容</h5>
+            </div>
+
+            <!-- コンテンツエリア（スクロール可能） -->
+            <div class="backup-content-body">
+                <!-- 通常表示エリア -->
+                <textarea id="backupContentText" class="form-control" readonly style="font-family: monospace; display: block; height: 100%; width: 100%; resize: none; border: none;"></textarea>
+
+                <!-- 差分表示エリア（初期状態は非表示） -->
+                <div id="backupContentDiff" style="display: none; height: 100%; overflow-y: auto; background: white; padding: 10px; font-family: monospace; white-space: pre-wrap; line-height: 1.6;"></div>
+            </div>
+
+            <!-- ボタンバー（下部固定） -->
+            <div class="backup-content-footer">
+                <button id="backupCopyButton" class="btn btn-outline-primary" title="コピー">
+                    <i class="fas fa-copy"></i> コピー
+                </button>
+                <button id="backupDiffButton" class="btn btn-outline-secondary" title="差分表示">
+                    <i class="fas fa-code-compare"></i> 差分
+                </button>
+                <button id="backupRestoreButton" class="btn btn-warning" title="復元">
+                    <i class="fas fa-undo"></i> 復元
+                </button>
+                <button id="backupContentCloseButton" type="button" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> 閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- diff-match-patchライブラリ -->
+    <script src="/static/diff_match_patch.js"></script>
 
     <script src="/static/jquery-3.7.0.min.js"></script>
     <script src="/static/popper.min.js"></script>
@@ -1750,6 +1979,341 @@
             }
         });
     });
+})();
+</script>
+
+<script>
+// バックアップ確認機能
+(function() {
+    const currentFilename = "{{ filename }}";
+    const backupButton = document.getElementById('backupButton');
+    const insertOverlay = document.getElementById('insertOverlay');
+    const backupListOverlay = document.getElementById('backupListOverlay');
+    const backupContentOverlay = document.getElementById('backupContentOverlay');
+    const backupList = document.getElementById('backupList');
+    let backupItems = [];
+    let selectedBackupIndex = 0;
+    let currentBackupContent = '';
+    let isDiffMode = false;
+
+    // バックアップボタンクリック
+    if (backupButton) {
+        backupButton.addEventListener('click', async () => {
+            insertOverlay.style.display = 'none';
+            await loadBackupList();
+            backupListOverlay.style.display = 'flex';
+            selectedBackupIndex = 0;
+            updateBackupSelection();
+        });
+    }
+
+    // バックアップ一覧を取得
+    async function loadBackupList() {
+        try {
+            const response = await fetch(`/api/backups/${currentFilename}`, {
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                renderBackupList(data.backups);
+            } else {
+                alert('バックアップの取得に失敗しました');
+            }
+        } catch (error) {
+            console.error('Error loading backups:', error);
+            alert('エラーが発生しました');
+        }
+    }
+
+    // バックアップ一覧を描画
+    function renderBackupList(backups) {
+        backupList.innerHTML = '';
+        backupItems = [];
+
+        if (backups.length === 0) {
+            backupList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">バックアップがありません</div>';
+            return;
+        }
+
+        backups.forEach((backup, index) => {
+            const item = document.createElement('div');
+            item.className = 'backup-item';
+            item.dataset.filename = backup.filename;
+            item.dataset.index = index;
+
+            item.innerHTML = `
+                <div class="backup-date">
+                    <i class="fas fa-clock"></i> ${backup.date}
+                    <span class="backup-relative-time">(${backup.relative_time})</span>
+                </div>
+                <div class="backup-filename">${backup.filename}</div>
+            `;
+
+            // クリックイベント
+            item.addEventListener('click', () => {
+                selectedBackupIndex = index;
+                updateBackupSelection();
+                openBackupContent(backup.filename);
+            });
+
+            // ホバーイベント
+            item.addEventListener('mouseenter', () => {
+                selectedBackupIndex = index;
+                updateBackupSelection();
+            });
+
+            backupList.appendChild(item);
+            backupItems.push(item);
+        });
+    }
+
+    // 選択状態を更新
+    function updateBackupSelection() {
+        backupItems.forEach((item, index) => {
+            if (index === selectedBackupIndex) {
+                item.classList.add('selected');
+                item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    // キーボード操作（バックアップ一覧）
+    document.addEventListener('keydown', (event) => {
+        if (backupListOverlay.style.display !== 'flex') return;
+
+        switch(event.key) {
+            case 'ArrowDown':
+                event.preventDefault();
+                selectedBackupIndex = Math.min(selectedBackupIndex + 1, backupItems.length - 1);
+                updateBackupSelection();
+                break;
+            case 'ArrowUp':
+                event.preventDefault();
+                selectedBackupIndex = Math.max(selectedBackupIndex - 1, 0);
+                updateBackupSelection();
+                break;
+            case 'Enter':
+                event.preventDefault();
+                if (backupItems[selectedBackupIndex]) {
+                    const filename = backupItems[selectedBackupIndex].dataset.filename;
+                    openBackupContent(filename);
+                }
+                break;
+            case 'Escape':
+                event.preventDefault();
+                backupListOverlay.style.display = 'none';
+                break;
+        }
+    });
+
+    // バックアップ内容を表示
+    async function openBackupContent(backupFilename) {
+        try {
+            const response = await fetch(`/api/backup_content/${encodeURIComponent(backupFilename)}`, {
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                currentBackupContent = data.content;
+
+                document.getElementById('backupContentTitle').textContent = `バックアップ内容: ${backupFilename}`;
+                document.getElementById('backupContentText').value = data.content;
+
+                // 初期状態は通常表示
+                isDiffMode = false;
+                document.getElementById('backupContentText').style.display = 'block';
+                document.getElementById('backupContentDiff').style.display = 'none';
+                document.getElementById('backupDiffButton').classList.remove('active');
+                document.getElementById('backupDiffButton').innerHTML = '<i class="fas fa-code-compare"></i> 差分';
+
+                backupContentOverlay.style.display = 'flex';
+            } else {
+                alert('バックアップ内容の取得に失敗しました');
+            }
+        } catch (error) {
+            console.error('Error loading backup content:', error);
+            alert('エラーが発生しました');
+        }
+    }
+
+    // 差分ボタン
+    const backupDiffButton = document.getElementById('backupDiffButton');
+    if (backupDiffButton) {
+        backupDiffButton.addEventListener('click', () => {
+            toggleDiffMode();
+        });
+    }
+
+    // 差分表示モードの切り替え
+    function toggleDiffMode() {
+        isDiffMode = !isDiffMode;
+
+        const textArea = document.getElementById('backupContentText');
+        const diffDiv = document.getElementById('backupContentDiff');
+        const diffButton = document.getElementById('backupDiffButton');
+
+        if (isDiffMode) {
+            // 差分表示モードに切り替え
+            textArea.style.display = 'none';
+            diffDiv.style.display = 'block';
+            diffButton.classList.add('active');
+            diffButton.innerHTML = '<i class="fas fa-file-alt"></i> 通常';
+
+            // 差分を計算して表示
+            renderDiffHighlight();
+        } else {
+            // 通常表示モードに切り替え
+            textArea.style.display = 'block';
+            diffDiv.style.display = 'none';
+            diffButton.classList.remove('active');
+            diffButton.innerHTML = '<i class="fas fa-code-compare"></i> 差分';
+        }
+    }
+
+    // 差分をハイライト表示
+    function renderDiffHighlight() {
+        const backupText = currentBackupContent;
+        const currentText = document.getElementById('content').value;
+
+        const dmp = new diff_match_patch();
+        const diffs = dmp.diff_main(backupText, currentText);
+        dmp.diff_cleanupSemantic(diffs);
+
+        let html = '';
+        let lineNumber = 1;
+
+        diffs.forEach(([operation, text]) => {
+            const lines = text.split('\n');
+
+            lines.forEach((line, index) => {
+                let lineClass = '';
+                let prefix = '';
+
+                if (operation === -1) {
+                    // 削除された行（バックアップにあるが現在はない）
+                    lineClass = 'diff-line-deleted';
+                    prefix = '- ';
+                } else if (operation === 1) {
+                    // 追加された行（バックアップになく現在ある）
+                    lineClass = 'diff-line-added';
+                    prefix = '+ ';
+                } else {
+                    // 変更なし
+                    lineClass = 'diff-line-normal';
+                    prefix = '  ';
+                }
+
+                html += `<div class="diff-line ${lineClass}">` +
+                       `<span class="diff-line-number">${lineNumber}</span>` +
+                       escapeHtml(prefix + line) +
+                       `</div>`;
+
+                if (operation !== 1) {
+                    lineNumber++;
+                }
+            });
+        });
+
+        document.getElementById('backupContentDiff').innerHTML = html;
+    }
+
+    // HTMLエスケープ
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // コピーボタン
+    const backupCopyButton = document.getElementById('backupCopyButton');
+    if (backupCopyButton) {
+        backupCopyButton.addEventListener('click', () => {
+            let content = '';
+
+            if (isDiffMode) {
+                // 差分モードの場合：削除行と通常行のみをコピー
+                const diffDiv = document.getElementById('backupContentDiff');
+                const lines = diffDiv.querySelectorAll('.diff-line');
+
+                lines.forEach(line => {
+                    if (!line.classList.contains('diff-line-added')) {
+                        const text = line.textContent;
+                        const lineContent = text.substring(text.indexOf(' ', 5) + 1);
+                        content += lineContent + '\n';
+                    }
+                });
+                content = content.trimEnd();
+            } else {
+                // 通常モードの場合：そのままコピー
+                content = document.getElementById('backupContentText').value;
+            }
+
+            navigator.clipboard.writeText(content).then(() => {
+                showTemporaryMessage('コピーしました！');
+            });
+        });
+    }
+
+    // 復元ボタン
+    const backupRestoreButton = document.getElementById('backupRestoreButton');
+    if (backupRestoreButton) {
+        backupRestoreButton.addEventListener('click', () => {
+            if (confirm('現在の編集内容をバックアップ内容で置き換えますか？\n（この操作は元に戻せません）')) {
+                document.getElementById('content').value = currentBackupContent;
+                backupContentOverlay.style.display = 'none';
+                backupListOverlay.style.display = 'none';
+                showTemporaryMessage('復元しました！');
+
+                // プレビュー更新
+                const event = new Event('input', { bubbles: true });
+                document.getElementById('content').dispatchEvent(event);
+            }
+        });
+    }
+
+    // 閉じるボタン
+    const backupContentCloseButton = document.getElementById('backupContentCloseButton');
+    if (backupContentCloseButton) {
+        backupContentCloseButton.addEventListener('click', () => {
+            backupContentOverlay.style.display = 'none';
+        });
+    }
+
+    const backupListCancelButton = document.getElementById('backupListCancelButton');
+    if (backupListCancelButton) {
+        backupListCancelButton.addEventListener('click', () => {
+            backupListOverlay.style.display = 'none';
+        });
+    }
+
+    // ESCキー（バックアップ内容表示）
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && backupContentOverlay.style.display === 'flex') {
+            event.preventDefault();
+            backupContentOverlay.style.display = 'none';
+        }
+    });
+
+    // 背景クリック
+    if (backupListOverlay) {
+        backupListOverlay.addEventListener('click', (event) => {
+            if (event.target === backupListOverlay) {
+                backupListOverlay.style.display = 'none';
+            }
+        });
+    }
+
+    if (backupContentOverlay) {
+        backupContentOverlay.addEventListener('click', (event) => {
+            if (event.target === backupContentOverlay) {
+                backupContentOverlay.style.display = 'none';
+            }
+        });
+    }
 })();
 </script>
 
