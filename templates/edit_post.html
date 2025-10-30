@@ -431,11 +431,15 @@
         /* 差分ハイライト用のスタイル */
         #backupContentDiff {
             font-size: 14px;
+            overflow-x: hidden;  /* 横スクロール防止 */
         }
 
         .diff-line {
             padding: 2px 0;
             margin: 0;
+            word-wrap: break-word;  /* 長い単語を折り返す */
+            word-break: break-word;  /* 単語の途中でも折り返す */
+            overflow-wrap: anywhere;  /* どこでも折り返し可能 */
         }
 
         .diff-line-deleted {
