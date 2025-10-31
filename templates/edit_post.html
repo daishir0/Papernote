@@ -267,9 +267,14 @@
                 display: none;
             }
 
-            /* プレビュートグルボタン */
+            /* プレビュートグルボタン（画面右端に固定） */
             .preview-toggle {
                 display: inline-block;
+                position: fixed;
+                right: 10px;
+                top: 50px;
+                z-index: 1500;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             }
 
             /* プレビューペイン内の .main-content スタイル調整 */
