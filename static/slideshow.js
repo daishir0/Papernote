@@ -198,10 +198,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 背景クリックで閉じる
+    // 背景クリックで閉じる（改善版）
     const modal = document.getElementById('slideshow-modal');
+    const container = document.getElementById('slideshow-container');
+
     if (modal) {
+        // モーダル背景をクリックした時
         modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeSlideshowModal();
+            }
+        });
+    }
+
+    if (container) {
+        // コンテナの空白部分をクリックした時
+        container.addEventListener('click', function(e) {
+            // 画像、ボタン、カウンター以外をクリックした場合に閉じる
             if (e.target === this) {
                 closeSlideshowModal();
             }
