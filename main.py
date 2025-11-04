@@ -1106,8 +1106,8 @@ def edit_post(filename):
         content = ""
         title = "新規ファイル"
 
-    # 最新10件を取得（現在編集中のファイルを除外）
-    recent_posts = get_latest_posts(limit=10, exclude=filename)
+    # 最新20件を取得（現在編集中のファイルを除外）
+    recent_posts = get_latest_posts(limit=20, exclude=filename)
 
     return render_template('edit_post.html', filename=filename, content=content, title=title, form=form, recent_posts=recent_posts)
 
