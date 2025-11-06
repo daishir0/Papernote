@@ -665,6 +665,24 @@
                 });
             }
 
+            // ファイル名をコピーボタン
+            const copyFilenameButton = document.getElementById('copyFilenameButton');
+            if (copyFilenameButton) {
+                copyFilenameButton.addEventListener('click', () => {
+                    const filename = '{{ filename }}';
+                    navigator.clipboard.writeText(filename).then(() => {
+                        showTemporaryMessage('ファイル名をコピーしました！');
+                    }).catch(err => {
+                        console.error('コピーに失敗しました:', err);
+                        showTemporaryMessage('コピーに失敗しました');
+                    });
+                    const insertOverlay = document.getElementById('insertOverlay');
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
+                });
+            }
+
             // Markdown書式ボタン: トグル動作
             const insertHashButton = document.getElementById('insertHashButton');
             if (insertHashButton) {
@@ -1643,16 +1661,19 @@
         <div class="dialog">
             <h5>オプション</h5>
             <button id="insertDateButton" type="button" class="btn btn-primary btn-block mb-2" title="現在の日付を挿入">
-                📅 日付 (YYYYMMDD)
+                📅 日付 (YYYYMMDD) を挿入
             </button>
             <button id="insertTimeButton" type="button" class="btn btn-primary btn-block mb-2" title="現在の時刻を挿入">
-                🕐 時刻 (hhmmss)
+                🕐 時刻 (hhmmss) を挿入
             </button>
             <button id="uploadFileButton" type="button" class="btn btn-primary btn-block mb-2" title="ファイルをアップロード">
                 📎 ファイル
             </button>
             <button id="pasteMermaidButton" type="button" class="btn btn-primary btn-block mb-2" title="Mermaid書式を挿入">
-                📊 Mermaid書式
+                📊 Mermaid書式を挿入
+            </button>
+            <button id="copyFilenameButton" type="button" class="btn btn-primary btn-block mb-2" title="ファイル名をコピー">
+                📋 ファイル名をコピー
             </button>
             <button id="backupButton" type="button" class="btn btn-primary btn-block mb-2" title="バックアップを確認">
                 🗄️ バックアップ確認
