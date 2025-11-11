@@ -6,6 +6,7 @@ import requests
 import numpy as np
 import yaml
 import time
+from functools import wraps
 from flask import Flask, request, jsonify, render_template, redirect, url_for, send_from_directory, make_response, send_file
 from subprocess import Popen, PIPE
 from werkzeug.exceptions import BadRequest
@@ -1874,6 +1875,219 @@ def get_backup_content(backup_filename):
         return jsonify({'content': content})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ========================================
+# Papernote編集API（MVP）
+# ========================================
+
+# API Key認証デコレータ
+def require_api_key(f):
+    """API Key認証を要求するデコレータ"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({
+                "status": "error",
+                "message": "Missing or invalid Authorization header"
+            }), 401
+
+        token = auth_header.split(' ')[1]
+        valid_keys = [k['key'] for k in config.get('api_keys', []) if k.get('enabled', True)]
+
+        if token not in valid_keys:
+            app.logger.warning(f"Invalid API key attempt: {token[:20]}...")
+            return jsonify({
+                "status": "error",
+                "message": "Invalid API key"
+            }), 401
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ファイル名検証（API専用）
+def is_valid_api_filename(filename):
+    """
+    APIアクセス可能なファイル名かを検証
+    - ./post直下のみ
+    - .txt拡張子のみ
+    - パストラバーサル禁止
+    - サブディレクトリ禁止
+    """
+    # パストラバーサルチェック
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return False
+
+    # .txt拡張子チェック
+    if not filename.endswith('.txt'):
+        return False
+
+    # サブディレクトリ名の禁止（.cache, bk, tmpなど）
+    if filename.startswith('.') or filename.startswith('bk') or filename.startswith('tmp'):
+        return False
+
+    return True
+
+# API 1: 投稿内容取得
+@app.route('/api/posts/<filename>', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_get_post(filename):
+    """指定されたファイルの内容を取得"""
+    # ファイル名検証
+    if not is_valid_api_filename(filename):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid filename or access denied"
+        }), 400
+
+    file_path = os.path.join('./post', filename)
+
+    # ファイル存在チェック
+    if not os.path.isfile(file_path):
+        return jsonify({
+            "status": "error",
+            "message": "File not found"
+        }), 404
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        file_stat = os.stat(file_path)
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "filename": filename,
+                "content": content,
+                "size": file_stat.st_size,
+                "modified_at": dt.datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error reading file {filename}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+# API 2: 新規投稿作成
+@app.route('/api/posts', methods=['POST'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_create_post():
+    """新規投稿を作成（ファイル名は自動生成）"""
+    data = request.get_json()
+
+    if not data or 'content' not in data:
+        return jsonify({
+            "status": "error",
+            "message": "Missing 'content' field"
+        }), 400
+
+    content = data['content']
+
+    # ファイル名自動生成: [_]YYYYmmdd-HHMMSS.txt
+    now = dt.datetime.now()
+    filename = f"[_]{now.strftime('%Y%m%d-%H%M%S')}.txt"
+    file_path = os.path.join('./post', filename)
+
+    # 万が一の重複チェック
+    if os.path.exists(file_path):
+        return jsonify({
+            "status": "error",
+            "message": "File already exists (please retry)"
+        }), 409
+
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        app.logger.info(f"API: Created new post {filename}")
+
+        return jsonify({
+            "status": "success",
+            "message": "Post created successfully",
+            "data": {
+                "filename": filename
+            }
+        }), 201
+    except Exception as e:
+        app.logger.error(f"Error creating file {filename}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+# API 3: 投稿編集
+@app.route('/api/posts/<filename>', methods=['PUT'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_update_post(filename):
+    """既存の投稿を編集"""
+    # ファイル名検証
+    if not is_valid_api_filename(filename):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid filename or access denied"
+        }), 400
+
+    file_path = os.path.join('./post', filename)
+
+    # ファイル存在チェック
+    if not os.path.isfile(file_path):
+        return jsonify({
+            "status": "error",
+            "message": "File not found"
+        }), 404
+
+    data = request.get_json()
+
+    if not data or 'content' not in data:
+        return jsonify({
+            "status": "error",
+            "message": "Missing 'content' field"
+        }), 400
+
+    content = data['content']
+
+    try:
+        # バックアップ作成
+        backup_dir = './post/bk'
+        os.makedirs(backup_dir, exist_ok=True)
+
+        # バックアップファイル名を生成: 元のファイル名_YYYYmmdd-HH
+        now = dt.datetime.now()
+        backup_suffix = now.strftime('%Y%m%d-%H')
+        backup_filename = f"{filename}_{backup_suffix}"
+
+        # バックアップコピー
+        import shutil
+        shutil.copy2(file_path, os.path.join(backup_dir, backup_filename))
+
+        # ファイル更新
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        app.logger.info(f"API: Updated post {filename} (backup: {backup_filename})")
+
+        return jsonify({
+            "status": "success",
+            "message": "Post updated successfully",
+            "data": {
+                "filename": filename
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error updating file {filename}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
 
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
