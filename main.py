@@ -456,7 +456,7 @@ def attach_upload():
         with open(file_path, 'wb') as f:
             f.write(file_content)
 
-        is_image = file_ext in {'jpg', 'jpeg', 'png', 'gif', 'heic', 'heif'}
+        is_image = file_ext in {'jpg', 'jpeg', 'png', 'gif', 'svg', 'heic', 'heif'}
         file_url = f"/attach/{new_filename}"
 
         # HEIC/HEIF形式の場合はJPEGに変換
@@ -492,8 +492,8 @@ def attach_upload():
                     os.remove(file_path)
                 return jsonify({'error': f'HEIC変換に失敗しました: {str(e)}'}), 500
 
-        if is_image:
-            # Save a smaller size image with 's_' prefix if it's an image file
+        if is_image and file_ext != 'svg':
+            # Save a smaller size image with 's_' prefix if it's an image file (except SVG)
             image = Image.open(file_path)
 
             # EXIFデータを考慮して画像を回転
@@ -519,6 +519,12 @@ def attach_upload():
             small_filename = f"s_{new_filename}"
             small_file_path = os.path.join(UPLOAD_FOLDER, small_filename)
             small_image.save(small_file_path)
+        elif is_image and file_ext == 'svg':
+            # SVG files don't need thumbnail generation, just copy the original
+            import shutil
+            small_filename = f"s_{new_filename}"
+            small_file_path = os.path.join(UPLOAD_FOLDER, small_filename)
+            shutil.copy(file_path, small_file_path)
 
         return jsonify({'filename': original_filename, 'url': file_url, 'isImage': is_image})
 

@@ -3,6 +3,9 @@ allowed_extensions:
   - 'jpeg'
   - 'png'
   - 'gif'
+  - 'svg'      # SVG format support
+  - 'heic'
+  - 'heif'
   - 'txt'
   - 'pdf'
   - 'docx'
@@ -26,6 +29,9 @@ openai_api_key: "your_openai_api_key_here"
 
 anthropic_api_key: "your_anthropic_api_key_here"
 
+# AI編集アシスタント機能専用のモデル設定
+ai_model: "gpt-4o-mini"
+
 gmail:
   sender_email: "sender@gmail.com"
   recipient_email: "recipient@example.com"
@@ -39,3 +45,9 @@ users:
   user2:
     username: 'user2'
     password: 'password2'
+
+# API Keys設定（Papernote編集API用）
+api_keys:
+  - key: "your-api-key-here"
+    name: "外部システム"
+    enabled: true
