@@ -20,7 +20,7 @@ function initializeSlideshowImages(containerSelector) {
         let fullSizeUrl = img.src;
 
         // 親がaタグで、hrefが画像URLの場合はそれを使用
-        if (parent.tagName === 'A' && parent.href.match(/\.(jpg|jpeg|png|gif)$/i)) {
+        if (parent.tagName === 'A' && parent.href.match(/\.(jpg|jpeg|png|gif|svg)$/i)) {
             fullSizeUrl = parent.href;
             // aタグのデフォルト動作を防ぐ
             parent.addEventListener('click', function(e) {
