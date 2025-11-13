@@ -1,0 +1,528 @@
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        textarea {
+            font-size: 16px; /* フォントサイズを16px以上に設定 */
+            flex-grow: 1; /* 残りのスペースを占める */
+            width: 100%; /* 横幅を100%に設定 */
+            margin-bottom: 0; /* 余白をなくす */
+        }
+        .btn-toolbar {
+            display: flex;
+            flex-wrap: wrap; /* 自動折り返し */
+            gap: 4px;
+        }
+        .btn-toolbar .btn-group {
+            margin-right: 8px; /* グループ間の余白 */
+        }
+        /* グループ化の視覚的な区切り */
+        .btn-group {
+            border-right: 2px solid #dee2e6;
+            padding-right: 8px;
+            margin-right: 8px;
+        }
+        .btn-group:last-child {
+            border-right: none;
+        }
+        /* Markdown編集ボタンの最小幅を設定（スマホで押しやすく） */
+        .btn-group .btn {
+            min-width: 38px;
+            padding: 8px 10px;
+        }
+        /* スマホ対応 - 横スクロール1行 */
+        @media (max-width: 768px) {
+            .btn-toolbar {
+                flex-wrap: nowrap; /* 折り返しなし */
+                overflow-x: auto; /* 横スクロール有効 */
+                -webkit-overflow-scrolling: touch; /* iOS でスムーズスクロール */
+                gap: 2px; /* 隙間を狭く */
+                padding-bottom: 4px;
+                scrollbar-width: none; /* Firefox: スクロールバー非表示 */
+            }
+            .btn-toolbar::-webkit-scrollbar {
+                display: none; /* Webkit系: スクロールバー非表示 */
+            }
+
+            /* よく使うボタンを左側に固定表示 */
+            .btn-toolbar > .btn-primary {    /* LINE、AI、閲覧、プレビュー（プレビューはスマホでは非表示） */
+                position: sticky;
+                left: 0;
+                z-index: 2;
+                background: #0d6efd;
+                box-shadow: 2px 0 4px rgba(0,0,0,0.1); /* 固定されていることを示す影 */
+            }
+
+
+            /* グループの区切り線をスマホでは非表示 */
+            .btn-group {
+                border-right: none;
+                padding-right: 4px;
+                margin-right: 4px;
+            }
+
+            /* ボタンサイズを調整 */
+            .btn-toolbar .btn,
+            .btn-toolbar .btn-group .btn {
+                min-height: 44px; /* タッチ領域確保 */
+                white-space: nowrap; /* テキストの折り返しを防ぐ */
+            }
+
+            .btn-sm {
+                font-size: 0.8rem;
+                padding: 0.25rem 0.5rem;
+            }
+
+            /* スクロールヒント（右端のグラデーション） */
+            .btn-toolbar::after {
+                content: '';
+                position: sticky;
+                right: 0;
+                width: 30px;
+                height: 100%;
+                background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.9));
+                pointer-events: none;
+                flex-shrink: 0;
+            }
+        }
+        .form-control{
+            margin-bottom: 5px;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .dialog {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%; /* 画面の幅いっぱいに広げる */
+        }
+        .view-link {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+        /* 挿入オーバーレイ用のスタイル */
+        #insertOverlay {
+            z-index: 2500;
+        }
+        #insertOverlay .dialog {
+            max-width: 400px;
+            width: 90%;
+        }
+
+        /* AIモーダル用のスタイル */
+        #aiOverlay {
+            z-index: 3000;
+        }
+        #aiOverlay .dialog {
+            max-width: 600px;
+            width: 90%;
+        }
+        .ai-context-preview {
+            max-height: 100px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            #insertOverlay .dialog {
+                width: 95%;
+                padding: 15px;
+            }
+            #aiOverlay .dialog {
+                width: 95%;
+                padding: 15px;
+            }
+            #aiPromptInput {
+                font-size: 16px; /* iOS zoom prevention */
+            }
+            #templateSelect {
+                font-size: 16px; /* iOS zoom prevention */
+            }
+        }
+
+        /* プレビュー機能: PC専用（768px以上） */
+        @media (min-width: 769px) {
+            /* コンテナ */
+            .editor-container {
+                display: flex;
+                gap: 0;
+                flex: 1; /* 残りのスペースを占める */
+            }
+
+            /* 編集エリア */
+            .editor-pane {
+                flex: 1;
+                min-width: 200px;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .editor-pane textarea {
+                flex: 1;
+                resize: none;
+            }
+
+            /* リサイザー（ドラッグハンドル） */
+            .resizer {
+                width: 8px;
+                background: #dee2e6;
+                cursor: col-resize;
+                user-select: none;
+                flex-shrink: 0;
+                position: relative;
+            }
+
+            .resizer:hover {
+                background: #0d6efd;
+            }
+
+            /* リサイザーの視覚的ヒント */
+            .resizer::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 3px;
+                height: 30px;
+                background: repeating-linear-gradient(
+                    to bottom,
+                    #fff 0px,
+                    #fff 2px,
+                    transparent 2px,
+                    transparent 6px
+                );
+            }
+
+            /* プレビューエリア */
+            .preview-pane {
+                flex: 1;
+                min-width: 200px;
+                padding: 20px;
+                background: #f8f9fa;
+                overflow-y: auto;
+                border-left: 1px solid #dee2e6;
+            }
+
+            .preview-pane.hidden {
+                display: none;
+            }
+
+            /* プレビューが非表示の時は編集エリアが全幅 */
+            .editor-container.preview-hidden .editor-pane {
+                flex: 1 1 100%;
+            }
+
+            .editor-container.preview-hidden .resizer,
+            .editor-container.preview-hidden .preview-pane {
+                display: none;
+            }
+
+            /* プレビュートグルボタン（画面右端に固定） */
+            .preview-toggle {
+                display: inline-block;
+                position: fixed;
+                right: 10px;
+                top: 50px;
+                z-index: 1500;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            }
+
+            /* プレビューペイン内の .main-content スタイル調整 */
+            .preview-pane.main-content {
+                /* height: auto を削除 - 親の flex: 1 と overflow-y: auto に従う */
+                width: 100%;
+                padding: 20px;
+            }
+
+            /* #preview-content のスタイルは /static/styles.css で定義されています */
+        }
+
+        /* スマホ（768px未満）: プレビュー機能を完全無効化 */
+        @media (max-width: 768px) {
+            .resizer,
+            .preview-pane,
+            .preview-toggle {
+                display: none !important;
+            }
+
+            .editor-container {
+                display: flex; /* flexコンテナにする */
+                flex-direction: column;
+                flex: 1; /* 残りのスペースを占める */
+            }
+
+            .editor-pane {
+                display: flex; /* flexコンテナにする */
+                flex-direction: column;
+                flex: 1; /* 残りのスペースを占める */
+            }
+
+            .editor-pane textarea {
+                flex: 1; /* 残りのスペースを占める */
+            }
+        }
+
+        /* ページ切り替えオーバーレイ用スタイル */
+        #switchPageOverlay {
+            z-index: 2500;
+        }
+
+        #switchPageOverlay .dialog {
+            max-width: 600px;
+            width: 90%;
+        }
+
+        /* バックアップ一覧の横幅をページ切り替えと同じに */
+        #backupListOverlay .dialog {
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .page-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background-color: white;
+        }
+
+        .page-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .page-item.selected {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .page-item.selected .page-date,
+        .page-item.selected .page-filename {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .page-date {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .page-title {
+            font-size: 1em;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .page-filename {
+            font-size: 0.75em;
+            color: #999;
+        }
+
+        .page-list {
+            max-height: 60vh;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        /* バックアップ関連のオーバーレイ */
+        #backupListOverlay {
+            z-index: 3000;
+        }
+
+        #backupContentOverlay {
+            z-index: 3500;
+        }
+
+        #backupContentOverlay .dialog {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .backup-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background-color: white;
+        }
+
+        .backup-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .backup-item.selected {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .backup-date {
+            font-size: 0.9em;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .backup-relative-time {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 8px;
+        }
+
+        .backup-item.selected .backup-relative-time {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .backup-filename {
+            font-size: 0.75em;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .backup-item.selected .backup-filename {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* 差分ハイライト用のスタイル */
+        #backupContentDiff {
+            font-size: 14px;
+            overflow-x: hidden;  /* 横スクロール防止 */
+        }
+
+        .diff-line {
+            padding: 2px 0;
+            margin: 0;
+            word-wrap: break-word;  /* 長い単語を折り返す */
+            word-break: break-word;  /* 単語の途中でも折り返す */
+            overflow-wrap: anywhere;  /* どこでも折り返し可能 */
+        }
+
+        .diff-line-deleted {
+            background-color: #ffe6e6;
+            color: #cc0000;
+            text-decoration: line-through;
+        }
+
+        .diff-line-added {
+            background-color: #e6ffe6;
+            color: #006600;
+        }
+
+        .diff-line-normal {
+            background-color: white;
+            color: #333;
+        }
+
+        .diff-line-number {
+            display: inline-block;
+            width: 40px;
+            color: #999;
+            text-align: right;
+            padding-right: 10px;
+            margin-right: 10px;
+            border-right: 1px solid #dee2e6;
+            user-select: none;
+        }
+
+        /* 差分ボタンのアクティブ状態 */
+        #backupDiffButton.active {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+
+        /* バックアップ内容モーダルのレイアウト（スマホ対応） */
+        .backup-content-dialog {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
+        .backup-content-header {
+            flex-shrink: 0;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 15px;
+        }
+
+        .backup-content-header h5 {
+            margin: 0;
+        }
+
+        .backup-content-body {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .backup-content-footer {
+            flex-shrink: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+            margin-top: 15px;
+        }
+
+        .backup-content-footer .btn {
+            padding: 12px 16px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* PC表示（768px以上）：横1列配置 */
+        @media (min-width: 768px) {
+            .backup-content-footer {
+                grid-template-columns: auto auto auto 1fr;
+                gap: 8px;
+            }
+
+            .backup-content-footer .btn {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+
+            .backup-content-footer #backupContentCloseButton {
+                margin-left: auto;
+            }
+        }
+
+        /* スマホ表示でのボタン調整 */
+        @media (max-width: 767px) {
+            .backup-content-footer .btn i {
+                margin-right: 6px;
+            }
+        }
+    </style>
