@@ -303,6 +303,17 @@ blockquote {
   max-width: 100%;
 }
 
+/* サムネイル画像（リンク内の画像）のサイズ制限 */
+.main-content a img,
+#content a img,
+#preview-content a img {
+  max-width: 500px;
+  max-height: 500px;
+  width: auto;
+  height: auto;
+  object-fit: contain; /* アスペクト比を維持 */
+}
+
 #content table,
 #preview-content table {
     width: 100%;
