@@ -25,7 +25,7 @@ Papernote is a web application that manages PDF files and their associated notes
    ```
 5. Rename `config.yaml.org` to `config.yaml` and configure the application by editing the `config.yaml` file. Below are the descriptions of each field:
    - `allowed_extensions`: A list of allowed file extensions for uploads.
-     - Supported extensions: `jpg`, `jpeg`, `png`, `gif`, `heic`, `txt`, `pdf`, `docx`, `doc`, `xlsx`, `xls`, `pptx`, `ppt`, `zip`.
+     - Supported extensions: `jpg`, `jpeg`, `png`, `gif`, `svg`, `heic`, `heif`, `txt`, `pdf`, `docx`, `doc`, `xlsx`, `xls`, `pptx`, `ppt`, `zip`.
    - `exclude_string`: A string that, if found in a memo line, excludes that line from being shown.
    - `twitter`: Contains Twitter metadata for the site and creator.
      - `site`: The Twitter handle of the site.
@@ -186,7 +186,7 @@ PapernoteはPDFファイルとそれに関連するメモを管理するウェ�
    ```
 5. `config.yaml.org`を`config.yaml`にリネームし、アプリケーションを設定します。各フィールドの説明は以下の通りです：
    - `allowed_extensions`: アップロードが許可されているファイル拡張子のリスト。
-     - サポートされている拡張子: `jpg`, `jpeg`, `png`, `gif`, `heic`, `txt`, `pdf`, `docx`, `doc`, `xlsx`, `xls`, `pptx`, `ppt`, `zip`。
+     - サポートされている拡張子: `jpg`, `jpeg`, `png`, `gif`, `svg`, `heic`, `heif`, `txt`, `pdf`, `docx`, `doc`, `xlsx`, `xls`, `pptx`, `ppt`, `zip`。
    - `exclude_string`: メモ行に含まれている場合、その行を表示から除外する文字列。
    - `twitter`: サイトとクリエイターのためのTwitterメタデータを含みます。
      - `site`: サイトのTwitterハンドル。
