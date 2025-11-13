@@ -685,8 +685,8 @@
             const contentImages = document.querySelectorAll('#content img');
             contentImages.forEach(img => {
                 if (!imageOriginalSizes.has(img)) {
-                    // naturalWidthを優先（CSSの影響を受けない実際のサイズ）
-                    const originalWidth = img.naturalWidth || img.offsetWidth || img.width;
+                    // CSSで制限された表示サイズを優先（ユーザーが見ている実際のサイズ）
+                    const originalWidth = img.offsetWidth || img.getBoundingClientRect().width || img.naturalWidth;
                     imageOriginalSizes.set(img, originalWidth);
                 }
             });
@@ -719,15 +719,19 @@
                 const originalWidth = imageOriginalSizes.get(img);
                 const newWidth = originalWidth * (size / 100);
                 img.style.width = newWidth + 'px';
+                img.style.height = 'auto'; // アスペクト比を維持
                 img.style.maxWidth = 'none'; // maxWidthを解除
+                img.style.maxHeight = 'none'; // maxHeightも解除
             } else {
                 // 初期サイズが未記録の場合は現在の幅を記録して使用
-                // naturalWidthを優先（CSSの影響を受けない実際のサイズ）
-                const originalWidth = img.naturalWidth || img.offsetWidth || img.width;
+                // CSSで制限された表示サイズを優先（ユーザーが見ている実際のサイズ）
+                const originalWidth = img.offsetWidth || img.getBoundingClientRect().width || img.naturalWidth;
                 imageOriginalSizes.set(img, originalWidth);
                 const newWidth = originalWidth * (size / 100);
                 img.style.width = newWidth + 'px';
+                img.style.height = 'auto'; // アスペクト比を維持
                 img.style.maxWidth = 'none';
+                img.style.maxHeight = 'none'; // maxHeightも解除
             }
         });
 
