@@ -1276,6 +1276,86 @@ def duplicate_post():
     else:
         return jsonify({'error': 'ファイルが存在しません。'}), 404
 
+@app.route('/get_categories', methods=['GET'])
+@login_required
+def get_categories():
+    """既存のカテゴリ一覧を取得"""
+    try:
+        post_dir = './post'
+        post_files = [f for f in os.listdir(post_dir)
+                      if os.path.isfile(os.path.join(post_dir, f))
+                      and not f.endswith('.gitkeep')]
+
+        categories = set()
+        for filename in post_files:
+            topic_match = re.match(r'\[(.*?)\]', filename)
+            if topic_match:
+                category = topic_match.group(1)
+                # _archivedは除外
+                if category != '_archived':
+                    categories.add(category)
+
+        # アルファベット順にソート
+        sorted_categories = sorted(list(categories))
+        return jsonify({'categories': sorted_categories}), 200
+    except Exception as e:
+        return jsonify({'error': f'カテゴリ取得に失敗しました: {str(e)}'}), 500
+
+@app.route('/change_category', methods=['POST'])
+@login_required
+def change_category():
+    """ファイルのカテゴリを変更"""
+    filename = request.form['filename']
+    new_category = request.form.get('new_category', '').strip()
+
+    if not is_valid_filename(filename):
+        return jsonify({'error': '無効なファイル名です。'}), 400
+
+    if not new_category:
+        return jsonify({'error': 'カテゴリ名を入力してください。'}), 400
+
+    # カテゴリ名のバリデーション（特殊文字を禁止）
+    if not re.match(r'^[a-zA-Z0-9_\-ぁ-んァ-ヶー一-龯]+$', new_category):
+        return jsonify({'error': 'カテゴリ名に使用できない文字が含まれています。'}), 400
+
+    file_path = os.path.join('./post', filename)
+
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'ファイルが存在しません。'}), 404
+
+    try:
+        # 新しいファイル名を生成
+        # 既存のカテゴリがある場合は置換、ない場合は先頭に追加
+        if re.match(r'^\[.*?\]', filename):
+            new_filename = re.sub(r'^\[(.*?)\]', f'[{new_category}]', filename)
+        else:
+            new_filename = f'[{new_category}]{filename}'
+
+        new_path = os.path.join('./post', new_filename)
+
+        # 元のファイル名と新しいファイル名が同じ場合は何もしない
+        if filename == new_filename:
+            return jsonify({'success': 'カテゴリは既に同じです。', 'new_filename': new_filename}), 200
+
+        # 既に同名のファイルが存在する場合はエラー（元のファイルとは別のファイル）
+        if os.path.exists(new_path):
+            return jsonify({'error': '変更後のファイル名は既に存在します。'}), 400
+
+        # ファイルをリネーム
+        os.rename(file_path, new_path)
+
+        # キャッシュをクリア
+        cache_file_old = './post/.cache/post_files_info.json'
+        cache_file_all = './post/.cache/post_files_info_all.json'
+        filelist_cache = './post/.cache/filelist.json'
+        for cf in [cache_file_old, cache_file_all, filelist_cache]:
+            if os.path.exists(cf):
+                os.remove(cf)
+
+        return jsonify({'success': 'カテゴリが変更されました。', 'new_filename': new_filename}), 200
+    except Exception as e:
+        return jsonify({'error': f'カテゴリ変更に失敗しました: {str(e)}'}), 500
+
 # Helper functions for AI presets
 def load_json_file(filepath):
     """Load JSON file, return empty dict if not found"""

@@ -180,6 +180,9 @@
                                                 <li><a class="dropdown-item" href="#" onclick="duplicateFile('{{ file.filename }}'); return false;">
                                                     <i class="fas fa-file-circle-plus"></i> 複製
                                                 </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="openCategoryModal('{{ file.filename }}'); return false;">
+                                                    <i class="fas fa-folder"></i> カテゴリ変更
+                                                </a></li>
                                                 <li><a class="dropdown-item" href="#" onclick="archiveFile('{{ file.filename }}'); return false;">
                                                     <i class="fas fa-box-archive"></i> アーカイブ
                                                 </a></li>
@@ -260,6 +263,38 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
                     <button type="button" class="btn btn-primary" onclick="submitComment()">追加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Change Modal -->
+    <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoryModalLabel">カテゴリを変更</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="categoryFilename">
+                    <div class="form-group mb-3">
+                        <label for="existingCategory">既存のカテゴリから選択</label>
+                        <select id="existingCategory" class="form-control">
+                            <option value="">-- カテゴリを選択 --</option>
+                        </select>
+                    </div>
+                    <div class="text-center mb-2">または</div>
+                    <div class="form-group mb-3">
+                        <label for="newCategoryInput">新しいカテゴリを入力</label>
+                        <input type="text" id="newCategoryInput" class="form-control" placeholder="例: memo, work, idea" maxlength="50">
+                        <small class="form-text text-muted">使用可能: 英数字、日本語、ハイフン、アンダースコア</small>
+                    </div>
+                    <div id="categoryError" class="alert alert-danger d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" onclick="submitCategoryChange()">変更</button>
                 </div>
             </div>
         </div>
@@ -543,6 +578,74 @@
                 error: function(xhr) {
                     var errorMessage = xhr.responseJSON ? xhr.responseJSON.error : 'コメント追加に失敗しました';
                     alert(errorMessage);
+                }
+            });
+        }
+
+        function openCategoryModal(filename) {
+            $('#categoryFilename').val(filename);
+            $('#existingCategory').val('');
+            $('#newCategoryInput').val('');
+            $('#categoryError').addClass('d-none');
+
+            // 既存カテゴリを取得
+            $.ajax({
+                type: 'GET',
+                url: '/get_categories',
+                success: function(response) {
+                    var select = $('#existingCategory');
+                    select.find('option:not(:first)').remove(); // 最初のオプション以外を削除
+
+                    if (response.categories && response.categories.length > 0) {
+                        response.categories.forEach(function(category) {
+                            select.append($('<option>', {
+                                value: category,
+                                text: category
+                            }));
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    console.error('カテゴリ取得に失敗しました');
+                }
+            });
+
+            $('#categoryModal').modal('show');
+
+            setTimeout(function() {
+                $('#existingCategory').focus();
+            }, 500);
+        }
+
+        function submitCategoryChange() {
+            var filename = $('#categoryFilename').val();
+            var selectedCategory = $('#existingCategory').val();
+            var newCategory = $('#newCategoryInput').val().trim();
+
+            // どちらか一方が入力されているか確認
+            if (!selectedCategory && !newCategory) {
+                $('#categoryError').text('カテゴリを選択するか、新しいカテゴリを入力してください').removeClass('d-none');
+                return;
+            }
+
+            // 両方入力されている場合は新規入力を優先
+            var categoryToUse = newCategory || selectedCategory;
+
+            $.ajax({
+                type: 'POST',
+                url: '/change_category',
+                data: {
+                    filename: filename,
+                    new_category: categoryToUse,
+                    csrf_token: csrf_token
+                },
+                success: function(response) {
+                    $('#categoryModal').modal('hide');
+                    location.reload(true);  // 強制的にサーバーから再読み込み
+                },
+                error: function(xhr) {
+                    var errorMessage = xhr.responseJSON ? xhr.responseJSON.error : 'カテゴリ変更に失敗しました';
+                    $('#categoryError').text(errorMessage).removeClass('d-none');
                 }
             });
         }
