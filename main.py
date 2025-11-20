@@ -78,8 +78,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# セッションの保持時間を設定（例: 1日）
-app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=1)
+# セッションの保持時間を設定（7日間）
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)
+# Remember Me Cookieのセキュリティ設定
+app.config['REMEMBER_COOKIE_SECURE'] = True
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Strict'
 
 # ユーザークラスの定義
 class User(UserMixin):
@@ -163,11 +167,27 @@ def login():
                 if check_password_hash(user['password'], password):
                     print(f"Password match. Logging in user: {username}")
                     user_obj = User(user_id, user['username'], user['password'])
-                    login_user(user_obj)
+
+                    # サブドメイン対応のREMEMBER_COOKIE_DOMAIN設定
+                    host = request.host
+                    extracted = tldextract.extract(host)
+
+                    if extracted.subdomain:
+                        # サブドメインがある場合、メインドメイン全体に設定
+                        cookie_domain = f".{extracted.domain}.{extracted.suffix}"
+                    else:
+                        # サブドメインがない場合、現在のドメインのみ
+                        cookie_domain = f"{extracted.domain}.{extracted.suffix}"
+
+                    app.config['REMEMBER_COOKIE_DOMAIN'] = cookie_domain
+
+                    # Remember Me機能を有効にしてログイン（7日間保持）
+                    login_user(user_obj, remember=True)
+
                     # send_email("Authentication Success", f"User {username} logged in successfully.\n\n{get_client_info()}")
                     with open('./access_log.txt', 'a') as log_file:
                         log_file.write(f"{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - User {username} logged in successfully - {get_client_info()}\n")
-                    
+
                     # ログイン時にキャッシュを削除（全件キャッシュ＋旧キャッシュ）
                     cache_file_old = './post/.cache/post_files_info.json'
                     cache_file_all = './post/.cache/post_files_info_all.json'
@@ -186,26 +206,7 @@ def login():
                     else:
                         redirect_url = url_for('post_latest')
 
-                    # Create response object
-                    response = make_response(redirect(redirect_url))
-                    
-                    # Set domain-specific cookie
-                    host = request.host
-                    extracted = tldextract.extract(host)
-                    
-                    if extracted.subdomain:
-                        # If there's a subdomain, set the cookie for the main domain and all its subdomains
-                        cookie_domain = f".{extracted.domain}.{extracted.suffix}"
-                    else:
-                        # If there's no subdomain, set the cookie for the current domain only
-                        cookie_domain = f"{extracted.domain}.{extracted.suffix}"
-
-                    response.set_cookie('session', user_obj.get_id(), 
-                                        domain=cookie_domain,
-                                        httponly=True, secure=True, samesite='Strict',
-                                        max_age=3600)  # Set cookie expiration to 1 hour
-                    
-                    return response
+                    return redirect(redirect_url)
                 else:
                     print(f"Password does not match for user: {username}")
         print("Login failed. Invalid credentials.")
