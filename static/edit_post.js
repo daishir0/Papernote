@@ -96,14 +96,6 @@
                 });
             }
 
-            // Previewボタン（ツールバー）
-            const viewPageButton = document.getElementById('viewPageButton');
-            if (viewPageButton) {
-                viewPageButton.addEventListener('click', () => {
-                    window.location.href = document.body.dataset.postUrl;
-                });
-            }
-
             const pasteMermaidButton = document.getElementById('pasteMermaidButton');
             if (pasteMermaidButton) {
                 pasteMermaidButton.addEventListener('click', () => {

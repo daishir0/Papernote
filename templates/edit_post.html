@@ -39,7 +39,7 @@
 
             <!-- グループ2: 保存・プレビュー -->
             <button id="saveButton" type="button" class="btn btn-primary" title="保存 (Ctrl+S)"><i class="fas fa-save"></i></button>
-            <button id="viewPageButton" type="button" class="btn btn-primary" title="プレビュー"><i class="fas fa-eye"></i></button>
+            <a href="{{ url_for('post', filename=request.view_args['filename']) }}" id="viewPageButton" class="btn btn-primary" title="プレビュー"><i class="fas fa-eye"></i></a>
 
             <!-- グループ3: 特殊機能（使用頻度: 中〜高） -->
             <button id="switchPageButton" type="button" class="btn btn-primary" title="他のページへ移動 (Ctrl+K)"><i class="fas fa-arrow-right-arrow-left"></i></button>
