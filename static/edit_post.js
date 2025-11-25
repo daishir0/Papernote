@@ -198,7 +198,7 @@
             lineTextInput.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' && !isComposing) {
                     event.preventDefault();
-                    const text = '\n' + lineTextInput.value;
+                    const text = '\n- ' + lineTextInput.value;
                     insertTextAtCursor(contentTextArea, text);
                     lineTextInput.value = ''; // テキストボックスをクリア
                     lineTextInput.focus();
