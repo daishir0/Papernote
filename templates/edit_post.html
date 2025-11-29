@@ -117,7 +117,10 @@
             <!-- タブナビゲーション -->
             <ul class="nav nav-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="template-tab" data-bs-toggle="tab" data-bs-target="#template-panel" type="button" role="tab">テンプレート</button>
+                    <button class="nav-link active" id="input-tab" data-bs-toggle="tab" data-bs-target="#input-panel" type="button" role="tab">入力</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="result-tab" data-bs-toggle="tab" data-bs-target="#result-panel" type="button" role="tab">結果</button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-panel" type="button" role="tab">設定</button>
@@ -126,8 +129,8 @@
 
             <!-- タブコンテンツ -->
             <div class="tab-content" style="margin-top: 10px;">
-                <!-- テンプレートタブ -->
-                <div class="tab-pane fade show active" id="template-panel" role="tabpanel">
+                <!-- 入力タブ -->
+                <div class="tab-pane fade show active" id="input-panel" role="tabpanel">
                     <div id="aiContextPreview" class="ai-context-preview" style="display:none;"></div>
 
                     <!-- プロンプトテンプレート選択 -->
@@ -150,6 +153,20 @@
                             </span>
                         </button>
                         <button id="aiCancelButton" class="btn btn-secondary">キャンセル</button>
+                    </div>
+                </div>
+
+                <!-- 結果タブ -->
+                <div class="tab-pane fade" id="result-panel" role="tabpanel">
+                    <div style="margin-top: 10px;">
+                        <textarea id="aiResultText" class="form-control" rows="10" readonly style="font-family: monospace; resize: vertical;"></textarea>
+                    </div>
+
+                    <div style="display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap;">
+                        <button id="aiInsertButton" class="btn btn-primary" style="flex: 1; min-width: 60px;">挿入</button>
+                        <button id="aiReplaceButton" class="btn btn-warning" style="flex: 1; min-width: 60px;">置換</button>
+                        <button id="aiCopyButton" class="btn btn-info" style="flex: 1; min-width: 60px;">コピー</button>
+                        <button id="aiResultCancelButton" class="btn btn-secondary" style="flex: 1; min-width: 80px;">キャンセル</button>
                     </div>
                 </div>
 

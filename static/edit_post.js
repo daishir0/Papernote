@@ -328,8 +328,11 @@
 
             let aiContextText = '';
             let aiCursorPosition = 0;
+            let aiSelectionStart = 0; // 選択範囲の開始位置
+            let aiSelectionEnd = 0; // 選択範囲の終了位置
             let aiPresets = null;
             let selectedTemplateId = null;
+            let aiResultContent = ''; // AI結果を保存
 
             // AIプリセットを読み込む
             async function loadAIPresets() {
@@ -424,12 +427,16 @@
                 if (selectedText) {
                     // テキスト選択時: コンテキストとして保存
                     aiContextText = selectedText;
+                    aiSelectionStart = start;
+                    aiSelectionEnd = end;
                     aiCursorPosition = end; // 選択範囲の終わりにカーソルを設定
                     aiContextPreview.textContent = selectedText;
                     aiContextPreview.style.display = 'block';
                 } else {
                     // 未選択時: コンテキストなし
                     aiContextText = '';
+                    aiSelectionStart = start;
+                    aiSelectionEnd = start;
                     aiCursorPosition = start; // 現在のカーソル位置
                     aiContextPreview.style.display = 'none';
                 }
@@ -477,30 +484,21 @@
                     const data = await response.json();
 
                     if (response.ok) {
-                        // AI応答をテキストエリアに挿入
-                        const aiResponse = data.response;
-                        const insertText = '\n\n---\n**( ・∀・)つ〃∩＜どうも！**\n' + aiResponse + '\n\n---\n';
+                        // AI応答を保存して結果タブに表示
+                        aiResultContent = data.response;
+                        const aiResultText = document.getElementById('aiResultText');
+                        if (aiResultText) {
+                            aiResultText.value = aiResultContent;
+                        }
 
-                        // カーソル位置に挿入
-                        const value = contentTextArea.value;
-                        contentTextArea.value = value.slice(0, aiCursorPosition) + insertText + value.slice(aiCursorPosition);
+                        // 結果タブに切り替え
+                        const resultTab = document.getElementById('result-tab');
+                        if (resultTab) {
+                            resultTab.click();
+                        }
 
-                        // カーソルを挿入後の位置に移動
-                        const newPosition = aiCursorPosition + insertText.length;
-                        contentTextArea.selectionStart = contentTextArea.selectionEnd = newPosition;
-                        contentTextArea.focus();
-
-                        // プレビュー更新のために input イベントを発火
-                        const event = new Event('input', { bubbles: true });
-                        contentTextArea.dispatchEvent(event);
-
-                        // モーダルを閉じる
-                        aiOverlay.style.display = 'none';
-
-                        // リセット
-                        selectedTemplateId = null;
-                        aiPromptInput.value = '';
-                        templateSelect.value = '';
+                        // 置換ボタンの有効/無効を制御
+                        updateReplaceButtonState();
                     } else {
                         alert('エラー: ' + (data.error || '不明なエラーが発生しました'));
                     }
@@ -519,21 +517,17 @@
 
             aiSendButton.addEventListener('click', sendAIRequest);
 
-            // AIキャンセルボタンクリック
+            // AIキャンセルボタンクリック（入力タブ用）
             aiCancelButton.addEventListener('click', () => {
                 aiOverlay.style.display = 'none';
-                selectedTemplateId = null;
-                aiPromptInput.value = '';
-                templateSelect.value = '';
+                resetAIModal();
             });
 
             // AIオーバーレイクリック（背景クリック）
             aiOverlay.addEventListener('click', (event) => {
                 if (event.target === aiOverlay) {
                     aiOverlay.style.display = 'none';
-                    selectedTemplateId = null;
-                    aiPromptInput.value = '';
-                    templateSelect.value = '';
+                    resetAIModal();
                 }
             });
 
@@ -553,6 +547,117 @@
                     sendAIRequest();
                 }
             });
+
+            // 置換ボタンの有効/無効を制御
+            function updateReplaceButtonState() {
+                const aiReplaceButton = document.getElementById('aiReplaceButton');
+                if (aiReplaceButton) {
+                    // 選択範囲がある場合のみ有効
+                    const hasSelection = aiContextText.length > 0;
+                    aiReplaceButton.disabled = !hasSelection;
+                    if (!hasSelection) {
+                        aiReplaceButton.style.opacity = '0.5';
+                        aiReplaceButton.title = 'テキストを選択してから実行してください';
+                    } else {
+                        aiReplaceButton.style.opacity = '1';
+                        aiReplaceButton.title = '選択範囲をAI結果で置き換え';
+                    }
+                }
+            }
+
+            // 挿入ボタン（装飾付き）
+            const aiInsertButton = document.getElementById('aiInsertButton');
+            if (aiInsertButton) {
+                aiInsertButton.addEventListener('click', () => {
+                    if (!aiResultContent) return;
+
+                    const insertText = '\n\n---\n**( ・∀・)つ〃∩＜どうも！**\n' + aiResultContent + '\n\n---\n';
+
+                    // カーソル位置に挿入
+                    const value = contentTextArea.value;
+                    contentTextArea.value = value.slice(0, aiCursorPosition) + insertText + value.slice(aiCursorPosition);
+
+                    // カーソルを挿入後の位置に移動
+                    const newPosition = aiCursorPosition + insertText.length;
+                    contentTextArea.selectionStart = contentTextArea.selectionEnd = newPosition;
+                    contentTextArea.focus();
+
+                    // プレビュー更新のために input イベントを発火
+                    const event = new Event('input', { bubbles: true });
+                    contentTextArea.dispatchEvent(event);
+
+                    // モーダルを閉じる
+                    aiOverlay.style.display = 'none';
+                    resetAIModal();
+                });
+            }
+
+            // 置換ボタン（装飾なし）
+            const aiReplaceButton = document.getElementById('aiReplaceButton');
+            if (aiReplaceButton) {
+                aiReplaceButton.addEventListener('click', () => {
+                    if (!aiResultContent || !aiContextText) return;
+
+                    // 保存しておいた選択範囲をAI結果で置き換え（装飾なし）
+                    const value = contentTextArea.value;
+
+                    // 選択範囲を置換
+                    contentTextArea.value = value.slice(0, aiSelectionStart) + aiResultContent + value.slice(aiSelectionEnd);
+
+                    // カーソルを置換後の位置に移動
+                    const newPosition = aiSelectionStart + aiResultContent.length;
+                    contentTextArea.selectionStart = contentTextArea.selectionEnd = newPosition;
+                    contentTextArea.focus();
+
+                    // プレビュー更新のために input イベントを発火
+                    const event = new Event('input', { bubbles: true });
+                    contentTextArea.dispatchEvent(event);
+
+                    // モーダルを閉じる
+                    aiOverlay.style.display = 'none';
+                    resetAIModal();
+                });
+            }
+
+            // コピーボタン
+            const aiCopyButton = document.getElementById('aiCopyButton');
+            if (aiCopyButton) {
+                aiCopyButton.addEventListener('click', () => {
+                    if (!aiResultContent) return;
+
+                    navigator.clipboard.writeText(aiResultContent).then(() => {
+                        showTemporaryMessage('AI結果をコピーしました');
+                    }).catch(() => {
+                        showTemporaryMessage('コピーに失敗しました');
+                    });
+                });
+            }
+
+            // 結果タブのキャンセルボタン
+            const aiResultCancelButton = document.getElementById('aiResultCancelButton');
+            if (aiResultCancelButton) {
+                aiResultCancelButton.addEventListener('click', () => {
+                    aiOverlay.style.display = 'none';
+                    resetAIModal();
+                });
+            }
+
+            // AIモーダルをリセット
+            function resetAIModal() {
+                selectedTemplateId = null;
+                aiPromptInput.value = '';
+                templateSelect.value = '';
+                aiResultContent = '';
+                const aiResultText = document.getElementById('aiResultText');
+                if (aiResultText) {
+                    aiResultText.value = '';
+                }
+                // 入力タブに戻す
+                const inputTab = document.getElementById('input-tab');
+                if (inputTab) {
+                    inputTab.click();
+                }
+            }
 
             // ========== プレビュー機能 ==========
             const previewToggleButton = document.getElementById('previewToggleButton');
