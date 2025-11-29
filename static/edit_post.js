@@ -285,6 +285,35 @@
                 });
             }
 
+            // New Postボタン
+            const newPostButton = document.getElementById('newPostButton');
+            if (newPostButton) {
+                newPostButton.addEventListener('click', () => {
+                    // オプションメニューを閉じる
+                    const insertOverlay = document.getElementById('insertOverlay');
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
+
+                    // フォームを動的に作成して送信
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/add_post';
+                    form.target = '_blank';
+
+                    // CSRFトークンを追加
+                    const csrfToken = document.body.dataset.csrfToken;
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrf_token';
+                    csrfInput.value = csrfToken;
+                    form.appendChild(csrfInput);
+
+                    document.body.appendChild(form);
+                    form.submit();
+                });
+            }
+
             // AI機能の実装（プリセット対応）
             const aiButton = document.getElementById('aiButton');
             const aiOverlay = document.getElementById('aiOverlay');
