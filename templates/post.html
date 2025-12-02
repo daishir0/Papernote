@@ -124,9 +124,12 @@
             </div>
         </div>
 
-        <button id="toggle-toc" class="btn btn-dark btn-sm none_print">目次 <span class="toc-icon">▲</span></button>
-        <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;Code&gt;</button>
+        <button id="toggle-toc" class="btn btn-dark btn-sm none_print">目 <span class="toc-icon">▲</span></button>
+        <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;...&gt;</button>
         {% if current_user.is_authenticated %}
+        <button id="switchPageButton" class="btn btn-primary btn-sm none_print" title="他のページへ移動 (Ctrl+K)">
+            <i class="fas fa-arrow-right-arrow-left"></i>
+        </button>
         <button class="btn btn-success btn-sm none_print" onclick="editPost('{{ content.filename }}')">
             <i class="fas fa-edit"></i>
         </button>
@@ -166,6 +169,29 @@
         <div class="slideshow-counter" id="slideshow-counter">1 / 1</div>
     </div>
 </div>
+
+<!-- ページ切り替えオーバーレイ -->
+{% if current_user.is_authenticated %}
+<div id="switchPageOverlay" class="overlay" style="display:none;">
+    <div class="dialog switch-page-dialog">
+        <h5>他のページへ移動 <small class="text-muted">(Ctrl+K)</small></h5>
+        <div class="page-list" id="pageList">
+            {% for post in recent_posts %}
+            <div class="page-item" data-filename="{{ post.filename }}" data-index="{{ loop.index0 }}">
+                <div class="page-date">
+                    <i class="fas fa-clock"></i> {{ post.date }}
+                </div>
+                <div class="page-title">{{ post.title }}</div>
+                <div class="page-filename">{{ post.filename }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <button id="switchPageCancelButton" type="button" class="btn btn-secondary btn-block">
+            キャンセル (ESC)
+        </button>
+    </div>
+</div>
+{% endif %}
 
 <script src="/static/jquery-3.7.0.min.js"></script>
 <script src="/static/marked.min.js"></script>
@@ -783,6 +809,141 @@
             menu.classList.remove('show');
         }
     });
+
+    // ============================================
+    // ページ切り替え機能（閲覧ページ用）
+    // ============================================
+    (function() {
+        const overlay = document.getElementById('switchPageOverlay');
+        if (!overlay) return; // 認証されていない場合はスキップ
+
+        const pageList = document.getElementById('pageList');
+        const pageItems = pageList ? pageList.querySelectorAll('.page-item') : [];
+        let selectedIndex = 0;
+
+        // Ctrl+K でオーバーレイを開く
+        document.addEventListener('keydown', function(event) {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+                event.preventDefault();
+                openSwitchPageOverlay();
+            }
+        });
+
+        // オーバーレイを開く
+        function openSwitchPageOverlay() {
+            overlay.style.display = 'flex';
+            selectedIndex = 0;
+            updateSelection();
+            document.addEventListener('keydown', handleOverlayKeydown);
+        }
+
+        // オーバーレイを閉じる
+        function closeSwitchPageOverlay() {
+            overlay.style.display = 'none';
+            document.removeEventListener('keydown', handleOverlayKeydown);
+        }
+
+        // オーバーレイ内でのキーボード操作
+        function handleOverlayKeydown(event) {
+            if (overlay.style.display !== 'flex') return;
+
+            switch(event.key) {
+                case 'ArrowDown':
+                    event.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, pageItems.length - 1);
+                    updateSelection();
+                    break;
+
+                case 'ArrowUp':
+                    event.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    updateSelection();
+                    break;
+
+                case 'Enter':
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (pageItems[selectedIndex]) {
+                        const filename = pageItems[selectedIndex].dataset.filename;
+                        if (event.ctrlKey || event.metaKey) {
+                            navigateToPage(filename, true);
+                        } else {
+                            navigateToPage(filename, false);
+                        }
+                    }
+                    break;
+
+                case 'Escape':
+                    event.preventDefault();
+                    closeSwitchPageOverlay();
+                    break;
+            }
+        }
+
+        // 選択状態を更新
+        function updateSelection() {
+            pageItems.forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        // ページに移動（閲覧ページへ）
+        function navigateToPage(filename, openInNewTab) {
+            if (openInNewTab) {
+                window.open('/post/' + filename, '_blank');
+            } else {
+                closeSwitchPageOverlay();
+                location.href = '/post/' + filename;
+            }
+        }
+
+        // ページ切り替えボタン
+        const switchPageButton = document.getElementById('switchPageButton');
+        if (switchPageButton) {
+            switchPageButton.addEventListener('click', function() {
+                openSwitchPageOverlay();
+            });
+        }
+
+        // キャンセルボタン
+        const cancelButton = document.getElementById('switchPageCancelButton');
+        if (cancelButton) {
+            cancelButton.addEventListener('click', function() {
+                closeSwitchPageOverlay();
+            });
+        }
+
+        // オーバーレイの背景クリックで閉じる
+        overlay.addEventListener('click', function(event) {
+            if (event.target === overlay) {
+                closeSwitchPageOverlay();
+            }
+        });
+
+        // マウスホバーで選択状態を変更
+        pageItems.forEach((item, index) => {
+            item.addEventListener('mouseenter', function() {
+                selectedIndex = index;
+                updateSelection();
+            });
+
+            // クリックイベント（Ctrl+クリック対応）
+            item.addEventListener('click', function(event) {
+                const filename = item.dataset.filename;
+                if (event.ctrlKey || event.metaKey) {
+                    event.preventDefault();
+                    navigateToPage(filename, true);
+                } else {
+                    navigateToPage(filename, false);
+                }
+            });
+        });
+    })();
 </script>
 </body>
 </html>

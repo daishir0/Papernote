@@ -1028,7 +1028,10 @@ def post(filename):
         'tags': tags
     }
 
-    return render_template('post.html', content=content, authenticated=authenticated)
+    # 認証済みの場合のみページ切り替え用の最新投稿リストを取得
+    recent_posts = get_latest_posts(limit=20, exclude=filename) if authenticated else []
+
+    return render_template('post.html', content=content, authenticated=authenticated, recent_posts=recent_posts)
 
 @app.route('/postmd/<filename>')
 def markdown_file(filename):
