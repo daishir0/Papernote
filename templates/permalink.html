@@ -19,6 +19,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon-192x192.png">
 
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/slideshow.css">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
     <style>
         h1 {
@@ -84,6 +85,7 @@
 <script src="/static/jquery-3.7.0.min.js"></script>
 <script src="/static/marked.min.js"></script>
 <script src="/static/mermaid.min.js"></script>
+<script src="/static/slideshow.js"></script>
 
 <script>
 $(document).ready(function() {
@@ -134,6 +136,11 @@ $(document).ready(function() {
 
     // Mermaidの初期化
     mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+
+    // スライドショーの初期化（Markdownレンダリング後）
+    if (typeof initializeSlideshowImages === 'function') {
+        initializeSlideshowImages('#content');
+    }
 
     // 既存の処理を保持
     $('.delete-link').click(function() {
@@ -196,6 +203,21 @@ $(document).ready(function() {
 
 <script src="/static/scripts.js"></script>
 <script src="/static/postx.js"></script>
+
+<!-- スライドショーモーダル -->
+<div class="slideshow-modal" id="slideshow-modal">
+    <div class="slideshow-container" id="slideshow-container">
+        <button class="slideshow-close" onclick="closeSlideshowModal()">&times;</button>
+        <button class="slideshow-nav prev" onclick="navigateSlideshow(-1)">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <img class="slideshow-image" id="slideshow-image" src="" alt="">
+        <button class="slideshow-nav next" onclick="navigateSlideshow(1)">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <div class="slideshow-counter" id="slideshow-counter">1 / 1</div>
+    </div>
+</div>
 
 </body>
 </html>
