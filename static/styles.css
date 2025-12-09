@@ -350,6 +350,7 @@ blockquote {
         white-space: normal;
         min-width: 200px;
     }
+}
 
 #content hr,
 #preview-content hr {
@@ -401,7 +402,6 @@ code {
     font-size: .875em;
     color: #000000;
     word-wrap: break-word;
-}
 }
 
 /* Qiita風のテーブルヘッダースタイル */
@@ -499,4 +499,137 @@ table thead th {
     font-size: 0.75em;
     color: #999;
     font-family: monospace;
+}
+
+/* ============================================
+   レスポンシブ対応（スマホ・タブレット）
+   ============================================ */
+
+/* 閲覧ページ専用：ページ全体スクロール */
+body.permalink-page {
+    height: auto;
+    display: block;
+    overflow-x: hidden;
+}
+
+body.permalink-page .content {
+    overflow-y: visible; /* 縦スクロールは親に任せる */
+}
+
+/* コンテンツ全体のオーバーフロー制御 */
+.content {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* テーブルの横スクロール対応 */
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 16px 0;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.table-wrapper table {
+    margin-bottom: 0;
+    border: none;
+}
+
+/* スマホ・タブレット用スタイル */
+@media screen and (max-width: 768px) {
+    /* ページ全体スクロールを有効にする */
+    body, html {
+        height: auto;
+        display: block;
+        overflow-x: hidden;
+    }
+
+    /* コンテンツのパディング調整 */
+    .content {
+        padding: 8px;
+        overflow-x: auto;
+        overflow-y: visible; /* 縦スクロールは親に任せる */
+    }
+
+    /* 見出しのサイズ調整 */
+    #content h1,
+    #preview-content h1 {
+        font-size: 1.5em;
+        margin-top: 30px;
+    }
+
+    #content h2,
+    #preview-content h2 {
+        font-size: 1.25em;
+    }
+
+    #content h3,
+    #preview-content h3 {
+        font-size: 1.1em;
+    }
+
+    /* 画像をスマホ画面幅に収める */
+    #content img,
+    #preview-content img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* サムネイル画像もスマホでは画面幅に収める */
+    #content a img,
+    #preview-content a img {
+        max-width: 100%;
+        max-height: none;
+    }
+
+    /* テーブルセルの最小幅を解除 */
+    #content th,
+    #content td,
+    #preview-content th,
+    #preview-content td {
+        min-width: auto;
+        padding: 0.5rem;
+        font-size: 0.9em;
+    }
+
+    /* preタグのオーバーフロー */
+    #content pre,
+    #preview-content pre {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* さらに小さい画面用 */
+@media screen and (max-width: 480px) {
+    body, html {
+        margin: 5px;
+    }
+
+    .content {
+        padding: 5px;
+    }
+
+    #content h1,
+    #preview-content h1 {
+        font-size: 1.3em;
+    }
+
+    #content h2,
+    #preview-content h2 {
+        font-size: 1.15em;
+    }
+
+    #content h3,
+    #preview-content h3 {
+        font-size: 1.05em;
+    }
+
+    /* ボタンのサイズ調整 */
+    .button-link {
+        padding: 4px 8px;
+        font-size: 0.9em;
+        margin: 5px;
+    }
 }

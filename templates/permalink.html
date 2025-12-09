@@ -36,7 +36,7 @@
         }
     </style>
 </head>
-<body>
+<body class="permalink-page">
     <a href="/"><< TOPへ</a>
 
     <h1>
@@ -133,6 +133,13 @@ $(document).ready(function() {
 
     // HTMLをDOMに挿入
     $('.content').html(html);
+
+    // テーブルを横スクロール可能なラッパーで囲む
+    $('#content table').each(function() {
+        if (!$(this).parent().hasClass('table-wrapper')) {
+            $(this).wrap('<div class="table-wrapper"></div>');
+        }
+    });
 
     // Mermaidの初期化
     mermaid.init(undefined, document.querySelectorAll('.mermaid'));
