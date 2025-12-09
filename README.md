@@ -98,9 +98,12 @@ Papernote is a web application that manages PDF files and their associated notes
 
 ### Mobile Optimization
 - **Responsive Design**: Fully optimized for smartphone and tablet use.
+- **Full-page Scrolling**: Header scrolls with content for maximum screen usage on mobile and PC.
 - **Touch-friendly Buttons**: Large, well-spaced buttons for easy touch interaction.
 - **Mobile Toolbar**: Optimized toolbar layout for mobile screens.
 - **Grid Layout**: 2-column button grid on mobile for better accessibility.
+- **Responsive Tables**: Horizontal scrolling for tables that exceed screen width.
+- **Responsive Images**: Images automatically scale to fit screen width.
 
 ### Security Enhancements
 - **Open Redirect Protection**: Fixed open redirect vulnerability in login flow.
@@ -154,9 +157,38 @@ python pdf_to_papernote.py -openai example.pdf
 python pdf_to_papernote.py -output -openai example.pdf
 ```
 
+## Claude Code Skills
+This project includes Claude Code skills for AI-powered paper processing. These skills are located in `.claude/skills/` and can be used with Claude Code CLI.
+
+### paper-translate
+Translates academic paper PDFs page by page with AI assistance:
+- Converts PDF pages to images
+- Extracts text from each page
+- Generates Japanese translations using Claude CLI
+- Automatically creates chapter summaries (summary/)
+- Automatically generates novelty analysis and evaluation (summary2/)
+- Saves results as Markdown memo files
+
+Usage:
+```bash
+/paper-translate <pdf_id1> [pdf_id2] ...
+```
+
+### paper-question
+Answers questions about papers using their extracted text:
+- Reads clean text from papers
+- Claude directly answers questions as a research expert
+- Provides structured, easy-to-understand responses
+
+Usage:
+```bash
+/paper-question <pdf_id> <question>
+```
+
 ## Notes
 - Ensure that the `config.yaml` file is properly configured.
 - The application requires a running instance of Flask and other dependencies specified in `requirements.txt`.
+- For Claude Code skills, set the `PAPER_DIR` environment variable or run from the project directory.
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -259,9 +291,12 @@ PapernoteはPDFファイルとそれに関連するメモを管理するウェ�
 
 ### モバイル最適化
 - **レスポンシブデザイン**: スマートフォンとタブレットに完全最適化。
+- **フルページスクロール**: モバイル・PC両方でヘッダーもコンテンツと一緒にスクロールし、画面を最大限活用。
 - **タッチフレンドリーボタン**: タッチ操作に最適な大きく間隔の広いボタン。
 - **モバイルツールバー**: モバイル画面に最適化されたツールバーレイアウト。
 - **グリッドレイアウト**: モバイルでのアクセシビリティ向上のための2列ボタングリッド。
+- **レスポンシブテーブル**: 画面幅を超えるテーブルの横スクロール対応。
+- **レスポンシブ画像**: 画面幅に合わせて画像が自動的にスケーリング。
 
 ### セキュリティ強化
 - **オープンリダイレクト保護**: ログインフローのオープンリダイレクト脆弱性を修正。
@@ -315,9 +350,38 @@ python pdf_to_papernote.py -openai example.pdf
 python pdf_to_papernote.py -output -openai example.pdf
 ```
 
+## Claude Codeスキル
+このプロジェクトには、AI駆動の論文処理のためのClaude Codeスキルが含まれています。これらのスキルは`.claude/skills/`に配置されており、Claude Code CLIで使用できます。
+
+### paper-translate
+学術論文PDFをページごとにAI翻訳します：
+- PDFページを画像に変換
+- 各ページからテキストを抽出
+- Claude CLIを使用して日本語翻訳を生成
+- 章ごとの要約を自動作成（summary/）
+- 新規性分析と評価を自動生成（summary2/）
+- 結果をMarkdownメモファイルとして保存
+
+使用方法：
+```bash
+/paper-translate <pdf_id1> [pdf_id2] ...
+```
+
+### paper-question
+抽出されたテキストを使用して論文に関する質問に回答します：
+- 論文のクリーンテキストを読み込み
+- Claudeが研究の専門家として直接質問に回答
+- 構造化された分かりやすい回答を提供
+
+使用方法：
+```bash
+/paper-question <pdf_id> <質問>
+```
+
 ## 注意点
 - `config.yaml`ファイルが正しく設定されていることを確認してください。
 - アプリケーションにはFlaskと`requirements.txt`に記載された他の依存関係が必要です。
+- Claude Codeスキルを使用する場合は、`PAPER_DIR`環境変数を設定するか、プロジェクトディレクトリから実行してください。
 
 ## ライセンス
 このプロジェクトはMITライセンスの下でライセンスされています。詳細はLICENSEファイルを参照してください。
