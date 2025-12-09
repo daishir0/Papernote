@@ -13,24 +13,14 @@ argument-hint: {pdf_id} {質問内容}
 
 ### 引数が空の場合
 
-以下のコマンドで最新の論文一覧（clean_textあり）を取得して選択肢として提示してください:
+以下の手順で論文一覧を取得して選択肢として提示してください:
 
-```bash
-# カレントディレクトリがプロジェクトルートであることを前提
-ls -lt clean_text/*.txt 2>/dev/null | head -10 | while read line; do
-  file_path=$(echo "$line" | awk '{print $NF}')
-  pdf_id=$(basename "$file_path" .txt)
-  if [ "$pdf_id" != ".gitkeep" ]; then
-    memo_path="memo/${pdf_id}.txt"
-    if [ -f "$memo_path" ]; then
-      title=$(head -1 "$memo_path" | sed 's/^#* *//')
-    else
-      title="(タイトル不明)"
-    fi
-    echo "${pdf_id:0:20}...: ${title:0:50}"
-  fi
-done
-```
+1. **Globツール**で `clean_text/*.txt` を検索してファイル一覧を取得
+2. 取得したファイルから最新10件程度のpdf_idを抽出（ファイル名から.txtを除いたもの）
+3. 各pdf_idに対して **Readツール**で `memo/{pdf_id}.txt` の1行目（タイトル）を取得
+4. 一覧形式でユーザーに提示
+
+**重要**: 複雑なBashスクリプト（whileループ、$()コマンド置換など）は使用しないこと。Claude Codeのツール（Glob, Read）を直接使用すること。
 
 その後、ユーザーに以下を質問してください：
 1. どの論文について質問しますか？（PDF IDを指定）
