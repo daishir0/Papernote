@@ -47,6 +47,7 @@
         <a href="/summary2/{{ pdf['summary_url'] }}" class="button-link"><i class="fa fa-list"></i> 要点</a>
         <a href="/summary/{{ pdf['summary_url'] }}" class="button-link"><i class="fa fa-file-alt"></i> 要約</a>
         <a href="https://www.google.com/search?q={{ pdf['memo1_title']|urlencode }}" class="button-link"><i class="fa fa-search"></i> Google</a>
+        <a href="javascript:void(0);" class="button-link copy-pdf-id" data-pdf-id="{{ pdf['pdf_id'] }}" title="PDF IDをコピー"><i class="fa fa-clipboard"></i></a>
 
     {% if authenticated %}
         <a href="javascript:void(0);" class="button-link copy-text-link" data-url="/clean_text/{{ pdf['pdf_id'] }}.pdf"><i class="fa fa-copy"></i></a>
@@ -204,6 +205,17 @@ $(document).ready(function() {
             window.location.href = $(this).attr('href');
         }
         return false; // デフォルトの動作を防止
+    });
+
+    // PDF IDをクリップボードにコピー
+    $('.copy-pdf-id').click(function(event) {
+        event.preventDefault();
+        const pdfId = $(this).data('pdf-id');
+        navigator.clipboard.writeText(pdfId).then(function() {
+            showTemporaryMessage("PDF IDをコピーしました");
+        }, function(err) {
+            showTemporaryMessage("コピーに失敗しました");
+        });
     });
 });
 </script>

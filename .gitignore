@@ -78,4 +78,6 @@ debug_log.txt
 
 tmp/*
 
+.tmp/*
+
 gomi/

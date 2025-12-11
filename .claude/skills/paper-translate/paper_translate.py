@@ -4,12 +4,20 @@ Paper Translate - 論文PDFをページ単位で画像化・テキスト抽出�
 
 使用方法:
     python paper_translate.py {pdf_id} [--start N] [--end M] [--no-translate] [--dry-run]
+
+v2.0 変更点:
+    - 長文処理をClaude Codeに委譲（チャンク分割・統合ロジックを廃止）
+    - 一時ファイル管理をコンテキストマネージャで確実にクリーンアップ
+    - summary/とsummary2/のフォーマットを厳格化
 """
 
 import argparse
 import os
 import sys
+import subprocess
+import tempfile
 from pathlib import Path
+from contextlib import contextmanager
 
 # PyMuPDF (fitz) - PDFの画像変換とページ数取得に使用
 try:
@@ -51,6 +59,87 @@ IMAGE_DPI = 150  # 画像品質
 IMAGE_MAX_WIDTH = 1200  # 元画像の最大幅（ピクセル）
 THUMBNAIL_WIDTH = 400  # サムネイルの幅（ピクセル）
 
+# 長文判定の閾値（この文字数以下ならClaudeCLIで直接処理）
+MAX_DIRECT_LENGTH = 80000
+
+# 一時ファイル用ディレクトリ（/tmpではなくプロジェクト内に作成）
+# ※ Claude Codeは/tmpへのアクセスがセキュリティ上制限されているため
+TEMP_DIR = PAPER_DIR / ".tmp"
+
+
+# ============================================================
+# 一時ファイル管理
+# ============================================================
+
+@contextmanager
+def temp_text_file(content: str, prefix: str = "paper_", suffix: str = ".txt"):
+    """
+    一時ファイルを作成し、処理後に確実に削除するコンテキストマネージャ
+
+    使用例:
+        with temp_text_file(full_text, prefix="input_") as temp_path:
+            # temp_path を使った処理
+        # withブロックを抜けると自動削除
+
+    注意: Claude Codeは/tmpへのアクセスが制限されているため、
+    PAPER_DIR/.tmp/ に一時ファイルを作成する
+    """
+    temp_path = None
+    try:
+        # 一時ファイル用ディレクトリを作成（存在しない場合）
+        TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+        # 一時ファイル作成（PAPER_DIR/.tmp/ 配下に作成）
+        fd, temp_name = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=str(TEMP_DIR))
+        temp_path = Path(temp_name)
+
+        # 内容を書き込み
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        yield temp_path
+
+    finally:
+        # 確実に削除（エラー時も含む）
+        if temp_path and temp_path.exists():
+            try:
+                temp_path.unlink()
+                print(f"    [CLEANUP] 一時ファイル削除: {temp_path.name}")
+            except Exception as e:
+                print(f"    [WARN] 一時ファイル削除失敗: {e}")
+
+
+def _call_claude_code(prompt: str, timeout_sec: int = 900) -> tuple:
+    """
+    Claude Codeを非対話モードで呼び出す
+
+    Returns:
+        (success: bool, output: str)
+    """
+    try:
+        result = subprocess.run(
+            ["claude", "-p", prompt, "--output-format", "text"],
+            capture_output=True,
+            text=True,
+            timeout=timeout_sec
+        )
+
+        if result.returncode == 0:
+            return True, result.stdout
+        else:
+            return False, f"returncode={result.returncode}\nstderr: {result.stderr}"
+
+    except subprocess.TimeoutExpired:
+        return False, f"タイムアウト（{timeout_sec}秒）"
+    except FileNotFoundError:
+        return False, "claude コマンドが見つかりません"
+    except Exception as e:
+        return False, str(e)
+
+
+# ============================================================
+# PDF処理関数
+# ============================================================
 
 def get_pdf_page_count(pdf_path: Path) -> int:
     """PDFのページ数を取得"""
@@ -174,215 +263,389 @@ def translate_text(text: str, page_num: int) -> str:
         return f"[翻訳エラー: {e}]"
 
 
-def split_text_into_chunks(text: str, chunk_size: int = 30000) -> list:
-    """テキストを指定サイズのチャンクに分割"""
-    chunks = []
-    current_pos = 0
-    text_len = len(text)
+# ============================================================
+# summary/ 章ごと要約生成（フォーマット厳守）
+# ============================================================
 
-    while current_pos < text_len:
-        end_pos = min(current_pos + chunk_size, text_len)
+# summary/の出力フォーマット定義
+SUMMARY_FORMAT = """# 章タイトル（例: 1. Introduction）
+- 要点1
+- 要点2
+- 要点3
 
-        # チャンクの終わりを段落区切りで調整（可能な場合）
-        if end_pos < text_len:
-            # 段落区切り（\n\n）を探す
-            newline_pos = text.rfind('\n\n', current_pos, end_pos)
-            if newline_pos > current_pos + chunk_size // 2:
-                end_pos = newline_pos + 2
-
-        chunks.append(text[current_pos:end_pos])
-        current_pos = end_pos
-
-    return chunks
+# 章タイトル（例: 2. Methods）
+- 要点1
+- 要点2
+- 要点3"""
 
 
-def generate_chapter_summary(full_text: str, pdf_id: str) -> str:
-    """章ごとの項目要約を生成（長文は分割処理して統合）"""
+def generate_chapter_summary(full_text: str, pdf_id: str, output_path: Path) -> str:
+    """
+    章ごとの項目要約を生成
+
+    - 短文: ClaudeCLIで直接処理
+    - 長文: Claude Codeに委譲
+    """
+    if not full_text.strip():
+        return "[テキストなし]"
+
+    text_length = len(full_text)
+    print(f"    テキスト長: {text_length:,}文字")
+
+    if text_length <= MAX_DIRECT_LENGTH:
+        # === 短〜中程度: ClaudeCLIで直接処理 ===
+        print(f"    [MODE] ClaudeCLI直接処理")
+        return _generate_summary_direct(full_text)
+    else:
+        # === 長文: Claude Codeに委譲 ===
+        print(f"    [MODE] Claude Code委譲（長文）")
+        return _generate_summary_via_claude_code(full_text, pdf_id, output_path)
+
+
+def _generate_summary_direct(full_text: str) -> str:
+    """ClaudeCLIで直接要約（短〜中程度の論文向け）"""
     if not ClaudeCLI:
         return "[要約スキップ: ClaudeCLI未インストール]"
 
+    prompt = f"""以下の論文全文を、章・セクションごとに要約してください。
+
+【出力フォーマット（厳守）】
+{SUMMARY_FORMAT}
+
+【重要なルール】
+- 各章は「# 章タイトル」で始める（##ではなく#）
+- 各要点は「- 」で始める箇条書き
+- 章タイトルには番号を含める（例: 1. Introduction, 2.1 Data Collection）
+- 余計な説明や前置きは一切不要
+- 要約のみを出力
+
+---
+{full_text}
+---"""
+
+    try:
+        cli = ClaudeCLI()
+        result = cli.execute(prompt, use_print=False)
+
+        if result and result.get('success'):
+            output = result.get('output', '[要約結果なし]').strip()
+            return _validate_and_fix_summary_format(output)
+        else:
+            error_msg = result.get('error', '不明なエラー') if result else '実行失敗'
+            return f"[要約エラー: {error_msg}]"
+    except Exception as e:
+        return f"[要約エラー: {e}]"
+
+
+def _generate_summary_via_claude_code(full_text: str, pdf_id: str, output_path: Path) -> str:
+    """Claude Codeに委譲して要約（超長文向け）"""
+
+    # 出力ディレクトリを確保
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 一時ファイルに全文を保存し、処理後に確実に削除
+    with temp_text_file(full_text, prefix=f"{pdf_id}_summary_input_") as input_path:
+
+        prompt = f"""あなたはpaper-translateスキルから呼び出されています。
+
+## タスク
+論文テキストを読み込み、章・セクションごとの要約を生成してください。
+
+## 入力ファイル
+{input_path}
+
+## 出力ファイル
+{output_path}
+
+## 出力フォーマット（厳守）
+以下の形式で出力してください。これ以外の形式は許可されません。
+
+```
+# 1. Introduction
+- 要点1
+- 要点2
+- 要点3
+
+# 2. Related Work
+- 要点1
+- 要点2
+
+# 3. Methods
+- 要点1
+- 要点2
+- 要点3
+
+# 4. Results
+- 要点1
+- 要点2
+
+# 5. Discussion
+- 要点1
+- 要点2
+
+# 6. Conclusion
+- 要点1
+- 要点2
+```
+
+## 厳守ルール
+1. 各章は「# 章番号. 章タイトル」で始める（##ではなく#を使用）
+2. 各要点は「- 」で始める箇条書き
+3. 章の間は空行1行で区切る
+4. 前置きや説明文は一切不要。要約のみを出力
+5. 入力ファイルをReadツールで読み込むこと
+6. 必ずWriteツールで {output_path} に結果を保存すること
+7. テキストが非常に長い場合は、Taskツールで分割処理してから統合すること"""
+
+        print(f"    Claude Code 実行中...")
+        sys.stdout.flush()
+        success, output = _call_claude_code(prompt, timeout_sec=900)
+
+        if not success:
+            print(f"    [ERROR] Claude Code 実行失敗: {output}")
+            return f"[要約エラー: Claude Code実行失敗 - {output}]"
+
+        # 出力ファイルを確認
+        if output_path.exists():
+            result = output_path.read_text(encoding='utf-8')
+            result = _validate_and_fix_summary_format(result)
+            print(f"    [OK] 要約生成完了（{len(result):,}文字）")
+            return result
+        else:
+            print(f"    [ERROR] 出力ファイルが生成されませんでした")
+            return f"[要約エラー: 出力ファイル未生成]\nClaude Code出力: {output[:500]}"
+
+
+def _validate_and_fix_summary_format(text: str) -> str:
+    """summary/のフォーマットを検証・修正"""
+    lines = text.strip().split('\n')
+    fixed_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        # ##で始まる見出しを#に修正
+        if stripped.startswith('## '):
+            stripped = '#' + stripped[2:]
+
+        # 見出しでも箇条書きでもない行で、空行でもない場合
+        # （前置き文など）はスキップ
+        if stripped and not stripped.startswith('#') and not stripped.startswith('-') and not stripped.startswith('*'):
+            # 数字で始まる場合は見出しとして扱う
+            if stripped[0].isdigit():
+                stripped = '# ' + stripped
+            else:
+                # 前置き文はスキップ
+                continue
+
+        # *を-に統一
+        if stripped.startswith('* '):
+            stripped = '- ' + stripped[2:]
+
+        fixed_lines.append(stripped)
+
+    return '\n'.join(fixed_lines)
+
+
+# ============================================================
+# summary2/ 新規性分析生成（フォーマット厳守）
+# ============================================================
+
+# summary2/の出力フォーマット定義
+NOVELTY_FORMAT = """# 新規性
+- この論文の新しい貢献点1
+- この論文の新しい貢献点2
+
+# 言及されている全ての関連研究との相違点
+- 先行研究Aとの違い
+- 先行研究Bとの違い
+
+# 有効性
+- 提案手法の有効性1
+- 実験結果から得られた成果
+
+# 信頼性
+- データの規模・質
+- 再現性について"""
+
+
+def generate_novelty_analysis(full_text: str, pdf_id: str, output_path: Path) -> str:
+    """
+    新規性・有効性・信頼性の分析を生成
+
+    - 短文: ClaudeCLIで直接処理
+    - 長文: Claude Codeに委譲
+    """
     if not full_text.strip():
         return "[テキストなし]"
 
-    chunk_size = 30000
-    chunks = split_text_into_chunks(full_text, chunk_size)
-    total_chunks = len(chunks)
+    text_length = len(full_text)
+    print(f"    テキスト長: {text_length:,}文字")
 
-    print(f"    テキスト長: {len(full_text)}文字 → {total_chunks}チャンクに分割")
-
-    partial_summaries = []
-
-    for i, chunk in enumerate(chunks, 1):
-        print(f"    チャンク {i}/{total_chunks} を要約中...")
-        sys.stdout.flush()
-
-        prompt = f"""以下の論文テキスト（パート {i}/{total_chunks}）を、章・セクションごとに要約してください。
-
-形式:
-# 章タイトル
-- 要点1
-- 要点2
-- 要点3
-
-重要なポイントを箇条書きで簡潔にまとめてください。
-余計な説明は不要です。要約のみを出力してください。
-
----
-{chunk}
----"""
-
-        try:
-            cli = ClaudeCLI()
-            result = cli.execute(prompt, use_print=False)
-
-            if result and result.get('success'):
-                partial_summaries.append(result.get('output', '').strip())
-            else:
-                error_msg = result.get('error', '不明なエラー') if result else '実行失敗'
-                partial_summaries.append(f"[チャンク{i}要約エラー: {error_msg}]")
-
-        except Exception as e:
-            partial_summaries.append(f"[チャンク{i}要約エラー: {e}]")
-
-    # 複数チャンクの場合は統合
-    if total_chunks > 1:
-        print(f"    {total_chunks}チャンクの要約を統合中...")
-        sys.stdout.flush()
-
-        combined_summaries = "\n\n".join(partial_summaries)
-
-        merge_prompt = f"""以下は論文の各パートの章ごと要約です。これらを1つの統合された章ごと要約にまとめてください。
-重複する章は統合し、章の順序を整理してください。
-
-形式:
-# 章タイトル
-- 要点1
-- 要点2
-- 要点3
-
-余計な説明は不要です。統合された要約のみを出力してください。
-
----
-{combined_summaries}
----"""
-
-        try:
-            cli = ClaudeCLI()
-            result = cli.execute(merge_prompt, use_print=False)
-
-            if result and result.get('success'):
-                return result.get('output', '[統合結果なし]').strip()
-            else:
-                # 統合に失敗した場合は連結して返す
-                return combined_summaries
-
-        except Exception as e:
-            return combined_summaries
+    if text_length <= MAX_DIRECT_LENGTH:
+        print(f"    [MODE] ClaudeCLI直接処理")
+        return _generate_novelty_direct(full_text)
     else:
-        return partial_summaries[0] if partial_summaries else "[要約結果なし]"
+        print(f"    [MODE] Claude Code委譲（長文）")
+        return _generate_novelty_via_claude_code(full_text, pdf_id, output_path)
 
 
-def generate_novelty_analysis(full_text: str, pdf_id: str) -> str:
-    """新規性・有効性・信頼性の分析を生成（長文は分割処理して統合）"""
+def _generate_novelty_direct(full_text: str) -> str:
+    """ClaudeCLIで直接分析（短〜中程度の論文向け）"""
     if not ClaudeCLI:
         return "[分析スキップ: ClaudeCLI未インストール]"
 
-    if not full_text.strip():
-        return "[テキストなし]"
+    prompt = f"""以下の論文全文を分析し、4つの観点でまとめてください。
 
-    chunk_size = 30000
-    chunks = split_text_into_chunks(full_text, chunk_size)
-    total_chunks = len(chunks)
+【出力フォーマット（厳守）】
+{NOVELTY_FORMAT}
 
-    print(f"    テキスト長: {len(full_text)}文字 → {total_chunks}チャンクに分割")
-
-    partial_analyses = []
-
-    for i, chunk in enumerate(chunks, 1):
-        print(f"    チャンク {i}/{total_chunks} を分析中...")
-        sys.stdout.flush()
-
-        prompt = f"""以下の論文テキスト（パート {i}/{total_chunks}）を分析し、以下の4つの観点で情報を抽出してください。
-余計な説明は不要です。分析結果のみを出力してください。
-このパートに該当する情報がない観点は「該当情報なし」と記載してください。
-
-# 新規性
-（この論文の新しい貢献は何か、箇条書きで）
-
-# 言及されている全ての関連研究との相違点
-（先行研究と比べて何が違うか、箇条書きで）
-
-# 有効性
-（提案手法・分析は有効か、どのような成果があるか、箇条書きで）
-
-# 信頼性
-（結果は信頼できるか、データの質・規模・再現性はどうか、箇条書きで）
+【重要なルール】
+- 必ず上記4つのセクション（新規性、言及されている全ての関連研究との相違点、有効性、信頼性）を含める
+- 各セクションは「# セクション名」で始める（##ではなく#）
+- 各要点は「- 」で始める箇条書き
+- 余計な説明や前置きは一切不要
+- 分析結果のみを出力
 
 ---
-{chunk}
+{full_text}
 ---"""
 
-        try:
-            cli = ClaudeCLI()
-            result = cli.execute(prompt, use_print=False)
+    try:
+        cli = ClaudeCLI()
+        result = cli.execute(prompt, use_print=False)
 
-            if result and result.get('success'):
-                partial_analyses.append(result.get('output', '').strip())
-            else:
-                error_msg = result.get('error', '不明なエラー') if result else '実行失敗'
-                partial_analyses.append(f"[チャンク{i}分析エラー: {error_msg}]")
+        if result and result.get('success'):
+            output = result.get('output', '[分析結果なし]').strip()
+            return _validate_and_fix_novelty_format(output)
+        else:
+            error_msg = result.get('error', '不明なエラー') if result else '実行失敗'
+            return f"[分析エラー: {error_msg}]"
+    except Exception as e:
+        return f"[分析エラー: {e}]"
 
-        except Exception as e:
-            partial_analyses.append(f"[チャンク{i}分析エラー: {e}]")
 
-    # 複数チャンクの場合は統合
-    if total_chunks > 1:
-        print(f"    {total_chunks}チャンクの分析を統合中...")
-        sys.stdout.flush()
+def _generate_novelty_via_claude_code(full_text: str, pdf_id: str, output_path: Path) -> str:
+    """Claude Codeに委譲して新規性分析（超長文向け）"""
 
-        combined_analyses = "\n\n---\n\n".join(partial_analyses)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        merge_prompt = f"""以下は論文の各パートから抽出した分析結果です。これらを1つの統合された分析にまとめてください。
-重複する内容は統合し、各観点ごとに整理してください。
+    with temp_text_file(full_text, prefix=f"{pdf_id}_novelty_input_") as input_path:
 
-形式:
+        prompt = f"""あなたはpaper-translateスキルから呼び出されています。
+
+## タスク
+論文テキストを読み込み、新規性・有効性・信頼性の分析を生成してください。
+
+## 入力ファイル
+{input_path}
+
+## 出力ファイル
+{output_path}
+
+## 出力フォーマット（厳守）
+以下の形式で出力してください。これ以外の形式は許可されません。
+
+```
 # 新規性
-- 要点1
-- 要点2
+- この論文の新しい貢献点1
+- この論文の新しい貢献点2
+- この論文の新しい貢献点3
 
 # 言及されている全ての関連研究との相違点
-- 要点1
-- 要点2
+- 先行研究Aとの違い: 〇〇
+- 先行研究Bとの違い: 〇〇
+- 先行研究Cとの違い: 〇〇
 
 # 有効性
-- 要点1
-- 要点2
+- 提案手法の有効性1
+- 実験結果から得られた成果1
+- 提案手法の有効性2
 
 # 信頼性
-- 要点1
-- 要点2
+- データの規模・質について
+- 再現性について
+- 統計的妥当性について
+```
 
-余計な説明は不要です。統合された分析結果のみを出力してください。
+## 厳守ルール
+1. 必ず4つのセクション（新規性、言及されている全ての関連研究との相違点、有効性、信頼性）を含める
+2. 各セクションは「# セクション名」で始める（##ではなく#を使用）
+3. 各要点は「- 」で始める箇条書き
+4. セクションの間は空行1行で区切る
+5. 前置きや説明文は一切不要。分析結果のみを出力
+6. 入力ファイルをReadツールで読み込むこと
+7. 必ずWriteツールで {output_path} に結果を保存すること
+8. テキストが非常に長い場合は、Taskツールで分割処理してから統合すること
+9. 「言及されている全ての関連研究との相違点」では、論文内で言及された全ての先行研究を列挙すること"""
 
----
-{combined_analyses}
----"""
+        print(f"    Claude Code 実行中...")
+        sys.stdout.flush()
+        success, output = _call_claude_code(prompt, timeout_sec=900)
 
-        try:
-            cli = ClaudeCLI()
-            result = cli.execute(merge_prompt, use_print=False)
+        if not success:
+            print(f"    [ERROR] Claude Code 実行失敗: {output}")
+            return f"[分析エラー: Claude Code実行失敗 - {output}]"
 
-            if result and result.get('success'):
-                return result.get('output', '[統合結果なし]').strip()
-            else:
-                # 統合に失敗した場合は連結して返す
-                return combined_analyses
+        if output_path.exists():
+            result = output_path.read_text(encoding='utf-8')
+            result = _validate_and_fix_novelty_format(result)
+            print(f"    [OK] 分析生成完了（{len(result):,}文字）")
+            return result
+        else:
+            print(f"    [ERROR] 出力ファイルが生成されませんでした")
+            return f"[分析エラー: 出力ファイル未生成]\nClaude Code出力: {output[:500]}"
 
-        except Exception as e:
-            return combined_analyses
-    else:
-        return partial_analyses[0] if partial_analyses else "[分析結果なし]"
 
+def _validate_and_fix_novelty_format(text: str) -> str:
+    """summary2/のフォーマットを検証・修正"""
+    lines = text.strip().split('\n')
+    fixed_lines = []
+
+    # 必須セクション
+    required_sections = ['新規性', '言及されている全ての関連研究との相違点', '有効性', '信頼性']
+    found_sections = set()
+
+    for line in lines:
+        stripped = line.strip()
+
+        # ##で始まる見出しを#に修正
+        if stripped.startswith('## '):
+            stripped = '#' + stripped[2:]
+
+        # セクション見出しの検出
+        if stripped.startswith('# '):
+            section_name = stripped[2:].strip()
+            for req in required_sections:
+                if req in section_name:
+                    found_sections.add(req)
+                    stripped = f'# {req}'
+                    break
+
+        # 見出しでも箇条書きでもない行で、空行でもない場合
+        if stripped and not stripped.startswith('#') and not stripped.startswith('-') and not stripped.startswith('*'):
+            # 前置き文はスキップ
+            continue
+
+        # *を-に統一
+        if stripped.startswith('* '):
+            stripped = '- ' + stripped[2:]
+
+        fixed_lines.append(stripped)
+
+    result = '\n'.join(fixed_lines)
+
+    # 欠けているセクションを追加
+    for req in required_sections:
+        if req not in found_sections:
+            result += f"\n\n# {req}\n- （情報なし）"
+
+    return result
+
+
+# ============================================================
+# メイン処理
+# ============================================================
 
 def process_pdf(pdf_id: str, start_page: int = 1, end_page: int = None,
                 no_translate: bool = False, dry_run: bool = False) -> bool:
@@ -487,10 +750,6 @@ def process_pdf(pdf_id: str, start_page: int = 1, end_page: int = None,
             # サムネイルをクリックすると元画像を表示（スライドショー対応）
             markdown_content += f"[![Page {page_num}](/attach/{thumbnail_filename})](/attach/{image_filename})\n\n"
 
-        # Original Textセクションは一時的にコメントアウト（必要に応じて復活可能）
-        # markdown_content += "### Original Text\n\n"
-        # markdown_content += f"{original_text}\n\n" if original_text else "[テキストなし]\n\n"
-
         markdown_content += "### 和訳\n\n"
         markdown_content += f"{translation}\n\n"
 
@@ -511,11 +770,12 @@ def process_pdf(pdf_id: str, start_page: int = 1, end_page: int = None,
         # 5. 章ごとの項目要約を生成
         print(f"\n[INFO] 章ごとの要約を生成中...")
         sys.stdout.flush()
-        chapter_summary = generate_chapter_summary(full_text, pdf_id)
 
         # ディレクトリが存在しない場合は作成
         SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
         summary_path = SUMMARY_DIR / f"{pdf_id}.txt"
+
+        chapter_summary = generate_chapter_summary(full_text, pdf_id, summary_path)
 
         with open(summary_path, 'w', encoding='utf-8') as f:
             f.write(chapter_summary)
@@ -524,11 +784,12 @@ def process_pdf(pdf_id: str, start_page: int = 1, end_page: int = None,
         # 6. 新規性分析を生成
         print(f"\n[INFO] 新規性分析を生成中...")
         sys.stdout.flush()
-        novelty_analysis = generate_novelty_analysis(full_text, pdf_id)
 
         # ディレクトリが存在しない場合は作成
         SUMMARY2_DIR.mkdir(parents=True, exist_ok=True)
         summary2_path = SUMMARY2_DIR / f"{pdf_id}.txt"
+
+        novelty_analysis = generate_novelty_analysis(full_text, pdf_id, summary2_path)
 
         with open(summary2_path, 'w', encoding='utf-8') as f:
             f.write(novelty_analysis)
