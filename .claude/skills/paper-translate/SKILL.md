@@ -10,7 +10,7 @@ description: 論文PDFをページ単位で画像化・テキスト抽出・和�
 論文PDFを1ページずつ処理し、以下を生成するスキル：
 - 各ページの画像（PNG）
 - 各ページから抽出したテキスト
-- 各ページの和訳（ClaudeCLI使用）
+- 各ページの和訳（ClaudeCLI使用）- **デフォルトは関西弁でわかりやすく翻訳**
 - **【自動生成】章ごとの項目要約（summary/）** - フォーマット厳守
 - **【自動生成】新規性・有効性・信頼性の分析（summary2/）** - フォーマット厳守
 
@@ -22,6 +22,7 @@ description: 論文PDFをページ単位で画像化・テキスト抽出・和�
 - 「PDFを日本語にして」
 - 「ページごとに和訳して」
 - 「論文を翻訳してメモに保存」
+- 「標準語で翻訳して」（`--style standard` を使用）
 
 ## 環境設定
 
@@ -83,6 +84,9 @@ run_python ~/.claude/skills/paper-translate/paper_translate.py {pdf_id} --no-tra
 
 # ドライラン（プレビュー）
 run_python ~/.claude/skills/paper-translate/paper_translate.py {pdf_id} --dry-run
+
+# 標準語で翻訳（デフォルトは関西弁）
+run_python ~/.claude/skills/paper-translate/paper_translate.py {pdf_id} --style standard
 ```
 
 ## 引数
@@ -94,6 +98,17 @@ run_python ~/.claude/skills/paper-translate/paper_translate.py {pdf_id} --dry-ru
 | `--end M` | 終了ページ（デフォルト: 最終ページ） | - |
 | `--no-translate` | 翻訳をスキップ（画像とテキスト抽出のみ） | - |
 | `--dry-run` | 実際の処理を行わず内容を表示 | - |
+| `--style` | 翻訳スタイル: `kansai`（関西弁）/ `standard`（標準語）。デフォルト: `kansai` | - |
+
+## 翻訳スタイル
+
+| スタイル | 説明 | 例 |
+|---------|------|-----|
+| `kansai`（デフォルト） | 調子のよい関西人が素人向けにわかりやすく解説 | 「これ、めっちゃ画期的やねん！」 |
+| `standard` | 従来の標準語翻訳 | 「これは画期的な手法です。」 |
+
+- デフォルトは `kansai`（関西弁モード）
+- ユーザーから「標準語で」とリクエストがあった場合は `--style standard` を使用
 
 ## 出力
 
@@ -212,6 +227,7 @@ run_python ~/.claude/skills/paper-translate/paper_translate.py {pdf_id} --dry-ru
 
 ## バージョン履歴
 
+- 2025-12-11 v2.1: 翻訳スタイル機能を追加。関西弁モード（kansai）をデフォルトとし、素人でもわかりやすい解説スタイルで翻訳。標準語モード（standard）も選択可能。`--style`オプションで切り替え。
 - 2025-12-10 v2.0: 長文処理をClaude Code委譲方式に変更。チャンク分割・統合ロジックを廃止し、Claude Codeの自律的なタスク分割能力を活用。一時ファイル管理をコンテキストマネージャで確実にクリーンアップ。summary/とsummary2/のフォーマットを厳格化（バリデーション・自動修正機能追加）。
 - 2024-12-09 v1.2: フルパスを環境変数方式に変更（GitHub公開対応）
 - 2024-12-09 v1.1: 章ごと要約（summary/）と新規性分析（summary2/）の自動生成機能を追加。長文の分割処理に対応。

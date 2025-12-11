@@ -3,7 +3,11 @@
 Paper Translate - 論文PDFをページ単位で画像化・テキスト抽出・和訳するスキル
 
 使用方法:
-    python paper_translate.py {pdf_id} [--start N] [--end M] [--no-translate] [--dry-run]
+    python paper_translate.py {pdf_id} [--start N] [--end M] [--no-translate] [--dry-run] [--style kansai|standard]
+
+v2.1 変更点:
+    - 翻訳スタイルオプション追加（kansai: 関西弁でわかりやすく / standard: 標準語）
+    - デフォルトは kansai（調子のよい関西人が素人向けに解説するスタイル）
 
 v2.0 変更点:
     - 長文処理をClaude Codeに委譲（チャンク分割・統合ロジックを廃止）
@@ -65,6 +69,27 @@ MAX_DIRECT_LENGTH = 80000
 # 一時ファイル用ディレクトリ（/tmpではなくプロジェクト内に作成）
 # ※ Claude Codeは/tmpへのアクセスがセキュリティ上制限されているため
 TEMP_DIR = PAPER_DIR / ".tmp"
+
+# ============================================================
+# 翻訳スタイル定義
+# ============================================================
+
+TRANSLATION_STYLES = {
+    'kansai': """【翻訳スタイル】
+- 調子のよい関西人が友達に説明するような口調で翻訳してください
+- 専門用語は噛み砕いてわかりやすく説明
+- 「〜やねん」「〜やで」「〜やな」「めっちゃ」「ほんまに」「なんでかっていうと」などの関西弁を自然に使用
+- 素人でも理解できる表現を心がける
+- ただし学術的な正確さは維持し、重要な情報は省略しない
+- 堅苦しくなく、読んでいて楽しい文章に""",
+
+    'standard': """【翻訳スタイル】
+- 標準的な日本語で翻訳してください
+- 学術論文のため、専門用語は適切に訳す
+- 正確で読みやすい文章に"""
+}
+
+DEFAULT_TRANSLATION_STYLE = 'kansai'
 
 
 # ============================================================
@@ -229,20 +254,39 @@ def convert_page_to_image(pdf_path: Path, page_num: int, output_path: Path, thum
         return False
 
 
-def translate_text(text: str, page_num: int) -> str:
-    """ClaudeCLIを使ってテキストを和訳"""
+def translate_text(text: str, page_num: int, style: str = None) -> str:
+    """
+    ClaudeCLIを使ってテキストを和訳
+
+    Args:
+        text: 翻訳対象のテキスト
+        page_num: ページ番号
+        style: 翻訳スタイル ('kansai' or 'standard')。Noneの場合はデフォルト(kansai)
+    """
     if not ClaudeCLI:
         return "[翻訳スキップ: ClaudeCLI未インストール]"
 
     if not text.strip():
         return "[テキストなし]"
 
+    # スタイルの決定
+    if style is None:
+        style = DEFAULT_TRANSLATION_STYLE
+    if style not in TRANSLATION_STYLES:
+        print(f"  [WARN] 不明なスタイル '{style}'。デフォルト({DEFAULT_TRANSLATION_STYLE})を使用")
+        style = DEFAULT_TRANSLATION_STYLE
+
+    style_instruction = TRANSLATION_STYLES[style]
+
     # テキストが長すぎる場合は切り詰め
     max_chars = 8000
     if len(text) > max_chars:
         text = text[:max_chars] + "\n\n[...テキスト省略...]"
 
-    prompt = f"""以下の英文を日本語に翻訳してください。学術論文のため、専門用語は適切に訳してください。
+    prompt = f"""以下の英文を日本語に翻訳してください。
+
+{style_instruction}
+
 余計な説明は不要です。翻訳文のみを出力してください。
 
 ---
@@ -648,8 +692,19 @@ def _validate_and_fix_novelty_format(text: str) -> str:
 # ============================================================
 
 def process_pdf(pdf_id: str, start_page: int = 1, end_page: int = None,
-                no_translate: bool = False, dry_run: bool = False) -> bool:
-    """PDFを処理してメモファイルを更新"""
+                no_translate: bool = False, dry_run: bool = False,
+                style: str = None) -> bool:
+    """
+    PDFを処理してメモファイルを更新
+
+    Args:
+        pdf_id: PDFファイルのID
+        start_page: 開始ページ
+        end_page: 終了ページ
+        no_translate: Trueの場合、翻訳をスキップ
+        dry_run: Trueの場合、実際の処理を行わない
+        style: 翻訳スタイル ('kansai' or 'standard')
+    """
 
     pdf_path = PDFS_DIR / f"{pdf_id}.pdf"
     memo_path = MEMO_DIR / f"{pdf_id}.txt"
@@ -734,9 +789,10 @@ def process_pdf(pdf_id: str, start_page: int = 1, end_page: int = None,
         # 3. 和訳
         translation = ""
         if not no_translate and original_text:
-            print(f"  和訳中...")
+            style_label = style if style else DEFAULT_TRANSLATION_STYLE
+            print(f"  和訳中... (スタイル: {style_label})")
             sys.stdout.flush()
-            translation = translate_text(original_text, page_num)
+            translation = translate_text(original_text, page_num, style=style)
             print(f"  [OK] 和訳完了")
         elif no_translate:
             translation = "[翻訳スキップ]"
@@ -832,6 +888,13 @@ def main():
         action='store_true',
         help='実際の処理を行わず内容を表示'
     )
+    parser.add_argument(
+        '--style',
+        type=str,
+        choices=['kansai', 'standard'],
+        default=None,
+        help=f'翻訳スタイル: kansai=関西弁でわかりやすく, standard=標準語（デフォルト: {DEFAULT_TRANSLATION_STYLE}）'
+    )
 
     args = parser.parse_args()
 
@@ -873,7 +936,8 @@ def main():
             start_page=args.start,
             end_page=args.end,
             no_translate=args.no_translate,
-            dry_run=args.dry_run
+            dry_run=args.dry_run,
+            style=args.style
         )
 
         if success:
