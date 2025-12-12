@@ -2186,4 +2186,9 @@ if __name__ == "__main__":
         user['password'] = generate_password_hash(user['password'])
         print(f"Hashed password: {user['password']}")
     port = config['server']['port']
-    app.run(host='0.0.0.0', port=port, debug=True)
+
+    # 環境変数 FLASK_DEBUG=1 の場合のみデバッグモード（開発用）
+    # systemctl経由（本番）では環境変数なし → debug=False（安全）
+    debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    print(f"Starting server with debug={debug_mode}")
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
