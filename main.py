@@ -2179,6 +2179,229 @@ def api_update_post(filename):
             "message": "Internal server error"
         }), 500
 
+# API 4: 投稿一覧取得
+@app.route('/api/posts', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_list_posts():
+    """全投稿の一覧を取得（カテゴリ・タイトル・更新日時付き）"""
+    try:
+        posts = []
+        post_dir = './post'
+
+        for filename in os.listdir(post_dir):
+            # .txtファイルのみ、サブディレクトリは無視
+            if not filename.endswith('.txt'):
+                continue
+            if filename.startswith('.') or filename.startswith('bk') or filename.startswith('tmp'):
+                continue
+
+            file_path = os.path.join(post_dir, filename)
+            if not os.path.isfile(file_path):
+                continue
+
+            # カテゴリ解析: [category]filename.txt
+            category = '_'  # デフォルト（未分類）
+            if filename.startswith('[') and ']' in filename:
+                category = filename[1:filename.index(']')]
+
+            # タイトル取得（1行目）
+            title = filename  # デフォルトはファイル名
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    first_line = f.readline().strip()
+                    # Markdownの見出し記号を除去
+                    if first_line.startswith('#'):
+                        title = first_line.lstrip('#').strip()
+                    elif first_line:
+                        title = first_line[:100]  # 最大100文字
+            except:
+                pass
+
+            # ファイル情報
+            file_stat = os.stat(file_path)
+
+            posts.append({
+                "filename": filename,
+                "category": category,
+                "title": title,
+                "size": file_stat.st_size,
+                "modified_at": dt.datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+            })
+
+        # 更新日時の降順でソート
+        posts.sort(key=lambda x: x['modified_at'], reverse=True)
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "posts": posts,
+                "total": len(posts)
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error listing posts: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+# API 5: 投稿検索
+@app.route('/api/posts/search', methods=['GET'])
+@require_api_key
+@limiter.limit("30 per minute")
+@csrf.exempt
+def api_search_posts():
+    """
+    投稿を検索
+    クエリパラメータ:
+      - q: 検索キーワード（必須）
+      - type: 検索対象 title|body|all（デフォルト: all）
+    """
+    query = request.args.get('q', '').strip()
+    search_type = request.args.get('type', 'all').lower()
+
+    if not query:
+        return jsonify({
+            "status": "error",
+            "message": "Missing 'q' parameter"
+        }), 400
+
+    if search_type not in ['title', 'body', 'all']:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid 'type' parameter. Use 'title', 'body', or 'all'"
+        }), 400
+
+    try:
+        results = []
+        post_dir = './post'
+        query_lower = query.lower()
+
+        for filename in os.listdir(post_dir):
+            if not filename.endswith('.txt'):
+                continue
+            if filename.startswith('.') or filename.startswith('bk') or filename.startswith('tmp'):
+                continue
+
+            file_path = os.path.join(post_dir, filename)
+            if not os.path.isfile(file_path):
+                continue
+
+            # カテゴリ解析
+            category = '_'
+            if filename.startswith('[') and ']' in filename:
+                category = filename[1:filename.index(']')]
+
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except:
+                continue
+
+            # タイトル取得（1行目）
+            lines = content.split('\n')
+            first_line = lines[0].strip() if lines else ''
+            if first_line.startswith('#'):
+                title = first_line.lstrip('#').strip()
+            elif first_line:
+                title = first_line[:100]
+            else:
+                title = filename
+
+            # 検索マッチング
+            matched = False
+            if search_type == 'title':
+                matched = query_lower in title.lower()
+            elif search_type == 'body':
+                # タイトル行を除いた本文で検索
+                body = '\n'.join(lines[1:]) if len(lines) > 1 else ''
+                matched = query_lower in body.lower()
+            else:  # all
+                matched = query_lower in content.lower()
+
+            if matched:
+                file_stat = os.stat(file_path)
+                results.append({
+                    "filename": filename,
+                    "category": category,
+                    "title": title,
+                    "size": file_stat.st_size,
+                    "modified_at": dt.datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                })
+
+        # 更新日時の降順でソート
+        results.sort(key=lambda x: x['modified_at'], reverse=True)
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "posts": results,
+                "total": len(results),
+                "query": query,
+                "type": search_type
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error searching posts: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+# API 6: カテゴリ一覧取得
+@app.route('/api/categories', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_list_categories():
+    """全カテゴリの一覧を取得（投稿数付き）"""
+    try:
+        categories = {}
+        post_dir = './post'
+
+        for filename in os.listdir(post_dir):
+            if not filename.endswith('.txt'):
+                continue
+            if filename.startswith('.') or filename.startswith('bk') or filename.startswith('tmp'):
+                continue
+
+            file_path = os.path.join(post_dir, filename)
+            if not os.path.isfile(file_path):
+                continue
+
+            # カテゴリ解析
+            category = '_'  # 未分類
+            if filename.startswith('[') and ']' in filename:
+                category = filename[1:filename.index(']')]
+
+            if category not in categories:
+                categories[category] = 0
+            categories[category] += 1
+
+        # カテゴリ名でソート（_は最後に）
+        sorted_categories = []
+        for cat, count in sorted(categories.items(), key=lambda x: (x[0] == '_', x[0])):
+            sorted_categories.append({
+                "name": cat,
+                "count": count
+            })
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "categories": sorted_categories,
+                "total": len(sorted_categories)
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error listing categories: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
     for user_id, user in config['users'].items():
