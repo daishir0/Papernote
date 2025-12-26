@@ -2402,6 +2402,237 @@ def api_list_categories():
             "message": "Internal server error"
         }), 500
 
+# ============================================
+# Paper APIs (論文管理API)
+# ============================================
+
+# API 7: 論文一覧取得
+@app.route('/api/papers', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_list_papers():
+    """論文一覧を取得（タイトル、カテゴリ、日付付き）"""
+    try:
+        pdf_files = [f for f in os.listdir('./pdfs') if os.path.isfile(os.path.join('./pdfs', f)) and f.endswith('.pdf') and f != '.gitkeep']
+
+        papers = []
+        for file in pdf_files:
+            pdf_id = file.replace('.pdf', '')
+            path = os.path.join('./pdfs', file)
+            timestamp = os.path.getmtime(path)
+
+            # メモファイルからタイトルとカテゴリを取得
+            memo_path = os.path.join('./memo', pdf_id + '.txt')
+            title = pdf_id  # デフォルトはPDF ID
+            category = ''
+            has_memo = os.path.exists(memo_path)
+
+            if has_memo:
+                try:
+                    with open(memo_path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                        if len(lines) >= 1:
+                            title = lines[0].strip()
+                        if len(lines) >= 2:
+                            category = lines[1].strip()
+                except Exception:
+                    pass
+
+            # サマリーの存在チェック
+            has_summary = os.path.exists(os.path.join('./summary', pdf_id + '.txt'))
+            has_summary2 = os.path.exists(os.path.join('./summary2', pdf_id + '.txt'))
+
+            papers.append({
+                'pdf_id': pdf_id,
+                'title': title,
+                'category': category,
+                'date': datetime.datetime.fromtimestamp(timestamp).strftime('%Y/%m/%d'),
+                'timestamp': timestamp,
+                'has_memo': has_memo,
+                'has_summary': has_summary,
+                'has_summary2': has_summary2
+            })
+
+        # 日付で降順ソート
+        papers.sort(key=lambda x: x['timestamp'], reverse=True)
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "papers": papers,
+                "total": len(papers)
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error listing papers: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+# API 8: 論文詳細取得
+@app.route('/api/papers/<pdf_id>', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_get_paper(pdf_id):
+    """論文の詳細情報を取得（memo, summary, summary2）"""
+    try:
+        # PDFの存在確認
+        pdf_path = os.path.join('./pdfs', pdf_id + '.pdf')
+        if not os.path.exists(pdf_path):
+            return jsonify({
+                "status": "error",
+                "message": "Paper not found"
+            }), 404
+
+        timestamp = os.path.getmtime(pdf_path)
+
+        # 各コンテンツを読み込み
+        memo_content = ''
+        title = pdf_id
+        category = ''
+        memo_path = os.path.join('./memo', pdf_id + '.txt')
+        if os.path.exists(memo_path):
+            with open(memo_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                if len(lines) >= 1:
+                    title = lines[0].strip()
+                if len(lines) >= 2:
+                    category = lines[1].strip()
+                if len(lines) >= 3:
+                    memo_content = ''.join(lines[2:])  # 3行目以降がメモ本文
+
+        summary_content = ''
+        summary_path = os.path.join('./summary', pdf_id + '.txt')
+        if os.path.exists(summary_path):
+            with open(summary_path, 'r', encoding='utf-8') as f:
+                summary_content = f.read()
+
+        summary2_content = ''
+        summary2_path = os.path.join('./summary2', pdf_id + '.txt')
+        if os.path.exists(summary2_path):
+            with open(summary2_path, 'r', encoding='utf-8') as f:
+                summary2_content = f.read()
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "pdf_id": pdf_id,
+                "title": title,
+                "category": category,
+                "date": datetime.datetime.fromtimestamp(timestamp).strftime('%Y/%m/%d'),
+                "memo": memo_content,
+                "summary": summary_content,
+                "summary2": summary2_content,
+                "pdf_url": f"/pdfs/{pdf_id}.pdf",
+                "has_memo": bool(memo_content),
+                "has_summary": bool(summary_content),
+                "has_summary2": bool(summary2_content)
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error getting paper {pdf_id}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+# API 9: 論文検索
+@app.route('/api/papers/search', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_search_papers():
+    """論文を検索（タイトル、メモ、サマリーを対象）"""
+    try:
+        query = request.args.get('q', '').strip()
+        if not query:
+            return jsonify({
+                "status": "error",
+                "message": "Missing search query parameter 'q'"
+            }), 400
+
+        search_terms = query.lower().split()
+        pdf_files = [f for f in os.listdir('./pdfs') if os.path.isfile(os.path.join('./pdfs', f)) and f.endswith('.pdf') and f != '.gitkeep']
+
+        results = []
+        for file in pdf_files:
+            pdf_id = file.replace('.pdf', '')
+            path = os.path.join('./pdfs', file)
+            timestamp = os.path.getmtime(path)
+
+            # 検索対象テキストを収集
+            searchable_text = ''
+            title = pdf_id
+            category = ''
+
+            memo_path = os.path.join('./memo', pdf_id + '.txt')
+            has_memo = os.path.exists(memo_path)
+            if has_memo:
+                try:
+                    with open(memo_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        lines = content.split('\n')
+                        if len(lines) >= 1:
+                            title = lines[0].strip()
+                        if len(lines) >= 2:
+                            category = lines[1].strip()
+                        searchable_text += content.lower()
+                except Exception:
+                    pass
+
+            summary_path = os.path.join('./summary', pdf_id + '.txt')
+            has_summary = os.path.exists(summary_path)
+            if has_summary:
+                try:
+                    with open(summary_path, 'r', encoding='utf-8') as f:
+                        searchable_text += f.read().lower()
+                except Exception:
+                    pass
+
+            summary2_path = os.path.join('./summary2', pdf_id + '.txt')
+            has_summary2 = os.path.exists(summary2_path)
+            if has_summary2:
+                try:
+                    with open(summary2_path, 'r', encoding='utf-8') as f:
+                        searchable_text += f.read().lower()
+                except Exception:
+                    pass
+
+            # 全ての検索語がマッチするか確認
+            if all(term in searchable_text for term in search_terms):
+                results.append({
+                    'pdf_id': pdf_id,
+                    'title': title,
+                    'category': category,
+                    'date': datetime.datetime.fromtimestamp(timestamp).strftime('%Y/%m/%d'),
+                    'timestamp': timestamp,
+                    'has_memo': has_memo,
+                    'has_summary': has_summary,
+                    'has_summary2': has_summary2
+                })
+
+        # 日付で降順ソート
+        results.sort(key=lambda x: x['timestamp'], reverse=True)
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "papers": results,
+                "total": len(results),
+                "query": query
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error searching papers: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
     for user_id, user in config['users'].items():
