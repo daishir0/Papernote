@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="/static/slideshow.css">
     <link rel="stylesheet" href="/static/edit_post.css">
 </head>
-<body data-filename="{{ filename }}" data-csrf-token="{{ form.csrf_token._value() }}" data-post-url="{{ url_for('post', filename=request.view_args['filename']) }}">
+<body data-filename="{{ filename }}" data-csrf-token="{{ form.csrf_token._value() }}" data-post-url="{{ url_for('post', filename=request.view_args['filename']) }}" data-claude-code-url="{{ claude_code_url }}">
 
     <a href="/post" class="mb-2"><< post一覧へ</a>
 
@@ -44,6 +44,7 @@
             <!-- グループ3: 特殊機能（使用頻度: 中〜高） -->
             <button id="switchPageButton" type="button" class="btn btn-primary" title="他のページへ移動 (Ctrl+K)"><i class="fas fa-arrow-right-arrow-left"></i></button>
             <button id="aiButton" type="button" class="btn btn-primary" title="AIアシスタント"><i class="fas fa-robot"></i></button>
+            <button id="ccButton" type="button" class="btn btn-primary" title="Claude Code"><i class="fas fa-bolt"></i></button>
             <button id="previewToggleButton" type="button" class="btn btn-primary preview-toggle" title="プレビューを表示/非表示">
                 <i class="fas fa-columns"></i>
             </button>

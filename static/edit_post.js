@@ -96,6 +96,21 @@
                 });
             }
 
+            // Claude Codeボタン
+            const ccButton = document.getElementById('ccButton');
+            if (ccButton) {
+                ccButton.addEventListener('click', () => {
+                    const filename = document.body.dataset.filename;
+                    const baseUrl = document.body.dataset.claudeCodeUrl;
+                    if (baseUrl) {
+                        const url = `${baseUrl}?papernote=${encodeURIComponent(filename)}`;
+                        window.open(url, '_blank');
+                    } else {
+                        alert('Claude Code URLが設定されていません');
+                    }
+                });
+            }
+
             const pasteMermaidButton = document.getElementById('pasteMermaidButton');
             if (pasteMermaidButton) {
                 pasteMermaidButton.addEventListener('click', () => {

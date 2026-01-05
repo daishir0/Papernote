@@ -46,6 +46,9 @@ users:
     username: 'user2'
     password: 'password2'
 
+# Claude Code連携設定
+claude_code_url: "https://example.com/cc/"
+
 # API Keys設定（Papernote編集API用）
 api_keys:
   - key: "your-api-key-here"

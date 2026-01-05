@@ -1120,7 +1120,7 @@ def edit_post(filename):
     # 最新20件を取得（現在編集中のファイルを除外）
     recent_posts = get_latest_posts(limit=20, exclude=filename)
 
-    return render_template('edit_post.html', filename=filename, content=content, title=title, form=form, recent_posts=recent_posts)
+    return render_template('edit_post.html', filename=filename, content=content, title=title, form=form, recent_posts=recent_posts, claude_code_url=config.get('claude_code_url', ''))
 
 class UploadTextForm(FlaskForm):
     content = TextAreaField('Content', validators=[DataRequired()])
