@@ -452,6 +452,19 @@
         });
 
         function filterItems(searchTerm) {
+            // 検索クリア時は遅延読み込み状態に戻す
+            if (searchTerm === '') {
+                resetLazyLoad();
+                // 全てのh2とrowを表示状態に戻す
+                $('.row').each(function() {
+                    var h2 = $(this).prev('h2');
+                    h2.css('display', '');
+                    $(this).css('display', '');
+                    $(this).find('.col').css('display', '');
+                });
+                return;
+            }
+
             // requestAnimationFrameでレンダリングを最適化
             requestAnimationFrame(function() {
                 $('.row').each(function() {
@@ -459,11 +472,13 @@
                     var visibleItems = 0;
                     var row = $(this);
 
+                    // 全カード（lazy-hidden含む）を検索対象に
                     row.find('.col').each(function() {
                         var col = $(this);
                         var text = col.find('.card-title a').text().toLowerCase();
                         if (text.indexOf(searchTerm) > -1) {
-                            col.css('display', '');
+                            // マッチしたらlazy-hiddenを外して表示
+                            col.removeClass('lazy-hidden').css('display', '');
                             visibleItems++;
                         } else {
                             col.css('display', 'none');
@@ -733,74 +748,98 @@
             }
         };
 
-        // 遅延読み込み機能
-        (function() {
-            var INITIAL_DISPLAY = 30;  // 初期表示件数
-            var LOAD_BATCH = 30;       // 追加読み込み件数
-            var allCards = [];
-            var displayedCount = 0;
-            var isLoading = false;
+        // 遅延読み込み機能（グローバルアクセス用）
+        var lazyLoadState = {
+            INITIAL_DISPLAY: 30,  // 初期表示件数
+            LOAD_BATCH: 30,       // 追加読み込み件数
+            allCards: [],
+            displayedCount: 0,
+            isLoading: false
+        };
 
-            function initLazyLoad() {
-                // 全カードを取得
-                allCards = Array.from(document.querySelectorAll('.row .col'));
-                if (allCards.length <= INITIAL_DISPLAY) {
-                    return; // 30件以下なら遅延読み込み不要
+        function initLazyLoad() {
+            // 全カードを取得
+            lazyLoadState.allCards = Array.from(document.querySelectorAll('.row .col'));
+            if (lazyLoadState.allCards.length <= lazyLoadState.INITIAL_DISPLAY) {
+                return; // 30件以下なら遅延読み込み不要
+            }
+
+            // 初期表示以降を非表示
+            lazyLoadState.allCards.forEach(function(card, index) {
+                if (index >= lazyLoadState.INITIAL_DISPLAY) {
+                    card.classList.add('lazy-hidden');
                 }
+            });
+            lazyLoadState.displayedCount = lazyLoadState.INITIAL_DISPLAY;
 
-                // 初期表示以降を非表示
-                allCards.forEach(function(card, index) {
-                    if (index >= INITIAL_DISPLAY) {
-                        card.classList.add('lazy-hidden');
-                    }
-                });
-                displayedCount = INITIAL_DISPLAY;
-
-                // ローディングトリガーを追加
-                var trigger = document.createElement('div');
+            // ローディングトリガーを追加（既存がなければ）
+            var trigger = document.getElementById('load-more-trigger');
+            if (!trigger) {
+                trigger = document.createElement('div');
                 trigger.id = 'load-more-trigger';
                 document.querySelector('.container').appendChild(trigger);
-
-                // Intersection Observer で追加読み込み
-                var observer = new IntersectionObserver(function(entries) {
-                    if (entries[0].isIntersecting && !isLoading && displayedCount < allCards.length) {
-                        loadMore();
-                    }
-                }, { rootMargin: '200px' });
-                observer.observe(trigger);
             }
 
-            function loadMore() {
-                if (isLoading || displayedCount >= allCards.length) return;
-                isLoading = true;
-                var trigger = document.getElementById('load-more-trigger');
-                if (trigger) trigger.classList.add('loading');
+            // Intersection Observer で追加読み込み
+            var observer = new IntersectionObserver(function(entries) {
+                if (entries[0].isIntersecting && !lazyLoadState.isLoading && lazyLoadState.displayedCount < lazyLoadState.allCards.length) {
+                    loadMore();
+                }
+            }, { rootMargin: '200px' });
+            observer.observe(trigger);
+        }
 
-                // requestAnimationFrameでスムーズに表示
-                requestAnimationFrame(function() {
-                    var endIndex = Math.min(displayedCount + LOAD_BATCH, allCards.length);
-                    for (var i = displayedCount; i < endIndex; i++) {
-                        allCards[i].classList.remove('lazy-hidden');
-                    }
-                    displayedCount = endIndex;
-                    isLoading = false;
+        function loadMore() {
+            if (lazyLoadState.isLoading || lazyLoadState.displayedCount >= lazyLoadState.allCards.length) return;
+            lazyLoadState.isLoading = true;
+            var trigger = document.getElementById('load-more-trigger');
+            if (trigger) trigger.classList.add('loading');
 
-                    if (trigger) {
-                        trigger.classList.remove('loading');
-                        if (displayedCount >= allCards.length) {
-                            trigger.classList.add('done');
-                        }
+            // requestAnimationFrameでスムーズに表示
+            requestAnimationFrame(function() {
+                var endIndex = Math.min(lazyLoadState.displayedCount + lazyLoadState.LOAD_BATCH, lazyLoadState.allCards.length);
+                for (var i = lazyLoadState.displayedCount; i < endIndex; i++) {
+                    lazyLoadState.allCards[i].classList.remove('lazy-hidden');
+                }
+                lazyLoadState.displayedCount = endIndex;
+                lazyLoadState.isLoading = false;
+
+                if (trigger) {
+                    trigger.classList.remove('loading');
+                    if (lazyLoadState.displayedCount >= lazyLoadState.allCards.length) {
+                        trigger.classList.add('done');
                     }
-                });
+                }
+            });
+        }
+
+        // 検索クリア時に遅延読み込み状態をリセット
+        function resetLazyLoad() {
+            if (lazyLoadState.allCards.length <= lazyLoadState.INITIAL_DISPLAY) {
+                return; // 30件以下なら何もしない
             }
 
-            // DOM読み込み完了後に初期化
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initLazyLoad);
-            } else {
-                initLazyLoad();
+            lazyLoadState.allCards.forEach(function(card, index) {
+                if (index >= lazyLoadState.INITIAL_DISPLAY) {
+                    card.classList.add('lazy-hidden');
+                } else {
+                    card.classList.remove('lazy-hidden');
+                }
+            });
+            lazyLoadState.displayedCount = lazyLoadState.INITIAL_DISPLAY;
+
+            var trigger = document.getElementById('load-more-trigger');
+            if (trigger) {
+                trigger.classList.remove('done');
             }
-        })();
+        }
+
+        // DOM読み込み完了後に初期化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLazyLoad);
+        } else {
+            initLazyLoad();
+        }
     </script>
     
 </body>
