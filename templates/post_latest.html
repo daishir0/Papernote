@@ -54,6 +54,11 @@
         .bg-white{
             background-color: rgb(230, 236, 254) !important;
         }
+        /* h2のz-indexをドロップダウンより低く設定 */
+        h2.toggleable {
+            position: relative;
+            z-index: 1;
+        }
         .date-label {
             font-size: 0.8em;
             color: #666;
@@ -83,6 +88,36 @@
             outline-offset: 2px;
             z-index: 10;
             position: relative;
+        }
+        /* 遅延読み込み: 初期非表示のカード */
+        .col.lazy-hidden {
+            display: none;
+        }
+        /* スケルトンUI */
+        .skeleton-card {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+            border-radius: 0.25rem;
+            height: 120px;
+        }
+        @keyframes skeleton-pulse {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        /* rowのスタッキング設定 */
+        .row {
+            position: relative;
+            z-index: 10;
+        }
+        /* ローディングインジケーター */
+        #load-more-trigger {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        #load-more-trigger.loading::after {
+            content: '読み込み中...';
         }
     </style>
 </head>
@@ -321,6 +356,18 @@
         $(document).ready(function() {
             restoreToggleStates();
 
+            // ドロップダウンが開いた時にrowのz-indexを上げる
+            $(document).on('show.bs.dropdown', function(e) {
+                var row = $(e.target).closest('.row');
+                console.log('Dropdown opening, row:', row.attr('id'));
+                row.css('z-index', 9999);
+            });
+            $(document).on('hidden.bs.dropdown', function(e) {
+                var row = $(e.target).closest('.row');
+                console.log('Dropdown closed, row:', row.attr('id'));
+                row.css('z-index', 10);
+            });
+
             // 検索キーワードがある場合、すべてのh2を開く
             const urlParams = new URLSearchParams(window.location.search);
             const searchKeyword = urlParams.get('search');
@@ -375,35 +422,43 @@
                 }
             });
 
-            // インクリメンタルサーチ
+            // インクリメンタルサーチ（デバウンス付き）
+            var searchTimeout = null;
             $('input[name="search"]').on('input', function() {
                 var searchTerm = $(this).val().toLowerCase();
-                filterItems(searchTerm);
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(function() {
+                    filterItems(searchTerm);
+                }, 300);
             });
         });
 
         function filterItems(searchTerm) {
-            $('.row').each(function() {
-                var h2 = $(this).prev('h2');
-                var visibleItems = 0;
+            requestAnimationFrame(function() {
+                $('.row').each(function() {
+                    var h2 = $(this).prev('h2');
+                    var visibleItems = 0;
+                    var row = $(this);
 
-                $(this).find('.col').each(function() {
-                    var text = $(this).find('.card-title a').text().toLowerCase();
-                    if (text.indexOf(searchTerm) > -1) {
-                        $(this).show();
-                        visibleItems++;
+                    row.find('.col').each(function() {
+                        var col = $(this);
+                        var text = col.find('.card-title a').text().toLowerCase();
+                        if (text.indexOf(searchTerm) > -1) {
+                            col.css('display', '');
+                            visibleItems++;
+                        } else {
+                            col.css('display', 'none');
+                        }
+                    });
+
+                    if (visibleItems > 0) {
+                        h2.css('display', '');
+                        row.css('display', '');
                     } else {
-                        $(this).hide();
+                        h2.css('display', 'none');
+                        row.css('display', 'none');
                     }
                 });
-
-                if (visibleItems > 0) {
-                    h2.show();
-                    $(this).show();
-                } else {
-                    h2.hide();
-                    $(this).hide();
-                }
             });
         }
 
@@ -422,24 +477,16 @@
             });
         }
 
-        function copyToClipboard(filename) {
-            var url = '/postdata/' + filename;
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', url, false);
-            xhr.send(null);
-
-            if (xhr.status === 200) {
-                var text = xhr.responseText;
-                var textarea = document.createElement('textarea');
-                textarea.value = text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
+        async function copyToClipboard(filename) {
+            try {
+                const response = await fetch('/postdata/' + filename);
+                if (!response.ok) throw new Error('Failed to fetch');
+                const text = await response.text();
+                await navigator.clipboard.writeText(text);
                 showTemporaryMessage('コピーされました');
-            } else {
+            } catch (error) {
+                console.error('Failed to copy:', error);
                 showTemporaryMessage('コピーに失敗しました');
-                console.error('Failed to copy: ', xhr.statusText);
             }
         }
 
@@ -657,6 +704,69 @@
                 localStorage.removeItem('scrollPosition');
             }
         };
+
+        // 遅延読み込み機能
+        (function() {
+            var INITIAL_DISPLAY = 30;
+            var LOAD_BATCH = 30;
+            var allCards = [];
+            var displayedCount = 0;
+            var isLoading = false;
+
+            function initLazyLoad() {
+                allCards = Array.from(document.querySelectorAll('.row .col'));
+                if (allCards.length <= INITIAL_DISPLAY) {
+                    return;
+                }
+
+                allCards.forEach(function(card, index) {
+                    if (index >= INITIAL_DISPLAY) {
+                        card.classList.add('lazy-hidden');
+                    }
+                });
+                displayedCount = INITIAL_DISPLAY;
+
+                var trigger = document.createElement('div');
+                trigger.id = 'load-more-trigger';
+                document.querySelector('.container').appendChild(trigger);
+
+                var observer = new IntersectionObserver(function(entries) {
+                    if (entries[0].isIntersecting && !isLoading && displayedCount < allCards.length) {
+                        loadMore();
+                    }
+                }, { rootMargin: '200px' });
+                observer.observe(trigger);
+            }
+
+            function loadMore() {
+                if (isLoading || displayedCount >= allCards.length) return;
+                isLoading = true;
+                var trigger = document.getElementById('load-more-trigger');
+                if (trigger) trigger.classList.add('loading');
+
+                requestAnimationFrame(function() {
+                    var endIndex = Math.min(displayedCount + LOAD_BATCH, allCards.length);
+                    for (var i = displayedCount; i < endIndex; i++) {
+                        allCards[i].classList.remove('lazy-hidden');
+                    }
+                    displayedCount = endIndex;
+                    isLoading = false;
+
+                    if (trigger) {
+                        trigger.classList.remove('loading');
+                        if (displayedCount >= allCards.length) {
+                            trigger.style.display = 'none';
+                        }
+                    }
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initLazyLoad);
+            } else {
+                initLazyLoad();
+            }
+        })();
     </script>
 </body>
 </html>

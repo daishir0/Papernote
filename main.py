@@ -2452,6 +2452,184 @@ def api_list_categories():
         }), 500
 
 # ============================================
+# UI用 内部API（ページネーション対応）
+# ============================================
+
+@app.route('/api/ui/posts/paginate', methods=['GET'])
+@limiter.limit("120 per minute")
+@csrf.exempt
+def api_ui_posts_paginate():
+    """
+    UI用ページネーションAPI（トピック別/日付別）
+    クエリパラメータ:
+      - page: ページ番号（1から開始、デフォルト: 1）
+      - limit: 1ページあたりの件数（デフォルト: 30）
+      - group: グループ化方式 topic|date（デフォルト: topic）
+      - search: 検索キーワード（オプション）
+    """
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+        limit = min(100, max(1, int(request.args.get('limit', 30))))
+        group_by = request.args.get('group', 'topic').lower()
+        search_query = request.args.get('search', '').strip()
+        authenticated = current_user.is_authenticated
+
+        CACHE_FILE = './post/.cache/post_files_info_all.json'
+        FILELIST_CACHE = './post/.cache/filelist.json'
+        DATE_CACHE_FILE = './post/.cache/posts_by_date.json'
+
+        all_items = []
+
+        if group_by == 'date':
+            # 日付別グループ化（/post_latest用）
+            all_items = _get_posts_flat_by_date(authenticated, search_query)
+        else:
+            # トピック別（/post用）- キャッシュ活用
+            if not search_query and os.path.exists(CACHE_FILE) and os.path.exists(FILELIST_CACHE):
+                try:
+                    current_files = set(
+                        f for f in os.listdir('./post')
+                        if os.path.isfile(os.path.join('./post', f)) and not f.endswith('.gitkeep')
+                    )
+                    with open(FILELIST_CACHE, 'r') as f:
+                        cached_files = set(json.load(f))
+                    if current_files == cached_files:
+                        with open(CACHE_FILE, 'r') as f:
+                            all_cached = json.load(f)
+                        # フラット化
+                        for topic, files in all_cached.items():
+                            for file_info in files:
+                                if not authenticated and file_info.get('title', '').startswith('#'):
+                                    continue
+                                all_items.append({
+                                    **file_info,
+                                    'topic': topic
+                                })
+                except Exception as e:
+                    app.logger.error(f"Cache read error: {e}")
+
+            if not all_items:
+                # キャッシュがない場合は生成
+                all_items = _get_posts_flat_by_topic(authenticated, search_query)
+
+        # 検索フィルタ
+        if search_query:
+            search_terms = search_query.lower().split()
+            all_items = [
+                item for item in all_items
+                if any(term in item.get('title', '').lower() or term in item.get('filename', '').lower()
+                       for term in search_terms)
+            ]
+
+        # ソート（更新日時の降順）
+        all_items.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+
+        total = len(all_items)
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        paginated_items = all_items[start_idx:end_idx]
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "items": paginated_items,
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "has_more": end_idx < total
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error in paginate API: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+
+def _get_posts_flat_by_topic(authenticated, search_query=None):
+    """トピック別に投稿を取得しフラット化"""
+    post_dir = './post'
+    items = []
+
+    for filename in os.listdir(post_dir):
+        if not os.path.isfile(os.path.join(post_dir, filename)):
+            continue
+        if filename.endswith('.gitkeep'):
+            continue
+
+        file_path = os.path.join(post_dir, filename)
+        metadata = get_file_metadata(file_path)
+
+        # 非認証時は#始まりのタイトルを除外
+        if not authenticated and metadata['title'].startswith('#'):
+            continue
+
+        # トピック抽出
+        topic_match = re.match(r'\[(.*?)\]', filename)
+        topic = topic_match.group(1) if topic_match else '_トピック未設定'
+
+        items.append({
+            'filename': filename,
+            'title': metadata['title'],
+            'tags': metadata['tags'],
+            'timestamp': os.path.getmtime(file_path),
+            'topic': topic
+        })
+
+    return items
+
+
+def _get_posts_flat_by_date(authenticated, search_query=None):
+    """日付期間別に投稿を取得しフラット化"""
+    post_dir = './post'
+    now = datetime.datetime.now()
+    week_ago = now - datetime.timedelta(days=7)
+    month_ago = now - datetime.timedelta(days=30)
+    half_year_ago = now - datetime.timedelta(days=183)
+
+    items = []
+
+    for filename in os.listdir(post_dir):
+        if not os.path.isfile(os.path.join(post_dir, filename)):
+            continue
+        if filename.endswith('.gitkeep'):
+            continue
+        if filename.startswith('.') or filename.startswith('bk') or filename.startswith('tmp'):
+            continue
+
+        file_path = os.path.join(post_dir, filename)
+        metadata = get_file_metadata(file_path)
+
+        # 非認証時は#始まりのタイトルを除外
+        if not authenticated and metadata['title'].startswith('#'):
+            continue
+
+        timestamp = os.path.getmtime(file_path)
+        file_date = datetime.datetime.fromtimestamp(timestamp)
+
+        # 期間分類
+        if file_date >= week_ago:
+            period = 'week'
+        elif file_date >= month_ago:
+            period = 'month'
+        elif file_date >= half_year_ago:
+            period = 'half_year'
+        else:
+            period = 'older'
+
+        items.append({
+            'filename': filename,
+            'title': metadata['title'],
+            'tags': metadata.get('tags', ''),
+            'timestamp': timestamp,
+            'date': file_date.strftime('%Y/%m/%d %H:%M'),
+            'period': period
+        })
+
+    return items
+
+# ============================================
 # Paper APIs (論文管理API)
 # ============================================
 
