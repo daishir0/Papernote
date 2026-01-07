@@ -2179,6 +2179,55 @@ def api_update_post(filename):
             "message": "Internal server error"
         }), 500
 
+# API 3.5: 投稿削除
+@app.route('/api/posts/<filename>', methods=['DELETE'])
+@require_api_key
+@limiter.limit("30 per minute")
+@csrf.exempt
+def api_delete_post(filename):
+    """投稿を削除"""
+    # ファイル名検証
+    if not is_valid_api_filename(filename):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid filename or access denied"
+        }), 400
+
+    file_path = os.path.join('./post', filename)
+
+    # ファイル存在チェック
+    if not os.path.isfile(file_path):
+        return jsonify({
+            "status": "error",
+            "message": "File not found"
+        }), 404
+
+    try:
+        os.remove(file_path)
+        app.logger.info(f"API: Deleted post {filename}")
+
+        # キャッシュファイルを削除
+        cache_file_old = './post/.cache/post_files_info.json'
+        cache_file_all = './post/.cache/post_files_info_all.json'
+        filelist_cache = './post/.cache/filelist.json'
+        for cf in [cache_file_old, cache_file_all, filelist_cache]:
+            if os.path.exists(cf):
+                os.remove(cf)
+
+        return jsonify({
+            "status": "success",
+            "message": "Post deleted successfully",
+            "data": {
+                "filename": filename
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error deleting file {filename}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
 # API 4: 投稿一覧取得
 @app.route('/api/posts', methods=['GET'])
 @require_api_key
