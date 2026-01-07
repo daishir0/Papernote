@@ -45,6 +45,7 @@ from datetime import timedelta
 import tldextract
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_cors import CORS
 from pytube import YouTube
 import yt_dlp
 from bs4 import BeautifulSoup
@@ -57,6 +58,15 @@ with open('config.yaml', 'r') as config_file:
     config = yaml.safe_load(config_file)
 
 app = Flask(__name__)
+
+# CORS設定（API用）
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Authorization", "Content-Type"]
+    }
+})
 
 # secret_keyの設定
 app.secret_key = config['secret_key']
