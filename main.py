@@ -849,14 +849,6 @@ def move_to_top(filename):
     else:
         return jsonify({'message': 'エラー'})
 
-@app.route('/post')
-def post_index():
-    form = LoginForm()  # フォームオブジェクトを作成
-    authenticated = current_user.is_authenticated
-    sorted_post_files_info = get_sorted_post_files_info()  # あなたのロジックに従ってデータを取得
-
-    return render_template('post_index.html', post_files=sorted_post_files_info, authenticated=authenticated, form=form)
-
 def get_file_metadata(file_path):
     print(f"Reading metadata from: {file_path}")
     """ファイルから必要な情報のみを取得"""
@@ -1807,21 +1799,18 @@ def webtomd():
     
     return render_template('webtomd.html', form=form, message=message)
 
-@app.route('/post_latest')
-@login_required
-def post_latest():
-    form = LoginForm()
-    authenticated = current_user.is_authenticated
-    sorted_posts = get_posts_by_date_periods()
-    return render_template('post_latest.html', posts=sorted_posts, authenticated=authenticated, form=form)
-
 @app.route('/postlist')
-@login_required
 def post_list():
     """コンパクトリスト形式の投稿一覧（日付順/カテゴリ別切り替え対応）"""
     form = LoginForm()
     authenticated = current_user.is_authenticated
-    view_mode = request.args.get('view', 'date')  # 'date' or 'category'
+
+    # 認証なしユーザーは強制的にカテゴリ別表示
+    if authenticated:
+        view_mode = request.args.get('view', 'date')  # 'date' or 'category'
+    else:
+        view_mode = 'category'
+
     search_query = request.args.get('search')
 
     if view_mode == 'category':
@@ -1831,6 +1820,9 @@ def post_list():
 
         if search_query:
             # 検索時は全データ
+            posts = all_posts
+        elif not authenticated:
+            # 認証なしユーザーは全カテゴリを展開表示
             posts = all_posts
         else:
             # 初期表示: カテゴリ「_」のみ
@@ -1887,6 +1879,7 @@ def get_posts_by_date_periods():
     week_ago = now - datetime.timedelta(days=7)
     month_ago = now - datetime.timedelta(days=30)
     half_year_ago = now - datetime.timedelta(days=183)
+    authenticated = current_user.is_authenticated
 
     posts = {
         'week': [],      # 1週間以内
@@ -1897,7 +1890,7 @@ def get_posts_by_date_periods():
 
     # 検索クエリの取得
     search_query = request.args.get('search')
-    
+
     # 投稿ファイルの取得
     post_dir = './post'
     post_files = [f for f in os.listdir(post_dir)
@@ -1908,10 +1901,14 @@ def get_posts_by_date_periods():
         file_path = os.path.join(post_dir, filename)
         timestamp = os.path.getmtime(file_path)
         file_date = datetime.datetime.fromtimestamp(timestamp)
-        
+
         # メタデータの取得
         metadata = get_file_metadata(file_path)
-        
+
+        # 認証なしユーザーには#で始まるタイトルを非表示
+        if not authenticated and metadata['title'].startswith('#'):
+            continue
+
         # 検索時は全文を読み込む
         if search_query:
             try:

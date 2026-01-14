@@ -333,14 +333,13 @@
         <div class="header-nav">
             <h1><a href="/postlist">Post List</a></h1>
             <div class="nav-links">
-                <a href="/post">Post</a>
-                <a href="/post_latest">Post Latest</a>
                 <a href="/">Papernote</a>
             </div>
         </div>
 
         <!-- ツールバー -->
         <div class="toolbar">
+            {% if authenticated %}
             <div class="btn-group">
                 <form action="{{ url_for('add_post') }}" method="post" class="d-inline">
                     {{ form.hidden_tag() }}
@@ -363,7 +362,9 @@
                     <i class="fas fa-compress-alt"></i> Close
                 </button>
             </div>
+            {% endif %}
 
+            {% if authenticated %}
             <!-- 検索 -->
             <div class="search-box" id="searchBox">
                 <input type="hidden" name="view" value="{{ view_mode }}">
@@ -375,8 +376,10 @@
                     </button>
                 </div>
             </div>
+            {% endif %}
         </div>
 
+        {% if authenticated %}
         <!-- タブUI -->
         <div class="view-tabs">
             <a href="/postlist?view=date" class="view-tab {{ 'active' if view_mode == 'date' else '' }}">
@@ -386,6 +389,7 @@
                 <i class="fas fa-folder"></i><span>カテゴリ別</span>
             </a>
         </div>
+        {% endif %}
 
         <!-- リスト本体 -->
         {% for group_key, files in posts.items() %}
@@ -424,6 +428,7 @@
                             <a href="{{ url_for('post', filename=file.filename) }}">{{ file.title }}</a>
                         </div>
                         <div class="item-date" title="{{ file.date }}">{{ file.relative_time }}</div>
+                        {% if authenticated %}
                         <div class="item-actions">
                             <button class="btn" title="コピー" onclick="copyToClipboard('{{ file.filename }}')">
                                 <i class="fas fa-copy"></i>
@@ -458,6 +463,7 @@
                                 </ul>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -570,6 +576,7 @@
         var csrf_token = "{{ csrf_token() }}";
         var viewMode = "{{ view_mode }}";
         var storageKey = 'postlistToggleStates_' + viewMode;
+        var isAuthenticated = {{ 'true' if authenticated else 'false' }};
 
         // 全データキャッシュ（検索用）
         var allDataCache = null;
@@ -780,12 +787,7 @@
 
         // リストアイテムのHTMLを生成
         function createListItem(file) {
-            return `
-                <div class="list-item" data-filename="${escapeHtml(file.filename)}">
-                    <div class="item-title" title="${escapeHtml(file.filename)}">
-                        <a href="/post/${encodeURIComponent(file.filename)}">${escapeHtml(file.title)}</a>
-                    </div>
-                    <div class="item-date" title="${escapeHtml(file.date)}">${escapeHtml(file.relative_time)}</div>
+            const actionsHtml = isAuthenticated ? `
                     <div class="item-actions">
                         <button class="btn" title="コピー" onclick="copyToClipboard('${escapeHtml(file.filename)}')">
                             <i class="fas fa-copy"></i>
@@ -820,6 +822,15 @@
                             </ul>
                         </div>
                     </div>
+            ` : '';
+
+            return `
+                <div class="list-item" data-filename="${escapeHtml(file.filename)}">
+                    <div class="item-title" title="${escapeHtml(file.filename)}">
+                        <a href="/post/${encodeURIComponent(file.filename)}">${escapeHtml(file.title)}</a>
+                    </div>
+                    <div class="item-date" title="${escapeHtml(file.date)}">${escapeHtml(file.relative_time)}</div>
+                    ${actionsHtml}
                 </div>
             `;
         }
