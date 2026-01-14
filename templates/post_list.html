@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post List</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon-192x192.png">
+
+    <link href="/static/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
+
+    <style>
+        :root {
+            --hover-bg: #f8f9fa;
+            --border-color: #e9ecef;
+            --text-muted: #6c757d;
+            --primary-color: #0d6efd;
+        }
+
+        body {
+            margin: 0;
+            padding: 15px;
+            background-color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        /* ヘッダー */
+        .header-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .header-nav h1 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .header-nav h1 a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .nav-links a {
+            margin-left: 1rem;
+            text-decoration: none;
+            color: var(--primary-color);
+        }
+
+        /* ツールバー */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        /* 検索 */
+        .search-box {
+            flex: 1;
+            max-width: 400px;
+            min-width: 150px;
+        }
+
+        /* タブUI */
+        .view-tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1rem;
+            gap: 0;
+        }
+
+        .view-tab {
+            padding: 0.6rem 1.2rem;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .view-tab:hover {
+            color: var(--primary-color);
+            background-color: var(--hover-bg);
+        }
+
+        .view-tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .view-tab i {
+            margin-right: 0.4rem;
+        }
+
+        /* モバイル対応 */
+        @media (max-width: 576px) {
+            .view-tab {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.85rem;
+            }
+            .view-tab span {
+                display: none;
+            }
+            .view-tab i {
+                margin-right: 0;
+            }
+        }
+
+        /* グループヘッダー */
+        .group-header {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background-color: #f1f3f5;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            margin-bottom: 0;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .group-header:hover {
+            background-color: #e9ecef;
+        }
+
+        .group-header .toggle-icon {
+            margin-right: 0.5rem;
+            transition: transform 0.2s;
+            width: 1rem;
+        }
+
+        .group-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .group-header .count {
+            margin-left: auto;
+            color: var(--text-muted);
+            font-weight: normal;
+            font-size: 0.85rem;
+        }
+
+        /* リストコンテナ */
+        .list-container {
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 0.375rem 0.375rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        /* リストアイテム */
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.15s;
+            gap: 0.75rem;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-item:hover {
+            background-color: var(--hover-bg);
+        }
+
+        /* タイトル */
+        .item-title {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .item-title a {
+            text-decoration: none;
+            color: #212529;
+            font-size: 0.95rem;
+        }
+
+        .item-title a:hover {
+            color: var(--primary-color);
+            text-decoration: underline;
+        }
+
+        /* 日付 */
+        .item-date {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            white-space: nowrap;
+            min-width: 5rem;
+            text-align: right;
+        }
+
+        /* アクションボタン */
+        .item-actions {
+            display: flex;
+            gap: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .list-item:hover .item-actions {
+            opacity: 1;
+        }
+
+        /* モバイルでは常に表示 */
+        @media (max-width: 768px) {
+            .item-actions {
+                opacity: 1;
+            }
+
+            .item-date {
+                display: none;
+            }
+
+            .list-item {
+                padding: 0.75rem 0.75rem;
+            }
+        }
+
+        .item-actions .btn {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.75rem;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+        }
+
+        .item-actions .btn:hover {
+            color: var(--primary-color);
+            background-color: #e9ecef;
+        }
+
+        /* ドロップダウン */
+        .dropdown-menu {
+            min-width: 140px;
+            font-size: 0.875rem;
+        }
+
+        .dropdown-item i {
+            margin-right: 0.5rem;
+            width: 1rem;
+            text-align: center;
+        }
+
+        /* スピナー */
+        .spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 検索ボックスのスピナー */
+        .search-spinner {
+            position: absolute;
+            right: 3rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: none;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        /* グループヘッダーのスピナー */
+        .group-header .header-spinner {
+            margin-left: 0.5rem;
+            display: none;
+        }
+
+        .group-header.loading .header-spinner {
+            display: inline-block;
+        }
+
+        .group-header.loading .toggle-icon {
+            display: none;
+        }
+
+        /* 未読み込みグループのスタイル */
+        .group-header.not-loaded {
+            opacity: 0.8;
+        }
+
+        /* ファイル名（ホバー時ツールチップ用） */
+        .item-title[data-filename]::after {
+            content: attr(data-filename);
+            position: absolute;
+            display: none;
+        }
+
+        /* 空状態 */
+        .empty-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header-nav">
+            <h1><a href="/postlist">Post List</a></h1>
+            <div class="nav-links">
+                <a href="/post">Post</a>
+                <a href="/post_latest">Post Latest</a>
+                <a href="/">Papernote</a>
+            </div>
+        </div>
+
+        <!-- ツールバー -->
+        <div class="toolbar">
+            <div class="btn-group">
+                <form action="{{ url_for('add_post') }}" method="post" class="d-inline">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                </form>
+                <div class="dropdown d-inline">
+                    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="/upload_text"><i class="fas fa-file-alt"></i> Text</a></li>
+                        <li><a class="dropdown-item" href="/webtomd"><i class="fas fa-file-code"></i> Web to MD</a></li>
+                        <li><a class="dropdown-item" href="/youtube"><i class="fab fa-youtube"></i> YouTube</a></li>
+                        <li><a class="dropdown-item" href="/upload_movie"><i class="fas fa-video"></i> Movie</a></li>
+                    </ul>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="closeAll()">
+                    <i class="fas fa-compress-alt"></i> Close
+                </button>
+            </div>
+
+            <!-- 検索 -->
+            <div class="search-box" id="searchBox">
+                <input type="hidden" name="view" value="{{ view_mode }}">
+                <div class="input-group input-group-sm">
+                    <input type="search" class="form-control" placeholder="検索..." id="searchInput">
+                    <span class="spinner search-spinner" id="searchSpinner"></span>
+                    <button class="btn btn-outline-secondary" type="button" onclick="executeSearch()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブUI -->
+        <div class="view-tabs">
+            <a href="/postlist?view=date" class="view-tab {{ 'active' if view_mode == 'date' else '' }}">
+                <i class="fas fa-clock"></i><span>日付順</span>
+            </a>
+            <a href="/postlist?view=category" class="view-tab {{ 'active' if view_mode == 'category' else '' }}">
+                <i class="fas fa-folder"></i><span>カテゴリ別</span>
+            </a>
+        </div>
+
+        <!-- リスト本体 -->
+        {% for group_key, files in posts.items() %}
+            {% set group_count = group_counts.get(group_key, files|length) %}
+            {% if group_count > 0 %}
+                {% if view_mode == 'date' %}
+                    {# 日付順表示 #}
+                    {% if group_key == 'week' %}
+                        {% set group_title = '過去1週間' %}
+                    {% elif group_key == 'month' %}
+                        {% set group_title = '過去1ヶ月' %}
+                    {% elif group_key == 'half_year' %}
+                        {% set group_title = '過去半年' %}
+                    {% else %}
+                        {% set group_title = 'それ以前' %}
+                    {% endif %}
+                {% else %}
+                    {# カテゴリ別表示 #}
+                    {% set group_title = group_key %}
+                {% endif %}
+
+                {% set is_loaded = files|length > 0 %}
+                <div class="group-header {{ 'not-loaded' if not is_loaded else '' }}"
+                     onclick="toggleGroup('{{ group_key }}')"
+                     id="header-{{ group_key }}"
+                     data-loaded="{{ 'true' if is_loaded else 'false' }}">
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                    <span class="header-spinner spinner"></span>
+                    <span>{{ group_title }}</span>
+                    <span class="count">{{ group_count }}件</span>
+                </div>
+                <div class="list-container" id="group-{{ group_key }}">
+                    {% for file in files %}
+                    <div class="list-item" data-filename="{{ file.filename }}">
+                        <div class="item-title" title="{{ file.filename }}">
+                            <a href="{{ url_for('post', filename=file.filename) }}">{{ file.title }}</a>
+                        </div>
+                        <div class="item-date" title="{{ file.date }}">{{ file.relative_time }}</div>
+                        <div class="item-actions">
+                            <button class="btn" title="コピー" onclick="copyToClipboard('{{ file.filename }}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button class="btn" title="コメント追加" onclick="openCommentModal('{{ file.filename }}')">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="btn" title="編集" onclick="editPost('{{ file.filename }}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <div class="dropdown d-inline">
+                                <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" title="その他">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#" onclick="renameFile('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-i-cursor"></i> リネーム
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="duplicateFile('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-copy"></i> 複製
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="openCategoryModal('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-folder"></i> カテゴリ変更
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="archiveFile('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-box-archive"></i> アーカイブ
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteFile('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-trash-alt"></i> 削除
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="modal fade" id="renameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="renameForm" method="post">
+                    {{ form.hidden_tag() }}
+                    <div class="modal-header">
+                        <h5 class="modal-title">リネーム</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="oldFilename" name="old_filename">
+                        <div class="mb-3">
+                            <label class="form-label">新しいファイル名</label>
+                            <div class="input-group">
+                                <input type="text" id="newFilename" name="new_filename" class="form-control" required>
+                                <span class="input-group-text">.txt</span>
+                            </div>
+                        </div>
+                        <div id="renameError" class="alert alert-danger d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                        <button type="submit" class="btn btn-primary">リネーム</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comment Modal -->
+    <div class="modal fade" id="commentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">コメントを追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="commentFilename">
+                    <div class="mb-3">
+                        <label class="form-label">コメント</label>
+                        <input type="text" id="commentText" class="form-control" placeholder="メモやコメントを入力..." maxlength="200">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">追加位置</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="commentPosition" id="positionTop" value="top" checked>
+                            <label class="form-check-label" for="positionTop">本文の先頭（3行目）</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="commentPosition" id="positionBottom" value="bottom">
+                            <label class="form-check-label" for="positionBottom">本文の末尾</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" onclick="submitComment()">追加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div class="modal fade" id="categoryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">カテゴリを変更</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="categoryFilename">
+                    <div class="mb-3">
+                        <label class="form-label">既存のカテゴリから選択</label>
+                        <select id="existingCategory" class="form-select">
+                            <option value="">-- カテゴリを選択 --</option>
+                        </select>
+                    </div>
+                    <div class="text-center mb-2">または</div>
+                    <div class="mb-3">
+                        <label class="form-label">新しいカテゴリを入力</label>
+                        <input type="text" id="newCategoryInput" class="form-control" placeholder="例: memo, work, idea" maxlength="50">
+                        <small class="text-muted">使用可能: 英数字、日本語、ハイフン、アンダースコア</small>
+                    </div>
+                    <div id="categoryError" class="alert alert-danger d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" onclick="submitCategoryChange()">変更</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/jquery-3.7.0.min.js"></script>
+    <script src="/static/popper.min.js"></script>
+    <script src="/static/bootstrap.min.js"></script>
+    <script src="/static/scripts.js"></script>
+
+    <script>
+        var csrf_token = "{{ csrf_token() }}";
+        var viewMode = "{{ view_mode }}";
+        var storageKey = 'postlistToggleStates_' + viewMode;
+
+        // 全データキャッシュ（検索用）
+        var allDataCache = null;
+        var isPreloading = false;
+        var preloadComplete = false;
+
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrf_token);
+                }
+            }
+        });
+
+        $(document).ready(function() {
+            restoreToggleStates();
+
+            // リネームフォーム
+            $('#renameForm').on('submit', function(event) {
+                event.preventDefault();
+                $.ajax({
+                    type: 'POST',
+                    url: '{{ url_for("rename_post") }}',
+                    data: $(this).serialize(),
+                    success: function() {
+                        $('#renameModal').modal('hide');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        var msg = xhr.responseJSON ? xhr.responseJSON.error : 'リネームに失敗しました';
+                        $('#renameError').text(msg).removeClass('d-none');
+                    }
+                });
+            });
+
+            // ページ復元時
+            $(window).on('pageshow', function(event) {
+                if (event.originalEvent.persisted) {
+                    restoreToggleStates();
+                }
+            });
+
+            // `/`キーで検索にフォーカス
+            $(document).on('keydown', function(e) {
+                if (e.key === '/' && !$(e.target).is('input, textarea')) {
+                    e.preventDefault();
+                    $('#searchInput').focus().select();
+                }
+            });
+
+            // 検索ボックスにフォーカスしたら全データを先読み
+            $('#searchInput').on('focus', function() {
+                if (!preloadComplete && !isPreloading) {
+                    preloadAllData();
+                }
+            });
+
+            // インクリメンタル検索（デバウンス300ms）
+            var searchTimeout = null;
+            $('#searchInput').on('input', function() {
+                var term = $(this).val().toLowerCase();
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(function() {
+                    filterItems(term);
+                }, 300);
+            });
+
+            // Enterキーで検索実行
+            $('#searchInput').on('keypress', function(e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    executeSearch();
+                }
+            });
+        });
+
+        // 全データ先読み（検索用）
+        async function preloadAllData() {
+            if (isPreloading || preloadComplete) return;
+
+            isPreloading = true;
+            $('#searchSpinner').show();
+
+            try {
+                // 既読み込み済みのグループを取得
+                var loadedGroups = [];
+                $('.group-header').each(function() {
+                    if ($(this).data('loaded') === true || $(this).data('loaded') === 'true') {
+                        loadedGroups.push($(this).attr('id').replace('header-', ''));
+                    }
+                });
+
+                // 残りのデータを一括取得
+                var response = await fetch('/api/ui/postlist/remaining?view=' + viewMode + '&' +
+                    loadedGroups.map(g => 'loaded[]=' + encodeURIComponent(g)).join('&'));
+
+                if (!response.ok) throw new Error('Failed to fetch');
+
+                var data = await response.json();
+                if (data.status === 'success') {
+                    // 各グループにデータを追加
+                    for (var groupKey in data.data) {
+                        var items = data.data[groupKey];
+                        if (items && items.length > 0) {
+                            appendItemsToGroup(groupKey, items);
+                        }
+                    }
+                    preloadComplete = true;
+                }
+            } catch (error) {
+                console.error('Preload error:', error);
+            } finally {
+                isPreloading = false;
+                $('#searchSpinner').hide();
+            }
+        }
+
+        // 検索フィルター
+        function filterItems(term) {
+            if (term === '') {
+                // 検索解除: すべて表示
+                $('.list-item').css('display', '');
+                $('.group-header, .list-container').css('display', '');
+                restoreToggleStates();
+                return;
+            }
+
+            // すべてのグループとアイテムを検索
+            $('.list-container').each(function() {
+                var container = $(this);
+                var header = container.prev('.group-header');
+                var visible = 0;
+
+                container.find('.list-item').each(function() {
+                    var item = $(this);
+                    var title = item.find('.item-title a').text().toLowerCase();
+                    if (title.indexOf(term) > -1) {
+                        item.css('display', '');
+                        visible++;
+                    } else {
+                        item.css('display', 'none');
+                    }
+                });
+
+                if (visible > 0) {
+                    header.css('display', '').removeClass('collapsed');
+                    container.css('display', '');
+                } else {
+                    header.css('display', 'none');
+                    container.css('display', 'none');
+                }
+            });
+        }
+
+        // 検索実行（Enterキーまたはボタンクリック）
+        function executeSearch() {
+            var term = $('#searchInput').val().toLowerCase();
+            filterItems(term);
+        }
+
+        // グループ開閉
+        async function toggleGroup(groupKey) {
+            var container = $('#group-' + groupKey);
+            var header = $('#header-' + groupKey);
+            var isLoaded = header.data('loaded') === true || header.data('loaded') === 'true';
+
+            // 未読み込みの場合は先にデータを取得
+            if (!isLoaded) {
+                header.addClass('loading');
+
+                try {
+                    var response = await fetch('/api/ui/postlist/group?view=' + viewMode + '&group=' + encodeURIComponent(groupKey));
+                    if (!response.ok) throw new Error('Failed to fetch');
+
+                    var data = await response.json();
+                    if (data.status === 'success' && data.items) {
+                        appendItemsToGroup(groupKey, data.items);
+                        header.data('loaded', true);
+                        header.removeClass('not-loaded');
+                    }
+                } catch (error) {
+                    console.error('Load group error:', error);
+                    header.removeClass('loading');
+                    return;
+                }
+
+                header.removeClass('loading');
+            }
+
+            // 表示切り替え
+            container.slideToggle(200, function() {
+                var isVisible = container.is(':visible');
+                header.toggleClass('collapsed', !isVisible);
+                saveToggleState(groupKey, isVisible);
+            });
+        }
+
+        // グループにアイテムを追加
+        function appendItemsToGroup(groupKey, items) {
+            var container = $('#group-' + groupKey);
+            items.forEach(function(file) {
+                // 既に存在するかチェック
+                if (container.find('[data-filename="' + file.filename + '"]').length === 0) {
+                    container.append(createListItem(file));
+                }
+            });
+        }
+
+        // リストアイテムのHTMLを生成
+        function createListItem(file) {
+            return `
+                <div class="list-item" data-filename="${escapeHtml(file.filename)}">
+                    <div class="item-title" title="${escapeHtml(file.filename)}">
+                        <a href="/post/${encodeURIComponent(file.filename)}">${escapeHtml(file.title)}</a>
+                    </div>
+                    <div class="item-date" title="${escapeHtml(file.date)}">${escapeHtml(file.relative_time)}</div>
+                    <div class="item-actions">
+                        <button class="btn" title="コピー" onclick="copyToClipboard('${escapeHtml(file.filename)}')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="btn" title="コメント追加" onclick="openCommentModal('${escapeHtml(file.filename)}')">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="btn" title="編集" onclick="editPost('${escapeHtml(file.filename)}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <div class="dropdown d-inline">
+                            <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" title="その他">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="renameFile('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-i-cursor"></i> リネーム
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="duplicateFile('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-copy"></i> 複製
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="openCategoryModal('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-folder"></i> カテゴリ変更
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="archiveFile('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-box-archive"></i> アーカイブ
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteFile('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-trash-alt"></i> 削除
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // HTMLエスケープ
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function closeAll() {
+            $('.list-container').slideUp(200);
+            $('.group-header').addClass('collapsed');
+            $('.list-container').each(function() {
+                saveToggleState($(this).attr('id').replace('group-', ''), false);
+            });
+        }
+
+        function saveToggleState(id, isVisible) {
+            var states = JSON.parse(localStorage.getItem(storageKey)) || {};
+            states[id] = isVisible;
+            localStorage.setItem(storageKey, JSON.stringify(states));
+        }
+
+        function restoreToggleStates() {
+            var states = JSON.parse(localStorage.getItem(storageKey)) || {};
+            for (var id in states) {
+                var container = $('#group-' + id);
+                var header = $('#header-' + id);
+                if (states[id]) {
+                    container.show();
+                    header.removeClass('collapsed');
+                } else {
+                    container.hide();
+                    header.addClass('collapsed');
+                }
+            }
+        }
+
+        // アクション関数
+        function renameFile(filename) {
+            localStorage.setItem('scrollPosition', window.scrollY);
+            $('#oldFilename').val(filename);
+            $('#newFilename').val(filename.replace('.txt', ''));
+            $('#renameError').addClass('d-none');
+            $('#renameModal').modal('show');
+            $('#renameModal').on('shown.bs.modal', function() {
+                $('#newFilename').select();
+            });
+        }
+
+        async function copyToClipboard(filename) {
+            try {
+                const response = await fetch('/postdata/' + filename);
+                if (!response.ok) throw new Error('Failed to fetch');
+                const text = await response.text();
+                await navigator.clipboard.writeText(text);
+                showTemporaryMessage('コピーしました');
+            } catch (error) {
+                console.error('Copy failed:', error);
+                showTemporaryMessage('コピーに失敗しました');
+            }
+        }
+
+        function editPost(filename) {
+            localStorage.setItem('scrollPosition', window.scrollY);
+            location.href = '/edit_post/' + filename;
+        }
+
+        function deleteFile(filename) {
+            if (confirm('本当に削除しますか？')) {
+                $.post('{{ url_for("delete_post") }}', { filename: filename })
+                    .done(function() { location.reload(); })
+                    .fail(function() { alert('削除に失敗しました'); });
+            }
+        }
+
+        function duplicateFile(filename) {
+            if (confirm('複製しますか？')) {
+                $.post('/duplicate_post', { filename: filename })
+                    .done(function() { location.reload(); })
+                    .fail(function() { alert('複製に失敗しました'); });
+            }
+        }
+
+        function archiveFile(filename) {
+            $.post('/archive_post', { filename: filename })
+                .done(function() { location.reload(); })
+                .fail(function() { alert('アーカイブに失敗しました'); });
+        }
+
+        function openCommentModal(filename) {
+            $('#commentFilename').val(filename);
+            $('#commentText').val('');
+            $('#positionTop').prop('checked', true);
+            $('#commentModal').modal('show');
+            setTimeout(function() {
+                $('#commentText').focus();
+                $('#commentText').off('keypress').on('keypress', function(e) {
+                    if (e.which === 13) {
+                        e.preventDefault();
+                        submitComment();
+                    }
+                });
+            }, 300);
+        }
+
+        function submitComment() {
+            var filename = $('#commentFilename').val();
+            var comment = $('#commentText').val().trim();
+            var position = $('input[name="commentPosition"]:checked').val();
+
+            if (!comment) {
+                alert('コメントを入力してください');
+                return;
+            }
+
+            $.post('/add_comment', {
+                filename: filename,
+                comment: comment,
+                position: position
+            }).done(function() {
+                $('#commentModal').modal('hide');
+                location.reload();
+            }).fail(function(xhr) {
+                alert(xhr.responseJSON ? xhr.responseJSON.error : 'コメント追加に失敗しました');
+            });
+        }
+
+        function openCategoryModal(filename) {
+            $('#categoryFilename').val(filename);
+            $('#existingCategory').val('');
+            $('#newCategoryInput').val('');
+            $('#categoryError').addClass('d-none');
+
+            $.get('/get_categories', function(response) {
+                var select = $('#existingCategory');
+                select.find('option:not(:first)').remove();
+                if (response.categories) {
+                    response.categories.forEach(function(cat) {
+                        select.append($('<option>', { value: cat, text: cat }));
+                    });
+                }
+            });
+
+            $('#categoryModal').modal('show');
+            setTimeout(function() { $('#existingCategory').focus(); }, 300);
+        }
+
+        function submitCategoryChange() {
+            var filename = $('#categoryFilename').val();
+            var selected = $('#existingCategory').val();
+            var newCat = $('#newCategoryInput').val().trim();
+
+            if (!selected && !newCat) {
+                $('#categoryError').text('カテゴリを選択または入力してください').removeClass('d-none');
+                return;
+            }
+
+            $.post('/change_category', {
+                filename: filename,
+                new_category: newCat || selected
+            }).done(function() {
+                $('#categoryModal').modal('hide');
+                location.reload(true);
+            }).fail(function(xhr) {
+                $('#categoryError').text(xhr.responseJSON ? xhr.responseJSON.error : 'カテゴリ変更に失敗しました').removeClass('d-none');
+            });
+        }
+
+        // スクロール位置復元
+        window.onload = function() {
+            var pos = localStorage.getItem('scrollPosition');
+            if (pos !== null) {
+                window.scrollTo(0, parseInt(pos, 10));
+                localStorage.removeItem('scrollPosition');
+            }
+        };
+    </script>
+</body>
+</html>

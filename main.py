@@ -1815,6 +1815,72 @@ def post_latest():
     sorted_posts = get_posts_by_date_periods()
     return render_template('post_latest.html', posts=sorted_posts, authenticated=authenticated, form=form)
 
+@app.route('/postlist')
+@login_required
+def post_list():
+    """コンパクトリスト形式の投稿一覧（日付順/カテゴリ別切り替え対応）"""
+    form = LoginForm()
+    authenticated = current_user.is_authenticated
+    view_mode = request.args.get('view', 'date')  # 'date' or 'category'
+    search_query = request.args.get('search')
+
+    if view_mode == 'category':
+        # カテゴリ別表示
+        all_posts = get_posts_by_category_with_relative_time()
+        group_counts = {cat: len(files) for cat, files in all_posts.items()}
+
+        if search_query:
+            # 検索時は全データ
+            posts = all_posts
+        else:
+            # 初期表示: カテゴリ「_」のみ
+            posts = {}
+            for cat, files in all_posts.items():
+                if cat == '_':
+                    posts[cat] = files
+                else:
+                    posts[cat] = []  # 空（遅延取得）
+    else:
+        # 日付順表示（デフォルト）
+        all_posts = get_posts_by_date_periods()
+        group_counts = {period: len(files) for period, files in all_posts.items()}
+
+        if search_query:
+            # 検索時は全データ
+            posts = all_posts
+        else:
+            # 初期表示: week のみ
+            posts = {
+                'week': all_posts.get('week', []),
+                'month': [],      # 空（遅延取得）
+                'half_year': [],  # 空（遅延取得）
+                'older': []       # 空（遅延取得）
+            }
+
+    return render_template('post_list.html',
+                           posts=posts,
+                           group_counts=group_counts,
+                           authenticated=authenticated,
+                           form=form,
+                           view_mode=view_mode)
+
+def get_posts_by_category_with_relative_time():
+    """カテゴリ別に投稿を取得（relative_time付き）"""
+    post_files_info = get_sorted_post_files_info()
+    search_query = request.args.get('search')
+
+    # relative_timeとdateを追加
+    for topic, files in post_files_info.items():
+        for file_info in files:
+            timestamp = file_info.get('timestamp', 0)
+            file_info['relative_time'] = get_relative_time(timestamp)
+            file_info['date'] = datetime.datetime.fromtimestamp(timestamp).strftime('%Y/%m/%d %H:%M')
+
+        # 各カテゴリ内で更新日時の降順にソート
+        files.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+
+    return post_files_info
+
 def get_posts_by_date_periods():
     """投稿を日付期間でグループ化して取得"""
     now = datetime.datetime.now()
@@ -1861,7 +1927,8 @@ def get_posts_by_date_periods():
             'filename': filename,
             'title': metadata['title'],
             'date': file_date.strftime('%Y/%m/%d %H:%M'),
-            'timestamp': timestamp
+            'timestamp': timestamp,
+            'relative_time': get_relative_time(timestamp)
         }
 
         # 期間に応じて振り分け
@@ -1906,18 +1973,45 @@ def get_latest_posts(limit=10, exclude=None):
 def get_relative_time(timestamp):
     """相対的な時間表示を生成"""
     now = datetime.datetime.now()
-    diff = now - datetime.datetime.fromtimestamp(timestamp)
+    target = datetime.datetime.fromtimestamp(timestamp)
+    diff = now - target
 
-    if diff.days > 0:
+    # 今日かどうか
+    if target.date() == now.date():
+        if diff.seconds < 60:
+            return "数秒前"
+        elif diff.seconds < 3600:
+            return f"{diff.seconds // 60}分前"
+        else:
+            return f"{diff.seconds // 3600}時間前"
+
+    # 昨日
+    yesterday = now.date() - datetime.timedelta(days=1)
+    if target.date() == yesterday:
+        return "昨日"
+
+    # 一昨日
+    day_before = now.date() - datetime.timedelta(days=2)
+    if target.date() == day_before:
+        return "一昨日"
+
+    # 1週間以内
+    if diff.days < 7:
         return f"{diff.days}日前"
-    elif diff.seconds >= 3600:
-        hours = diff.seconds // 3600
-        return f"{hours}時間前"
-    elif diff.seconds >= 60:
-        minutes = diff.seconds // 60
-        return f"{minutes}分前"
-    else:
-        return "数秒前"
+
+    # 1ヶ月以内
+    if diff.days < 30:
+        weeks = diff.days // 7
+        return f"{weeks}週間前"
+
+    # 1年以内
+    if diff.days < 365:
+        months = diff.days // 30
+        return f"{months}ヶ月前"
+
+    # 1年以上
+    years = diff.days // 365
+    return f"{years}年前"
 
 @app.route('/api/backups/<filename>', methods=['GET'])
 @login_required
@@ -2464,6 +2558,78 @@ def api_list_categories():
 # ============================================
 # UI用 内部API（ページネーション対応）
 # ============================================
+
+@app.route('/api/ui/postlist/group', methods=['GET'])
+@login_required
+@limiter.limit("120 per minute")
+@csrf.exempt
+def api_ui_postlist_group():
+    """
+    postlist用: 指定グループのデータを取得
+    パラメータ:
+      - view: 'date' or 'category'
+      - group: グループキー（week, month, half_year, older またはカテゴリ名）
+    """
+    view_mode = request.args.get('view', 'date')
+    group_key = request.args.get('group', '')
+
+    if not group_key:
+        return jsonify({"status": "error", "message": "group parameter required"}), 400
+
+    try:
+        if view_mode == 'category':
+            all_posts = get_posts_by_category_with_relative_time()
+        else:
+            all_posts = get_posts_by_date_periods()
+
+        items = all_posts.get(group_key, [])
+
+        return jsonify({
+            "status": "success",
+            "group": group_key,
+            "items": items
+        })
+
+    except Exception as e:
+        print(f"Error in api_ui_postlist_group: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/ui/postlist/remaining', methods=['GET'])
+@login_required
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_ui_postlist_remaining():
+    """
+    postlist用: 未取得グループのデータを一括取得
+    パラメータ:
+      - view: 'date' or 'category'
+      - loaded[]: 既に取得済みのグループキーの配列
+    """
+    view_mode = request.args.get('view', 'date')
+    loaded_groups = request.args.getlist('loaded[]')
+
+    try:
+        if view_mode == 'category':
+            all_posts = get_posts_by_category_with_relative_time()
+        else:
+            all_posts = get_posts_by_date_periods()
+
+        # 未取得グループのみ返す
+        remaining = {}
+        for group_key, items in all_posts.items():
+            if group_key not in loaded_groups and items:
+                remaining[group_key] = items
+
+        return jsonify({
+            "status": "success",
+            "data": remaining
+        })
+
+    except Exception as e:
+        print(f"Error in api_ui_postlist_remaining: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route('/api/ui/posts/paginate', methods=['GET'])
 @limiter.limit("120 per minute")
