@@ -16,7 +16,7 @@
 </head>
 <body>
     <div class="container mt-5">
-        <a href="/post"><< post一覧へ</a>
+        <a href="/postlist"><< post一覧へ</a>
         <h1 class="text-center">YouTube URL入力</h1>
         <form id="youtube-form" class="mt-4" method="POST" action="{{ url_for('youtube') }}">
             {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->

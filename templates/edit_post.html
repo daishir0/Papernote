@@ -22,7 +22,7 @@
 </head>
 <body data-filename="{{ filename }}" data-csrf-token="{{ form.csrf_token._value() }}" data-post-url="{{ url_for('post', filename=request.view_args['filename']) }}" data-claude-code-url="{{ claude_code_url }}">
 
-    <a href="/post" class="mb-2"><< post一覧へ</a>
+    <a href="/postlist" class="mb-2"><< post一覧へ</a>
 
     <form method="post" class="container" style="margin-left: 0px; margin-right: 0px; max-width: 100%">
         {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->

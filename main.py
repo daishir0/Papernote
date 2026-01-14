@@ -214,7 +214,7 @@ def login():
                     if next_page and is_safe_url(next_page):
                         redirect_url = next_page
                     else:
-                        redirect_url = url_for('post_latest')
+                        redirect_url = url_for('post_list')
 
                     return redirect(redirect_url)
                 else:
