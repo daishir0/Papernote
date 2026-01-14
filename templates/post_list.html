@@ -430,9 +430,6 @@
                         <div class="item-date" title="{{ file.date }}">{{ file.relative_time }}</div>
                         {% if authenticated %}
                         <div class="item-actions">
-                            <button class="btn" title="コピー" onclick="copyToClipboard('{{ file.filename }}')">
-                                <i class="fas fa-copy"></i>
-                            </button>
                             <button class="btn" title="コメント追加" onclick="openCommentModal('{{ file.filename }}')">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -444,6 +441,10 @@
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#" onclick="copyToClipboard('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-clipboard"></i> コピー
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="#" onclick="renameFile('{{ file.filename }}'); return false;">
                                         <i class="fas fa-i-cursor"></i> リネーム
                                     </a></li>
@@ -789,9 +790,6 @@
         function createListItem(file) {
             const actionsHtml = isAuthenticated ? `
                     <div class="item-actions">
-                        <button class="btn" title="コピー" onclick="copyToClipboard('${escapeHtml(file.filename)}')">
-                            <i class="fas fa-copy"></i>
-                        </button>
                         <button class="btn" title="コメント追加" onclick="openCommentModal('${escapeHtml(file.filename)}')">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -803,6 +801,10 @@
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="copyToClipboard('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-clipboard"></i> コピー
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="#" onclick="renameFile('${escapeHtml(file.filename)}'); return false;">
                                     <i class="fas fa-i-cursor"></i> リネーム
                                 </a></li>
