@@ -1081,10 +1081,21 @@
             // 選択範囲内の行を取得
             const selectedLines = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
 
-            // 各行を独立してトグル
+            // 各行を独立して3段階ローテーション（無し → - → インデント付き- → 無し）
             const newText = selectedLines.split('\n').map(line => {
+                const hasIndentedDash = line.match(/^    - /);  // 4スペース + "- "
                 const hasDash = line.match(/^- /);
-                return hasDash ? line.replace(/^- /, '') : '- ' + line;
+
+                if (hasIndentedDash) {
+                    // 3段階目: インデント付き → 除外
+                    return line.replace(/^    - /, '');
+                } else if (hasDash) {
+                    // 2段階目: 付与 → インデント付与
+                    return line.replace(/^- /, '    - ');
+                } else {
+                    // 1段階目: 無し → 付与
+                    return '- ' + line;
+                }
             }).join('\n');
 
             textArea.value = before + newText + after;
@@ -1112,10 +1123,21 @@
             // 選択範囲内の行を取得
             const selectedLines = value.slice(lineStart, lineEnd === -1 ? value.length : lineEnd);
 
-            // 各行を独立してトグル
+            // 各行を独立して3段階ローテーション（無し → 1. → インデント付き1. → 無し）
             const newText = selectedLines.split('\n').map(line => {
+                const hasIndentedNumber = line.match(/^    1\. /);  // 4スペース + "1. "
                 const hasNumber = line.match(/^1\. /);
-                return hasNumber ? line.replace(/^1\. /, '') : '1. ' + line;
+
+                if (hasIndentedNumber) {
+                    // 3段階目: インデント付き → 除外
+                    return line.replace(/^    1\. /, '');
+                } else if (hasNumber) {
+                    // 2段階目: 付与 → インデント付与
+                    return line.replace(/^1\. /, '    1. ');
+                } else {
+                    // 1段階目: 無し → 付与
+                    return '1. ' + line;
+                }
             }).join('\n');
 
             textArea.value = before + newText + after;
