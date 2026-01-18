@@ -820,16 +820,34 @@
     let currentImageSize = 100;
     let imageOriginalSizes = new Map(); // 各画像の初期サイズを保存
 
+    // 画像の初期サイズを正しく記録する関数
+    function recordImageOriginalSize(img) {
+        if (imageOriginalSizes.has(img)) return;
+
+        // naturalWidthを優先（実際の画像サイズ）
+        // lazy loading画像の場合はoffsetWidthがすでに設定されている場合がある
+        const width = img.naturalWidth || img.offsetWidth || img.getBoundingClientRect().width;
+
+        // 有効な値（10px以上）のみ記録
+        if (width > 10) {
+            imageOriginalSizes.set(img, width);
+        }
+    }
+
     // 初期化：画像の初期サイズを記録
     document.addEventListener('DOMContentLoaded', function() {
         // Markdownレンダリング完了後に実行するため、遅延させる
         setTimeout(function() {
             const contentImages = document.querySelectorAll('#content img');
             contentImages.forEach(img => {
-                if (!imageOriginalSizes.has(img)) {
-                    // CSSで制限された表示サイズを優先（ユーザーが見ている実際のサイズ）
-                    const originalWidth = img.offsetWidth || img.getBoundingClientRect().width || img.naturalWidth;
-                    imageOriginalSizes.set(img, originalWidth);
+                if (img.complete && img.naturalWidth > 0) {
+                    // 既に読み込み済み
+                    recordImageOriginalSize(img);
+                } else {
+                    // 読み込み完了を待つ
+                    img.addEventListener('load', function() {
+                        recordImageOriginalSize(img);
+                    });
                 }
             });
         }, 500);
@@ -856,25 +874,24 @@
         currentImageSize = size;
         const images = document.querySelectorAll('#content img');
         images.forEach(img => {
-            // 初期サイズが記録されている場合はそれを基準に
-            if (imageOriginalSizes.has(img)) {
-                const originalWidth = imageOriginalSizes.get(img);
-                const newWidth = originalWidth * (size / 100);
-                img.style.width = newWidth + 'px';
-                img.style.height = 'auto'; // アスペクト比を維持
-                img.style.maxWidth = 'none'; // maxWidthを解除
-                img.style.maxHeight = 'none'; // maxHeightも解除
-            } else {
-                // 初期サイズが未記録の場合は現在の幅を記録して使用
-                // CSSで制限された表示サイズを優先（ユーザーが見ている実際のサイズ）
-                const originalWidth = img.offsetWidth || img.getBoundingClientRect().width || img.naturalWidth;
-                imageOriginalSizes.set(img, originalWidth);
-                const newWidth = originalWidth * (size / 100);
-                img.style.width = newWidth + 'px';
-                img.style.height = 'auto'; // アスペクト比を維持
-                img.style.maxWidth = 'none';
-                img.style.maxHeight = 'none'; // maxHeightも解除
+            let originalWidth = imageOriginalSizes.get(img);
+
+            // 初期サイズが未記録または不正な場合はnaturalWidthを使用
+            if (!originalWidth || originalWidth < 10) {
+                originalWidth = img.naturalWidth;
+                if (originalWidth > 10) {
+                    imageOriginalSizes.set(img, originalWidth);
+                } else {
+                    // 有効なサイズがなければこの画像はスキップ
+                    return;
+                }
             }
+
+            const newWidth = originalWidth * (size / 100);
+            img.style.width = newWidth + 'px';
+            img.style.height = 'auto'; // アスペクト比を維持
+            img.style.maxWidth = 'none'; // maxWidthを解除
+            img.style.maxHeight = 'none'; // maxHeightも解除
         });
 
         // ラベル更新
