@@ -92,6 +92,112 @@
                 display: none !important;
             }
         }
+
+        /* ページ切り替えオーバーレイ用スタイル */
+        .switch-page-dialog {
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .page-list {
+            max-height: 60vh;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .page-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background-color: white;
+        }
+
+        .page-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .page-item.selected {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        .page-item.selected .page-date,
+        .page-item.selected .page-filename {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .page-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .page-date {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .page-title {
+            font-size: 1em;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .page-filename {
+            font-size: 0.75em;
+            color: #999;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: 1rem;
+            flex-shrink: 0;
+        }
+
+        .page-actions button {
+            background: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0.35rem 0.6rem;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .page-actions button:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-page-view:hover {
+            border-color: #007bff;
+            color: #007bff;
+        }
+
+        .btn-page-edit:hover {
+            border-color: #28a745;
+            color: #28a745;
+        }
+
+        .page-item.selected .page-actions button {
+            border-color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .page-item.selected .btn-page-view:hover,
+        .page-item.selected .btn-page-edit:hover {
+            border-color: #fff;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -178,11 +284,21 @@
         <div class="page-list" id="pageList">
             {% for post in recent_posts %}
             <div class="page-item" data-filename="{{ post.filename }}" data-index="{{ loop.index0 }}">
-                <div class="page-date">
-                    <i class="fas fa-clock"></i> {{ post.date }}
+                <div class="page-info">
+                    <div class="page-date">
+                        <i class="fas fa-clock"></i> {{ post.date }}
+                    </div>
+                    <div class="page-title">{{ post.title }}</div>
+                    <div class="page-filename">{{ post.filename }}</div>
                 </div>
-                <div class="page-title">{{ post.title }}</div>
-                <div class="page-filename">{{ post.filename }}</div>
+                <div class="page-actions">
+                    <button class="btn-page-view" title="閲覧" onclick="navigateToPage('{{ post.filename }}', 'view', event)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-page-edit" title="編集" onclick="navigateToPage('{{ post.filename }}', 'edit', event)">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -892,15 +1008,42 @@
             });
         }
 
-        // ページに移動（閲覧ページへ）
-        function navigateToPage(filename, openInNewTab) {
+        // ページに移動（グローバルスコープに公開）
+        window.navigateToPage = function(filename, modeOrEvent, eventArg) {
+            // 後方互換性: 第2引数がboolean（旧API）の場合の処理
+            var mode = 'view';  // デフォルトは閲覧
+            var event = null;
+
+            if (typeof modeOrEvent === 'boolean') {
+                // 旧API: navigateToPage(filename, openInNewTab)
+                var openInNewTab = modeOrEvent;
+                if (openInNewTab) {
+                    window.open('/post/' + filename, '_blank');
+                } else {
+                    closeSwitchPageOverlay();
+                    location.href = '/post/' + filename;
+                }
+                return;
+            }
+
+            // 新API: navigateToPage(filename, mode, event)
+            mode = modeOrEvent || 'view';
+            event = eventArg;
+
+            if (event) {
+                event.stopPropagation();
+            }
+
+            var openInNewTab = event && event.ctrlKey;
+            var url = mode === 'edit' ? '/edit_post/' + filename : '/post/' + filename;
+
             if (openInNewTab) {
-                window.open('/post/' + filename, '_blank');
+                window.open(url, '_blank');
             } else {
                 closeSwitchPageOverlay();
-                location.href = '/post/' + filename;
+                location.href = url;
             }
-        }
+        };
 
         // ページ切り替えボタン
         const switchPageButton = document.getElementById('switchPageButton');
@@ -934,6 +1077,10 @@
 
             // クリックイベント（Ctrl+クリック対応）
             item.addEventListener('click', function(event) {
+                // page-actions内のボタンからのクリックは無視（ボタン側で処理）
+                if (event.target.closest('.page-actions')) {
+                    return;
+                }
                 const filename = item.dataset.filename;
                 if (event.ctrlKey || event.metaKey) {
                     event.preventDefault();

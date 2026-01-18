@@ -195,11 +195,21 @@
                 <div class="page-item"
                      data-filename="{{ post.filename }}"
                      data-index="{{ loop.index0 }}">
-                    <div class="page-date">
-                        <i class="fas fa-clock"></i> {{ post.date }}
+                    <div class="page-info">
+                        <div class="page-date">
+                            <i class="fas fa-clock"></i> {{ post.date }}
+                        </div>
+                        <div class="page-title">{{ post.title }}</div>
+                        <div class="page-filename">{{ post.filename }}</div>
                     </div>
-                    <div class="page-title">{{ post.title }}</div>
-                    <div class="page-filename">{{ post.filename }}</div>
+                    <div class="page-actions">
+                        <button class="btn-page-view" title="閲覧" onclick="navigateToPage('{{ post.filename }}', 'view', event)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-page-edit" title="編集" onclick="navigateToPage('{{ post.filename }}', 'edit', event)">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
                 </div>
                 {% endfor %}
             </div>

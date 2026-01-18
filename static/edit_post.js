@@ -1298,14 +1298,39 @@
     }
 
     // ページに移動
-    window.navigateToPage = function(filename, openInNewTab = false) {
+    window.navigateToPage = function(filename, modeOrEvent, eventArg) {
+        // 後方互換性: 第2引数がboolean（旧API）の場合の処理
+        var mode = 'edit';  // デフォルトは編集
+        var event = null;
+
+        if (typeof modeOrEvent === 'boolean') {
+            // 旧API: navigateToPage(filename, openInNewTab)
+            var openInNewTab = modeOrEvent;
+            if (openInNewTab) {
+                window.open('/edit_post/' + filename, '_blank');
+            } else {
+                closeSwitchPageOverlay();
+                location.href = '/edit_post/' + filename;
+            }
+            return;
+        }
+
+        // 新API: navigateToPage(filename, mode, event)
+        mode = modeOrEvent || 'edit';
+        event = eventArg;
+
+        if (event) {
+            event.stopPropagation();
+        }
+
+        var openInNewTab = event && event.ctrlKey;
+        var url = mode === 'edit' ? '/edit_post/' + filename : '/post/' + filename;
+
         if (openInNewTab) {
-            // 新しいタブで開く（モーダルは残す）
-            window.open('/edit_post/' + filename, '_blank');
+            window.open(url, '_blank');
         } else {
-            // 現在のタブで遷移（モーダルを閉じる）
             closeSwitchPageOverlay();
-            location.href = '/edit_post/' + filename;
+            location.href = url;
         }
     };
 
@@ -1341,6 +1366,10 @@
 
         // クリックイベント（Ctrl+クリック対応）
         item.addEventListener('click', function(event) {
+            // page-actions内のボタンからのクリックは無視（ボタン側で処理）
+            if (event.target.closest('.page-actions')) {
+                return;
+            }
             const filename = item.dataset.filename;
             // Ctrl+クリック または Cmd+クリック: 新しいタブで開く（モーダルは残す）
             if (event.ctrlKey || event.metaKey) {
