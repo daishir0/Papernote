@@ -163,7 +163,7 @@
             border-top: none;
             border-radius: 0 0 0.375rem 0.375rem;
             margin-bottom: 1rem;
-            overflow: hidden;
+            overflow: visible;
         }
 
         /* リストアイテム */
@@ -734,8 +734,14 @@
 
         // 検索実行（Enterキーまたはボタンクリック）
         function executeSearch() {
-            var term = $('#searchInput').val().toLowerCase();
-            filterItems(term);
+            var term = $('#searchInput').val().trim();
+            if (term === '') {
+                // 空の場合は検索解除（パラメータなしでリロード）
+                window.location.href = '/postlist?view=' + viewMode;
+            } else {
+                // 本文含む全文検索（サーバーサイド）
+                window.location.href = '/postlist?view=' + viewMode + '&search=' + encodeURIComponent(term);
+            }
         }
 
         // グループ開閉
