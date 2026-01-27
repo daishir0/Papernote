@@ -64,7 +64,9 @@ IMAGE_MAX_WIDTH = 1200  # 元画像の最大幅（ピクセル）
 THUMBNAIL_WIDTH = 400  # サムネイルの幅（ピクセル）
 
 # 長文判定の閾値（この文字数以下ならClaudeCLIで直接処理）
-MAX_DIRECT_LENGTH = 80000
+# 注意: ClaudeCLI直接処理は入力が長すぎると不完全な結果になるため、
+# 閾値は低めに設定（40,000文字）。これ以上はClaude Code委譲を使用。
+MAX_DIRECT_LENGTH = 40000
 
 # 一時ファイル用ディレクトリ（/tmpではなくプロジェクト内に作成）
 # ※ Claude Codeは/tmpへのアクセスがセキュリティ上制限されているため
@@ -160,6 +162,113 @@ def _call_claude_code(prompt: str, timeout_sec: int = 900) -> tuple:
         return False, "claude コマンドが見つかりません"
     except Exception as e:
         return False, str(e)
+
+
+def _send_slack_notification(message: str) -> bool:
+    """
+    Slack通知を送信
+
+    Returns:
+        success: bool
+    """
+    try:
+        # 一時ファイルにメッセージを書き込み
+        msg_file = PAPER_DIR / "outputs" / "slack_msg_temp.txt"
+        msg_file.parent.mkdir(parents=True, exist_ok=True)
+        msg_file.write_text(message, encoding='utf-8')
+
+        # slack-notifyスキルを使用して送信
+        result = subprocess.run(
+            ["bash", "-c",
+             f"source ~/.claude/lib/load_env.sh && cat {msg_file} | run_python ~/.claude/skills/slack-notify/send_slack.py"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        # 一時ファイル削除
+        if msg_file.exists():
+            msg_file.unlink()
+
+        return result.returncode == 0
+
+    except Exception as e:
+        print(f"  [WARN] Slack通知失敗: {e}")
+        return False
+
+
+def is_memo_complete(memo_path: Path, min_lines: int = 3, max_age_days: int = 1) -> bool:
+    """
+    memoファイルが翻訳済み（完了）かどうかを判定
+
+    判定基準:
+    - ファイルが存在しない → False
+    - ファイルの行数が min_lines 以上 → True（翻訳済み）
+    - ファイルの行数が min_lines 未満 AND max_age_days 日以内 → False（最近追加された未処理）
+    - ファイルの行数が min_lines 未満 AND max_age_days 日より古い → True（古い不完全ファイルは無視）
+
+    Args:
+        memo_path: memoファイルのパス
+        min_lines: 完了と判定する最小行数（デフォルト: 3）
+        max_age_days: この日数以内の不完全ファイルのみ未処理とみなす（デフォルト: 1）
+
+    Returns:
+        bool: 翻訳が完了していればTrue
+    """
+    import time
+
+    if not memo_path.exists():
+        return False
+
+    try:
+        # 行数チェック
+        content = memo_path.read_text(encoding='utf-8')
+        line_count = len(content.strip().split('\n'))
+
+        # 行数が十分なら完了
+        if line_count >= min_lines:
+            return True
+
+        # 行数が不足している場合、更新日時をチェック
+        # max_age_days日以内なら未処理、古ければ無視（完了扱い）
+        mtime = memo_path.stat().st_mtime
+        age_seconds = time.time() - mtime
+        age_days = age_seconds / (24 * 60 * 60)
+
+        # 古いファイルは完了扱い（再処理しない）
+        if age_days > max_age_days:
+            return True
+
+        # 新しくて行数不足 → 未処理
+        return False
+    except Exception:
+        return False
+
+
+def get_unprocessed_pdfs() -> list:
+    """
+    memoが未生成または未完了のPDF IDリストを取得
+
+    判定基準:
+    - memoファイルが存在しない → 未処理
+    - memoファイルに「## Page」が含まれていない → 未処理（タイトルのみ）
+    - memoファイルに「## Page」が含まれている → 処理済み
+
+    Returns:
+        list of pdf_id strings
+    """
+    unprocessed = []
+
+    if not PDFS_DIR.exists():
+        return unprocessed
+
+    for pdf_file in sorted(PDFS_DIR.glob("*.pdf"), key=lambda x: x.stat().st_mtime):
+        pdf_id = pdf_file.stem
+        memo_path = MEMO_DIR / f"{pdf_id}.txt"
+        if not is_memo_complete(memo_path):
+            unprocessed.append(pdf_id)
+
+    return unprocessed
 
 
 # ============================================================
@@ -390,6 +499,8 @@ def _generate_summary_via_claude_code(full_text: str, pdf_id: str, output_path: 
     # 一時ファイルに全文を保存し、処理後に確実に削除
     with temp_text_file(full_text, prefix=f"{pdf_id}_summary_input_") as input_path:
 
+        # 注意: claude -p は非対話モードのため、Writeツールの許可を求めるUIがない
+        # そのため、結果はstdoutで返させてPython側でファイル書き込みを行う
         prompt = f"""あなたはpaper-translateスキルから呼び出されています。
 
 ## タスク
@@ -397,9 +508,6 @@ def _generate_summary_via_claude_code(full_text: str, pdf_id: str, output_path: 
 
 ## 入力ファイル
 {input_path}
-
-## 出力ファイル
-{output_path}
 
 ## 出力フォーマット（厳守）
 以下の形式で出力してください。これ以外の形式は許可されません。
@@ -436,10 +544,10 @@ def _generate_summary_via_claude_code(full_text: str, pdf_id: str, output_path: 
 1. 各章は「# 章番号. 章タイトル」で始める（##ではなく#を使用）
 2. 各要点は「- 」で始める箇条書き
 3. 章の間は空行1行で区切る
-4. 前置きや説明文は一切不要。要約のみを出力
-5. 入力ファイルをReadツールで読み込むこと
-6. 必ずWriteツールで {output_path} に結果を保存すること
-7. テキストが非常に長い場合は、Taskツールで分割処理してから統合すること"""
+4. 前置きや説明文は一切不要。要約のみをそのまま標準出力に出力
+5. 入力ファイルをReadツールで読み込むこと。ファイルが長い場合（2000行超）は、offsetとlimitを使って複数回に分けて全文を読み込むこと
+6. ファイルへの書き込みは不要。要約結果をそのまま出力すること
+7. テキストが非常に長い場合でも、全文を読み込んでから要約し、最終結果のみを出力すること"""
 
         print(f"    Claude Code 実行中...")
         sys.stdout.flush()
@@ -449,15 +557,14 @@ def _generate_summary_via_claude_code(full_text: str, pdf_id: str, output_path: 
             print(f"    [ERROR] Claude Code 実行失敗: {output}")
             return f"[要約エラー: Claude Code実行失敗 - {output}]"
 
-        # 出力ファイルを確認
-        if output_path.exists():
-            result = output_path.read_text(encoding='utf-8')
-            result = _validate_and_fix_summary_format(result)
+        # stdoutから結果を取得してフォーマット検証・修正
+        if output and output.strip():
+            result = _validate_and_fix_summary_format(output.strip())
             print(f"    [OK] 要約生成完了（{len(result):,}文字）")
             return result
         else:
-            print(f"    [ERROR] 出力ファイルが生成されませんでした")
-            return f"[要約エラー: 出力ファイル未生成]\nClaude Code出力: {output[:500]}"
+            print(f"    [ERROR] Claude Codeから出力が得られませんでした")
+            return f"[要約エラー: 出力なし]"
 
 
 def _validate_and_fix_summary_format(text: str) -> str:
@@ -576,6 +683,8 @@ def _generate_novelty_via_claude_code(full_text: str, pdf_id: str, output_path: 
 
     with temp_text_file(full_text, prefix=f"{pdf_id}_novelty_input_") as input_path:
 
+        # 注意: claude -p は非対話モードのため、Writeツールの許可を求めるUIがない
+        # そのため、結果はstdoutで返させてPython側でファイル書き込みを行う
         prompt = f"""あなたはpaper-translateスキルから呼び出されています。
 
 ## タスク
@@ -583,9 +692,6 @@ def _generate_novelty_via_claude_code(full_text: str, pdf_id: str, output_path: 
 
 ## 入力ファイル
 {input_path}
-
-## 出力ファイル
-{output_path}
 
 ## 出力フォーマット（厳守）
 以下の形式で出力してください。これ以外の形式は許可されません。
@@ -617,10 +723,10 @@ def _generate_novelty_via_claude_code(full_text: str, pdf_id: str, output_path: 
 2. 各セクションは「# セクション名」で始める（##ではなく#を使用）
 3. 各要点は「- 」で始める箇条書き
 4. セクションの間は空行1行で区切る
-5. 前置きや説明文は一切不要。分析結果のみを出力
-6. 入力ファイルをReadツールで読み込むこと
-7. 必ずWriteツールで {output_path} に結果を保存すること
-8. テキストが非常に長い場合は、Taskツールで分割処理してから統合すること
+5. 前置きや説明文は一切不要。分析結果のみをそのまま標準出力に出力
+6. 入力ファイルをReadツールで読み込むこと。ファイルが長い場合（2000行超）は、offsetとlimitを使って複数回に分けて全文を読み込むこと
+7. ファイルへの書き込みは不要。分析結果をそのまま出力すること
+8. テキストが非常に長い場合でも、全文を読み込んでから分析し、最終結果のみを出力すること
 9. 「言及されている全ての関連研究との相違点」では、論文内で言及された全ての先行研究を列挙すること"""
 
         print(f"    Claude Code 実行中...")
@@ -631,14 +737,14 @@ def _generate_novelty_via_claude_code(full_text: str, pdf_id: str, output_path: 
             print(f"    [ERROR] Claude Code 実行失敗: {output}")
             return f"[分析エラー: Claude Code実行失敗 - {output}]"
 
-        if output_path.exists():
-            result = output_path.read_text(encoding='utf-8')
-            result = _validate_and_fix_novelty_format(result)
+        # stdoutから結果を取得してフォーマット検証・修正
+        if output and output.strip():
+            result = _validate_and_fix_novelty_format(output.strip())
             print(f"    [OK] 分析生成完了（{len(result):,}文字）")
             return result
         else:
-            print(f"    [ERROR] 出力ファイルが生成されませんでした")
-            return f"[分析エラー: 出力ファイル未生成]\nClaude Code出力: {output[:500]}"
+            print(f"    [ERROR] Claude Codeから出力が得られませんでした")
+            return f"[分析エラー: 出力なし]"
 
 
 def _validate_and_fix_novelty_format(text: str) -> str:
@@ -898,37 +1004,82 @@ def main():
 
     args = parser.parse_args()
 
-    # PDF IDが指定されていない場合
+    # PDF IDが指定されていない場合 → memo未生成のPDFを自動処理
     if not args.pdf_ids:
-        print("[ERROR] PDF IDを指定してください")
-        print("使用方法: python paper_translate.py {pdf_id} [--start N] [--end M]")
-        print("\n利用可能なPDF:")
+        unprocessed = get_unprocessed_pdfs()
 
-        # PDFリストを表示（最新10件）
-        pdf_files = sorted(PDFS_DIR.glob("*.pdf"), key=lambda x: x.stat().st_mtime, reverse=True)[:10]
-        for pdf_file in pdf_files:
-            pdf_id = pdf_file.stem
+        if not unprocessed:
+            print("[INFO] 全てのPDFは処理済みです（memo生成完了）")
+            print(f"  PDF総数: {len(list(PDFS_DIR.glob('*.pdf')))}件")
+            sys.exit(0)
+
+        total_count = len(unprocessed)
+        print(f"[INFO] memo未生成のPDF: {total_count}件")
+        print(f"[INFO] 自動処理を開始します...")
+
+        # Slack: 開始通知
+        _send_slack_notification(f"【論文翻訳開始】memo未生成 {total_count}件 の処理を開始します")
+
+        success_count = 0
+        fail_count = 0
+
+        for idx, pdf_id in enumerate(unprocessed, 1):
+            print(f"\n{'='*60}")
+            print(f"[{idx}/{total_count}] 処理開始: {pdf_id[:32]}...")
+            print(f"{'='*60}")
+
+            success = process_pdf(
+                pdf_id=pdf_id,
+                start_page=args.start,
+                end_page=args.end,
+                no_translate=args.no_translate,
+                dry_run=args.dry_run,
+                style=args.style
+            )
+
+            if success:
+                success_count += 1
+                status = "成功"
+            else:
+                fail_count += 1
+                status = "失敗"
+
+            # Slack: 各処理完了通知
+            # memoから論文タイトルを取得
             memo_path = MEMO_DIR / f"{pdf_id}.txt"
-            title = "(タイトル不明)"
+            title = pdf_id[:20] + "..."
             if memo_path.exists():
                 with open(memo_path, 'r', encoding='utf-8') as f:
                     first_line = f.readline().strip()
-                    # #で始まる場合は除去、そうでなければそのまま使用
-                    title = first_line.lstrip('#').strip() if first_line else "(タイトル不明)"
-            print(f"  {pdf_id[:16]}...: {title[:50]}")
+                    title = first_line.lstrip('#').strip()[:40] if first_line else title
 
-        sys.exit(1)
+            _send_slack_notification(
+                f"【論文翻訳 {idx}/{total_count}】{status}\n{title}"
+            )
 
-    # 各PDF IDを処理
+        # Slack: 完了通知
+        _send_slack_notification(
+            f"【論文翻訳完了】全{total_count}件完了\n成功: {success_count}件 / 失敗: {fail_count}件"
+        )
+
+        # サマリー
+        print(f"\n{'='*60}")
+        print(f"自動処理完了: 成功 {success_count}, 失敗 {fail_count} / 全{total_count}件")
+        print(f"{'='*60}")
+
+        sys.exit(0 if fail_count == 0 else 1)
+
+    # 各PDF IDを処理（ID指定あり）
     success_count = 0
     fail_count = 0
+    total_count = len(args.pdf_ids)
 
-    for pdf_id in args.pdf_ids:
+    for idx, pdf_id in enumerate(args.pdf_ids, 1):
         # .pdf 拡張子を除去
         pdf_id = pdf_id.replace('.pdf', '')
 
         print(f"\n{'='*60}")
-        print(f"処理開始: {pdf_id}")
+        print(f"[{idx}/{total_count}] 処理開始: {pdf_id}")
         print(f"{'='*60}")
 
         success = process_pdf(

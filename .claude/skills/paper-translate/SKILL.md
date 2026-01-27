@@ -62,7 +62,21 @@ $PAPER_DIR/
 
 ## 実行方法
 
-### 基本実行
+### 自動処理（ID指定なし） - 推奨
+
+```bash
+cd /path/to/your/paper-project
+source ~/.claude/lib/load_env.sh
+run_python ~/.claude/skills/paper-translate/paper_translate.py
+```
+
+**ID指定なしで実行すると:**
+- memo未生成のPDFを自動検出
+- 全て順番に処理
+- 各処理完了時にSlack通知（「1/5件目完了」など）
+- 全完了時にも最終通知
+
+### 特定IDを処理
 
 ```bash
 cd /path/to/your/paper-project
@@ -210,9 +224,12 @@ run_python ~/.claude/skills/paper-translate/paper_translate.py {pdf_id} --style 
 1. 一時ファイルに論文全文を保存
 2. Claude Codeを非対話モード（`claude -p`）で起動
 3. Claude CodeがReadツールでファイルを読み込み
-4. 必要に応じてTaskツールで分割処理
-5. Writeツールで結果を出力ファイルに保存
+4. 分析結果を標準出力（stdout）に出力
+5. Python側でstdoutを受け取り、ファイルに書き込み
 6. 一時ファイルは処理後に自動削除（コンテキストマネージャで確実にクリーンアップ）
+
+**注意**: `claude -p` は非対話モードのため、Writeツールの許可を求めるUIがありません。
+そのため、ファイル書き込みはClaude Codeではなく、Python側で行います。
 
 ## 注意事項
 
@@ -227,6 +244,7 @@ run_python ~/.claude/skills/paper-translate/paper_translate.py {pdf_id} --style 
 
 ## バージョン履歴
 
+- 2025-01-27 v2.2: ID指定なし実行時の自動処理機能を追加。memo未生成のPDFを自動検出し順次処理。各処理完了時にSlack通知（進捗表示）。Claude Code委譲時のWriteツール権限エラーを修正（stdout経由でPython側書き込みに変更）。
 - 2025-12-11 v2.1: 翻訳スタイル機能を追加。関西弁モード（kansai）をデフォルトとし、素人でもわかりやすい解説スタイルで翻訳。標準語モード（standard）も選択可能。`--style`オプションで切り替え。
 - 2025-12-10 v2.0: 長文処理をClaude Code委譲方式に変更。チャンク分割・統合ロジックを廃止し、Claude Codeの自律的なタスク分割能力を活用。一時ファイル管理をコンテキストマネージャで確実にクリーンアップ。summary/とsummary2/のフォーマットを厳格化（バリデーション・自動修正機能追加）。
 - 2024-12-09 v1.2: フルパスを環境変数方式に変更（GitHub公開対応）
