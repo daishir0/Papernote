@@ -3153,6 +3153,133 @@ def api_search_papers():
         }), 500
 
 
+# API 10: 画像アップロード
+@app.route('/api/images', methods=['POST'])
+@require_api_key
+@limiter.limit("30 per minute")
+@csrf.exempt
+def api_upload_image():
+    """
+    画像をアップロードし、SHA256ハッシュでリネームし、サムネイルを生成
+    レスポンス: Markdown形式のURL
+    """
+    # 対応フォーマット
+    ALLOWED_IMAGE_FORMATS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+    if 'file' not in request.files:
+        return jsonify({
+            "status": "error",
+            "message": "No file part in request"
+        }), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({
+            "status": "error",
+            "message": "No selected file"
+        }), 400
+
+    # ファイル拡張子チェック
+    original_filename = file.filename
+    ext = original_filename.rsplit('.', 1)[-1].lower() if '.' in original_filename else ''
+    if ext not in ALLOWED_IMAGE_FORMATS:
+        return jsonify({
+            "status": "error",
+            "message": f"Invalid image format. Supported: {', '.join(sorted(ALLOWED_IMAGE_FORMATS)).upper()}"
+        }), 400
+
+    try:
+        # ファイルコンテンツを読み込む
+        file_content = file.read()
+
+        # ファイルサイズチェック
+        if len(file_content) > MAX_FILE_SIZE:
+            return jsonify({
+                "status": "error",
+                "message": f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB"
+            }), 413
+
+        # SHA256ハッシュ計算
+        file_hash = hashlib.sha256(file_content).hexdigest()
+
+        # 新しいファイル名
+        new_filename = f"{file_hash}.{ext}"
+        thumbnail_filename = f"s_{file_hash}.{ext}"
+
+        # 保存先パス
+        attach_dir = './attach'
+        file_path = os.path.join(attach_dir, new_filename)
+        thumbnail_path = os.path.join(attach_dir, thumbnail_filename)
+
+        # 同一ハッシュのファイルが既に存在する場合はスキップ
+        if not os.path.exists(file_path):
+            # 元画像を保存
+            with open(file_path, 'wb') as f:
+                f.write(file_content)
+
+            # サムネイル生成（500x500）
+            try:
+                from io import BytesIO
+                img = Image.open(BytesIO(file_content))
+
+                # EXIF情報に基づいて画像を回転
+                try:
+                    for orientation in ExifTags.TAGS.keys():
+                        if ExifTags.TAGS[orientation] == 'Orientation':
+                            break
+                    exif = img._getexif()
+                    if exif is not None:
+                        exif_orientation = exif.get(orientation, 1)
+                        if exif_orientation == 3:
+                            img = img.rotate(180, expand=True)
+                        elif exif_orientation == 6:
+                            img = img.rotate(270, expand=True)
+                        elif exif_orientation == 8:
+                            img = img.rotate(90, expand=True)
+                except:
+                    pass
+
+                # サムネイル生成
+                img.thumbnail((500, 500), Image.Resampling.LANCZOS)
+
+                # 透明度対応（PNG/GIF以外はRGBに変換）
+                if ext in {'jpg', 'jpeg', 'webp'}:
+                    if img.mode in ('RGBA', 'LA', 'P'):
+                        img = img.convert('RGB')
+
+                # サムネイル保存
+                img.save(thumbnail_path, quality=85, optimize=True)
+
+            except Exception as e:
+                app.logger.error(f"Error generating thumbnail: {str(e)}")
+                # サムネイル生成に失敗しても元画像は保持
+                thumbnail_filename = new_filename
+
+        # Markdown形式のURL生成
+        markdown_url = f"[![{original_filename}](/attach/{thumbnail_filename})](/attach/{new_filename})"
+
+        app.logger.info(f"API: Uploaded image {original_filename} as {new_filename}")
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "filename": new_filename,
+                "thumbnail": thumbnail_filename,
+                "markdown_url": markdown_url,
+                "original_name": original_filename
+            }
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error uploading image: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+
 if __name__ == "__main__":
     # ユーザー情報のハッシュ化
     for user_id, user in config['users'].items():

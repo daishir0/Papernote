@@ -81,3 +81,5 @@ tmp/*
 .tmp/*
 
 gomi/
+.kiro/
+CLAUDE.md
