@@ -400,7 +400,79 @@ A: 1分間に60リクエストを超えています。リクエスト間隔を�
 
 ---
 
+## 論文API
+
+### 論文アップロード
+
+PDFファイルをアップロードし、バックグラウンドで処理（テキスト抽出など）を開始します。
+
+**エンドポイント:** `POST /api/papers`
+
+**リクエストヘッダー:**
+```
+Authorization: Bearer {API_KEY}
+Content-Type: multipart/form-data
+```
+
+**リクエストボディ:**
+- `file`: PDFファイル（必須）
+
+**レスポンス（成功）:**
+```json
+{
+  "status": "accepted",
+  "message": "Upload successful. Processing started.",
+  "data": {
+    "pdf_id": "abc123def456...",
+    "original_filename": "論文タイトル.pdf",
+    "is_new": true
+  }
+}
+```
+
+**HTTPステータスコード:** `202 Accepted`
+
+**curlコマンド例:**
+```bash
+curl -X POST "https://paper.path-finder.jp/api/papers" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@./論文.pdf"
+```
+
+**Pythonコード例:**
+```python
+import requests
+
+response = requests.post(
+    "https://paper.path-finder.jp/api/papers",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+    files={"file": open("論文.pdf", "rb")}
+)
+result = response.json()
+print(f"PDF ID: {result['data']['pdf_id']}")
+```
+
+**エラーレスポンス:**
+
+| HTTPステータス | 説明 | レスポンス例 |
+|---|---|---|
+| 400 Bad Request | ファイルなし、またはPDF以外 | `{"status": "error", "message": "Only PDF files are allowed"}` |
+| 401 Unauthorized | API Key認証失敗 | `{"status": "error", "message": "Invalid API key"}` |
+| 429 Too Many Requests | レート制限超過（30/分） | Flask-Limiterのデフォルトレスポンス |
+| 500 Internal Server Error | サーバーエラー | `{"status": "error", "message": "Internal server error"}` |
+
+**備考:**
+- 同一ファイル（SHA256ハッシュが一致）は重複保存されません
+- `is_new: false` の場合、ファイルは既に存在していたことを示します
+- 処理完了の確認は `GET /api/papers/{pdf_id}` で行えます
+
+---
+
 ## 変更履歴
+
+### 2026-01-31
+- 論文アップロードAPI（`POST /api/papers`）を追加
+- Web UI改善: ドロップ即処理開始に変更
 
 ### 2025-11-11
 - 初版リリース

@@ -20,11 +20,20 @@
             padding: 20px;
             text-align: center;
         }
+        #drop-area.highlight {
+            border-color: #007bff;
+            background-color: #e7f3ff;
+        }
         .button {
             cursor: pointer;
         }
         #loading {
             display: none;
+        }
+        #progress {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
         }
     </style>
     <!-- 他のメタタグ -->
@@ -32,7 +41,7 @@
 </head>
 <body>
     <div class="container mt-5">
-        <a href="/"><< 一覧へ</a>
+        <a href="/"><<</a>
         <div id="drop-area" class="mb-3">
             <form class="my-form">
                 <p>PDFファイルをドロップするか、クリックして選択してください</p>
@@ -40,10 +49,11 @@
                 <label class="button btn btn-primary" for="fileElem">ファイルを選択</label>
             </form>
         </div>
-        <div id="loading">アップロード中...</div>
-        <div id="message" class="alert"></div>
-        <button id="summarizeButton" class="btn btn-success">処理を開始</button>
-        <div id="summarizeResult" class="mt-3"></div>
+        <div id="loading">
+            <span>アップロード中...</span>
+            <div id="progress"></div>
+        </div>
+        <div id="message" class="alert" style="display: none;"></div>
     </div>
 
     <!-- Bootstrap JavaScript -->
@@ -54,33 +64,8 @@
     <script>
         let dropArea = document.getElementById('drop-area');
         let loading = document.getElementById('loading');
+        let progress = document.getElementById('progress');
         let message = document.getElementById('message');
-        let summarizeButton = document.getElementById('summarizeButton');
-        let summarizeResult = document.getElementById('summarizeResult');
-
-        summarizeButton.style.display = 'block';
-        summarizeButton.addEventListener('click', function() {
-            fetch('/cleantextize')
-            .then(response => response.json())
-            .then(data => {
-                if (data.target_files && data.target_files.length > 0) {
-                    // ターゲットファイルがある場合
-                    let filesList = data.target_files.join(', ');
-                    message.classList.add('alert-success');
-                    <!-- message.textContent = '以下のファイルの要約処理を開始しました: <br>' + filesList; -->
-                    message.textContent = '処理を開始しました'; 
-                } else {
-                    // ターゲットファイルがない場合
-                    message.classList.add('alert-info');
-                    message.textContent = '処理完了です。';
-                }
-            })
-            .catch(error => {
-                message.classList.add('alert-danger');
-                message.textContent = '処理中にエラーが発生しました。';
-            });
-        });
-
 
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, preventDefaults, false);
@@ -112,48 +97,101 @@
         function handleDrop(e) {
             let dt = e.dataTransfer;
             let files = dt.files;
-
             handleFiles(files);
         }
 
-        function handleFiles(files) {
-            ([...files]).forEach(uploadFile);
-        }
+        // 全ファイルアップロード完了を待ってから処理開始
+        async function handleFiles(files) {
+            const fileArray = [...files];
+            const total = fileArray.length;
+            let completed = 0;
+            let successCount = 0;
 
-        function uploadFile(file) {
-            let url = '/upload';
-            let formData = new FormData();
-
-            formData.append('file', file);
-            
-            // CSRFトークンを追加（存在する場合のみ）
-            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-            const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
-            
-            if (csrfToken) {
-                formData.append('csrf_token', csrfToken);
-            }
+            if (total === 0) return;
 
             loading.style.display = 'block';
-            fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
-            })
-            .then(response => {
-                loading.style.display = 'none';
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    throw new Error('アップロードに失敗しました。');
+            message.style.display = 'none';
+            progress.textContent = `0 / ${total} ファイル`;
+
+            // 全ファイルを順次アップロード
+            for (const file of fileArray) {
+                try {
+                    const success = await uploadFile(file);
+                    if (success) successCount++;
+                } catch (error) {
+                    console.error(`Error uploading ${file.name}:`, error);
                 }
-            })
-            .then(data => {
-                message.textContent = data.message || 'ファイルがアップロードされました。';
-            })
-            .catch((error) => {
+                completed++;
+                progress.textContent = `${completed} / ${total} ファイル`;
+            }
+
+            // 全アップロード完了後、処理開始
+            if (successCount > 0) {
+                progress.textContent = `${successCount} / ${total} ファイル完了。処理を開始中...`;
+
+                try {
+                    const response = await fetch('/cleantextize');
+                    const data = await response.json();
+
+                    loading.style.display = 'none';
+                    message.style.display = 'block';
+                    message.classList.remove('alert-danger', 'alert-info');
+                    message.classList.add('alert-success');
+                    message.textContent = `${successCount}件のアップロードと処理開始が完了しました。`;
+                } catch (error) {
+                    loading.style.display = 'none';
+                    message.style.display = 'block';
+                    message.classList.remove('alert-success', 'alert-info');
+                    message.classList.add('alert-danger');
+                    message.textContent = '処理開始中にエラーが発生しました。';
+                }
+            } else {
                 loading.style.display = 'none';
-                message.textContent = error.message || 'アップロード中にエラーが発生しました。';
+                message.style.display = 'block';
+                message.classList.remove('alert-success', 'alert-info');
+                message.classList.add('alert-danger');
+                message.textContent = 'アップロードに失敗しました。';
+            }
+
+            // ファイル選択をリセット
+            document.getElementById('fileElem').value = '';
+        }
+
+        // 単一ファイルアップロード（Promiseを返す）
+        function uploadFile(file) {
+            return new Promise((resolve, reject) => {
+                let url = '/upload';
+                let formData = new FormData();
+
+                formData.append('file', file);
+
+                // CSRFトークンを追加
+                const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : null;
+
+                if (csrfToken) {
+                    formData.append('csrf_token', csrfToken);
+                }
+
+                fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        throw new Error('アップロードに失敗しました。');
+                    }
+                })
+                .then(data => {
+                    resolve(true);
+                })
+                .catch((error) => {
+                    console.error(error);
+                    resolve(false);  // エラーでも処理は続行
+                });
             });
         }
     </script>

@@ -2806,6 +2806,126 @@ def _get_posts_flat_by_date(authenticated, search_query=None):
 # Paper APIs (論文管理API)
 # ============================================
 
+# 単一PDFの処理（cleantextize + その他）
+def process_single_pdf(pdf_id):
+    """単一PDFに対してcleantextize処理を実行"""
+    try:
+        pdf_path = os.path.join('./pdfs', f"{pdf_id}.pdf")
+        clean_text_dir = './clean_text'
+        success = pdf_to_cleantext(pdf_path, clean_text_dir)
+        if success:
+            print(f"[API] cleantextize completed for: {pdf_id}")
+        else:
+            print(f"[API] cleantextize failed for: {pdf_id}")
+        return success
+    except Exception as e:
+        print(f"[API] Error processing {pdf_id}: {str(e)}")
+        return False
+
+# API: 論文アップロード（PDFアップロード + 処理開始）
+@app.route('/api/papers', methods=['POST'])
+@require_api_key
+@limiter.limit("30 per minute")
+@csrf.exempt
+def api_upload_paper():
+    """
+    PDFをアップロードし、バックグラウンドで処理を開始
+
+    リクエスト: multipart/form-data
+      - file: PDFファイル
+
+    レスポンス:
+      - 202 Accepted: アップロード成功、処理開始
+      - 400 Bad Request: ファイルなし、不正なファイル形式
+      - 409 Conflict: 同一ファイルが既に存在
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                "status": "error",
+                "message": "No file provided"
+            }), 400
+
+        file = request.files['file']
+        original_filename = file.filename
+
+        if original_filename == '':
+            return jsonify({
+                "status": "error",
+                "message": "No file selected"
+            }), 400
+
+        if not original_filename.lower().endswith('.pdf'):
+            return jsonify({
+                "status": "error",
+                "message": "Only PDF files are allowed"
+            }), 400
+
+        # SHA256ハッシュでファイル名生成
+        file.stream.seek(0)
+        file_hash = calculate_sha256(file.stream)
+        file.stream.seek(0)
+
+        pdf_id = file_hash
+        filename = f"{file_hash}.pdf"
+        save_path = os.path.join('./pdfs', filename)
+
+        is_new_file = not os.path.exists(save_path)
+
+        if is_new_file:
+            # 新規ファイル: 保存
+            file.save(save_path)
+
+            # Twitter Card画像生成
+            output_dir = Path('./static/tw')
+            output_dir.mkdir(parents=True, exist_ok=True)
+            pdf_to_twitter_card(Path(save_path), output_dir)
+
+            # memoファイル作成
+            memo_path = os.path.join('./memo', f"{file_hash}.txt")
+            if not os.path.exists(memo_path):
+                with open(memo_path, 'w') as memo_file:
+                    memo_file.write(original_filename + '\n')
+
+            # バックグラウンドで処理開始
+            thread = threading.Thread(target=process_single_pdf, args=(pdf_id,))
+            thread.start()
+
+            app.logger.info(f"[API] New paper uploaded: {pdf_id}")
+
+            return jsonify({
+                "status": "accepted",
+                "message": "Upload successful. Processing started.",
+                "data": {
+                    "pdf_id": pdf_id,
+                    "original_filename": original_filename,
+                    "is_new": True
+                }
+            }), 202
+        else:
+            # 既存ファイル: 処理のみ開始（clean_textがなければ）
+            clean_text_path = os.path.join('./clean_text', f"{file_hash}.txt")
+            if not os.path.exists(clean_text_path):
+                thread = threading.Thread(target=process_single_pdf, args=(pdf_id,))
+                thread.start()
+
+            return jsonify({
+                "status": "accepted",
+                "message": "File already exists. Processing started if needed.",
+                "data": {
+                    "pdf_id": pdf_id,
+                    "original_filename": original_filename,
+                    "is_new": False
+                }
+            }), 202
+
+    except Exception as e:
+        app.logger.error(f"[API] Error uploading paper: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
 # API 7: 論文一覧取得
 @app.route('/api/papers', methods=['GET'])
 @require_api_key
