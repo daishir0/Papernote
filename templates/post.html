@@ -200,7 +200,7 @@
         }
     </style>
 </head>
-<body>
+<body data-filename="{{ content.filename }}" data-claude-code-url="{{ claude_code_url }}">
 
 <div class="post-header">
     <a id="back-to-index" class="none_print" href="/postlist"><<</a>
@@ -235,6 +235,9 @@
         {% if current_user.is_authenticated %}
         <button id="switchPageButton" class="btn btn-primary btn-sm none_print" title="他のページへ移動 (Ctrl+K)">
             <i class="fas fa-arrow-right-arrow-left"></i>
+        </button>
+        <button id="ccButton" class="btn btn-primary btn-sm none_print" title="Claude Code">
+            <i class="fas fa-bolt"></i>
         </button>
         <button class="btn btn-success btn-sm none_print" onclick="editPost('{{ content.filename }}')">
             <i class="fas fa-edit"></i>
@@ -1108,6 +1111,21 @@
             });
         });
     })();
+
+    // Claude Codeボタン
+    const ccButton = document.getElementById('ccButton');
+    if (ccButton) {
+        ccButton.addEventListener('click', function() {
+            const filename = document.body.dataset.filename;
+            const baseUrl = document.body.dataset.claudeCodeUrl;
+            if (baseUrl) {
+                const url = baseUrl + '?papernote=' + encodeURIComponent(filename);
+                window.open(url, '_blank');
+            } else {
+                alert('Claude Code URLが設定されていません');
+            }
+        });
+    }
 </script>
 </body>
 </html>
