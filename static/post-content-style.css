@@ -177,7 +177,7 @@ h1, h2, h3, h4, h5, h6 {
     .main-content {
         width: 100% !important; /* !importantを追加して優先度を上げる */
         height: auto; /* 解決策2: 高さの制限を解除 */
-        order: 1; /* 解決策3: 表示順序を変更（上に表示） */
+        order: 2; /* メインコンテンツを下に表示 */
         transition: none; /* スマホ表示時はアニメーションを無効化 */
     }
     .index-container {
@@ -185,7 +185,7 @@ h1, h2, h3, h4, h5, h6 {
         position: relative;
         top: 0;
         margin-bottom: 20px;
-        order: 2; /* 解決策3: 表示順序を変更（下に表示） */
+        order: 1; /* 目次を上に表示 */
     }
     #index-content {
         display: none; /* スマホ表示時にデフォルトで非表示 */

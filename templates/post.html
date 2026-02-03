@@ -319,21 +319,14 @@
 <script src="/static/slideshow.js"></script>
 
 <script>
-    // デバッグ用のログ
-    console.log('スクリプトが読み込まれました');
-    
-    // DOMContentLoadedイベントが発火したことを確認
     // グローバル変数の定義
     let isMobile = false;
     let tocVisible = true;
     let allCodesOpen = false;
-    
+
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOMContentLoadedイベントが発火しました');
-        
         // モバイル判定
         isMobile = window.innerWidth <= 991;
-        console.log('isMobile:', isMobile);
     });
     
     document.addEventListener('keydown', function(event) {
@@ -415,7 +408,6 @@
             if (typeof href === 'object' && href !== null) {
                 href = href.href || 'default-image-path.jpg';
             } else if (typeof href !== 'string') {
-                console.error('Invalid href:', href);
                 href = 'default-image-path.jpg';
             }
             text = text || 'image';
@@ -452,7 +444,11 @@
         const index = document.getElementById('index');
         const indexList = index.querySelector('ul');
         const toggleAllCodesButton = document.getElementById('toggle-all-codes');
-        const headings = document.querySelectorAll('#content h1, #content h2, #content h3, #content h4, #content h5, #content h6');
+        // 目次対象の見出しレベル（必要に応じて変更可能）
+        const headings = document.querySelectorAll('#content h1');
+        // const headings = document.querySelectorAll('#content h1, #content h2');
+        // const headings = document.querySelectorAll('#content h1, #content h2, #content h3');
+        // const headings = document.querySelectorAll('#content h1, #content h2, #content h3, #content h4, #content h5, #content h6');
 
         // インデックスのリストアイテムを追加
         if (headings.length === 0) {
@@ -473,38 +469,32 @@
                 
                 // 目次内のリンクにクリックイベントを追加（モバイル表示時のみ動作）
                 link.addEventListener('click', function(e) {
-                    // クリック時にisMobileの値を確認
-                    if (window.innerWidth <= 991) { // 現在のウィンドウ幅で判定
+                    // クリック時にウィンドウ幅で判定
+                    if (window.innerWidth <= 991) {
                         // 通常のリンク動作は維持しつつ、目次を非表示にする
                         setTimeout(function() {
-                            console.log('目次内リンクがクリックされました');
-                            try {
-                                // 目次を非表示にする
-                                if (indexContent) {
-                                    $(indexContent).slideUp();
-                                }
-                                if (toggleIcon) {
-                                    toggleIcon.textContent = '▲';
-                                }
-                                
-                                // 目次ボタンのアイコンも更新
-                                if (tocIcon) {
-                                    tocIcon.textContent = '▲';
-                                }
-                                
-                                // 目次の表示状態を更新
-                                tocVisible = false;
-                                
-                                // content-wrapperにtoc-hiddenクラスを追加（この処理を追加）
-                                const contentWrapper = document.querySelector('.content-wrapper');
-                                if (contentWrapper) {
-                                    contentWrapper.classList.add('toc-hidden');
-                                    console.log('目次内リンククリック時: content-wrapperにtoc-hiddenクラスを追加しました');
-                                }
-                            } catch (error) {
-                                console.error('目次内リンクのクリックイベントでエラーが発生しました:', error);
+                            // 目次を非表示にする
+                            if (indexContent) {
+                                $(indexContent).slideUp();
                             }
-                        }, 100); // 少し遅延させて、リンクのジャンプ後に実行
+                            if (toggleIcon) {
+                                toggleIcon.textContent = '▲';
+                            }
+
+                            // 目次ボタンのアイコンも更新
+                            if (tocIcon) {
+                                tocIcon.textContent = '▲';
+                            }
+
+                            // 目次の表示状態を更新
+                            tocVisible = false;
+
+                            // content-wrapperにtoc-hiddenクラスを追加
+                            const contentWrapper = document.querySelector('.content-wrapper');
+                            if (contentWrapper) {
+                                contentWrapper.classList.add('toc-hidden');
+                            }
+                        }, 100);
                     }
                 });
                 
@@ -515,44 +505,25 @@
 
 
         // Codeボタンの機能
-        console.log('Codeボタンの設定を開始します');
-        console.log('toggleAllCodesButton:', toggleAllCodesButton);
-        
-        // toggleAllCodesButtonが存在するか確認してからイベントリスナーを追加
         if (toggleAllCodesButton) {
-            console.log('Codeボタンにイベントリスナーを追加します');
-            
-            // 明示的にクリックイベントを設定
             toggleAllCodesButton.onclick = function() {
-                console.log('Codeボタンがクリックされました');
-                try {
-                    const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
-                    console.log('コードブロック数:', codeBlocks.length);
-                    
-                    if (allCodesOpen) {
-                        console.log('コードブロックを非表示にします');
-                        codeBlocks.forEach(codeBlock => {
-                            codeBlock.style.display = 'none';
-                        });
-                        allCodesOpen = false;
-                        toggleAllCodesButton.classList.add('collapsed');
-                    } else {
-                        console.log('コードブロックを表示します');
-                        codeBlocks.forEach(codeBlock => {
-                            codeBlock.style.display = 'block';
-                        });
-                        allCodesOpen = true;
-                        toggleAllCodesButton.classList.remove('collapsed');
-                    }
-                } catch (error) {
-                    console.error('Codeボタンのクリックイベントでエラーが発生しました:', error);
+                const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
+
+                if (allCodesOpen) {
+                    codeBlocks.forEach(codeBlock => {
+                        codeBlock.style.display = 'none';
+                    });
+                    allCodesOpen = false;
+                    toggleAllCodesButton.classList.add('collapsed');
+                } else {
+                    codeBlocks.forEach(codeBlock => {
+                        codeBlock.style.display = 'block';
+                    });
+                    allCodesOpen = true;
+                    toggleAllCodesButton.classList.remove('collapsed');
                 }
-                
-                // イベントの伝播を停止
                 return false;
             };
-        } else {
-            console.error('Codeボタン(#toggle-all-codes)が見つかりません');
         }
 
         // 目次の折りたたみ機能
@@ -588,169 +559,93 @@
         
         // 目次の表示/非表示を切り替える関数
         function toggleTableOfContents() {
-            console.log('toggleTableOfContents関数が呼び出されました');
-            console.log('現在の状態:', { tocVisible, isMobile });
-            
-            try {
-                if (isMobile) {
-                    // スマホ表示時の動作（完全に非表示）
-                    if (!tocVisible) {
-                        console.log('スマホ表示: 目次を表示します');
-                        if (indexContent) {
-                            indexContent.style.display = 'block';
-                            $(indexContent).slideDown();
-                        }
-                        if (toggleIcon) toggleIcon.textContent = '▼';
-                        if (tocIcon) tocIcon.textContent = '▼';
-                        tocVisible = true;
-                        
-                        // content-wrapperからtoc-hiddenクラスを削除（PC表示と同様）
-                        const contentWrapper = document.querySelector('.content-wrapper');
-                        if (contentWrapper) {
-                            contentWrapper.classList.remove('toc-hidden');
-                            console.log('content-wrapperからtoc-hiddenクラスを削除しました');
-                        }
-                    } else {
-                        console.log('スマホ表示: 目次を非表示にします');
-                        if (indexContent) {
-                            $(indexContent).slideUp(function() {
-                                indexContent.style.display = 'none';
-                            });
-                        }
-                        if (toggleIcon) toggleIcon.textContent = '▲';
-                        if (tocIcon) tocIcon.textContent = '▲';
-                        tocVisible = false;
-                        
-                        // content-wrapperにtoc-hiddenクラスを追加（PC表示と同様）
-                        const contentWrapper = document.querySelector('.content-wrapper');
-                        if (contentWrapper) {
-                            contentWrapper.classList.add('toc-hidden');
-                            console.log('content-wrapperにtoc-hiddenクラスを追加しました');
-                        }
+            const contentWrapper = document.querySelector('.content-wrapper');
+
+            if (isMobile) {
+                // スマホ表示時の動作
+                if (!tocVisible) {
+                    if (indexContent) {
+                        indexContent.style.display = 'block';
+                        $(indexContent).slideDown();
                     }
+                    if (toggleIcon) toggleIcon.textContent = '▼';
+                    if (tocIcon) tocIcon.textContent = '▼';
+                    tocVisible = true;
+                    if (contentWrapper) contentWrapper.classList.remove('toc-hidden');
                 } else {
-                    // PC表示時の動作
-                    if (!tocVisible) {
-                        console.log('PC表示: 目次を表示します');
-                        
-                        // content-wrapperからtoc-hiddenクラスを削除
-                        const contentWrapper = document.querySelector('.content-wrapper');
-                        if (contentWrapper) {
-                            contentWrapper.classList.remove('toc-hidden');
-                            console.log('content-wrapperからtoc-hiddenクラスを削除しました');
-                        }
-                        
-                        // 目次を表示
-                        if (indexContainer) {
-                            indexContainer.style.display = 'block';
-                            indexContainer.style.opacity = '1';
-                            indexContainer.style.visibility = 'visible';
-                        }
-                        
-                        // レイアウトの強制再計算を促す
-                        document.body.offsetHeight; // reflow
-                        
-                        if (mainContent) {
-                            // インラインスタイルをリセット
-                            mainContent.style.width = 'calc(100% - 250px)';
-                            mainContent.style.maxWidth = '';
-                            mainContent.style.flex = '1';
-                            console.log('メインコンテンツ幅を設定:', mainContent.style.width);
-                            
-                            // CSSクラスを削除
-                            mainContent.classList.remove('full-width');
-                            
-                            // もう一度レイアウトの再計算を促す
-                            mainContent.offsetHeight; // reflow
-                        }
-                        if (tocIcon) tocIcon.textContent = '▼';
-                        tocVisible = true;
-                    } else {
-                        console.log('PC表示: 目次を非表示にします');
-                        
-                        // content-wrapperにtoc-hiddenクラスを追加
-                        const contentWrapper = document.querySelector('.content-wrapper');
-                        if (contentWrapper) {
-                            contentWrapper.classList.add('toc-hidden');
-                            console.log('content-wrapperにtoc-hiddenクラスを追加しました');
-                        }
-                        
-                        // 目次を非表示 - アニメーション時間を短縮
-                        if (indexContainer) {
-                            indexContainer.style.opacity = '0';
-                            indexContainer.style.visibility = 'hidden';
-                            setTimeout(function() {
-                                if (indexContainer) indexContainer.style.display = 'none';
-                            }, 100); // 300msから100msに短縮
-                        }
-                        
-                        // レイアウトの強制再計算を促す
-                        document.body.offsetHeight; // reflow
-                        
-                        if (mainContent) {
-                            // インラインスタイルの設定方法を改善
-                            mainContent.style.width = '100%';
-                            mainContent.style.maxWidth = '100%';
-                            mainContent.style.flex = '1 1 100%';
-                            console.log('メインコンテンツ幅を100%に設定:', mainContent.style.width);
-                            
-                            // CSSクラスでも制御
-                            mainContent.classList.add('full-width');
-                            
-                            // もう一度レイアウトの再計算を促す
-                            mainContent.offsetHeight; // reflow
-                        }
-                        if (tocIcon) tocIcon.textContent = '▲';
-                        tocVisible = false;
+                    if (indexContent) {
+                        $(indexContent).slideUp(function() {
+                            indexContent.style.display = 'none';
+                        });
                     }
+                    if (toggleIcon) toggleIcon.textContent = '▲';
+                    if (tocIcon) tocIcon.textContent = '▲';
+                    tocVisible = false;
+                    if (contentWrapper) contentWrapper.classList.add('toc-hidden');
                 }
-            } catch (error) {
-                console.error('toggleTableOfContents関数でエラーが発生しました:', error);
+            } else {
+                // PC表示時の動作
+                if (!tocVisible) {
+                    if (contentWrapper) contentWrapper.classList.remove('toc-hidden');
+                    if (indexContainer) {
+                        indexContainer.style.display = 'block';
+                        indexContainer.style.opacity = '1';
+                        indexContainer.style.visibility = 'visible';
+                    }
+                    document.body.offsetHeight; // reflow
+                    if (mainContent) {
+                        mainContent.style.width = 'calc(100% - 250px)';
+                        mainContent.style.maxWidth = '';
+                        mainContent.style.flex = '1';
+                        mainContent.classList.remove('full-width');
+                        mainContent.offsetHeight; // reflow
+                    }
+                    if (toggleIcon) toggleIcon.textContent = '▼';
+                    if (tocIcon) tocIcon.textContent = '▼';
+                    tocVisible = true;
+                } else {
+                    if (contentWrapper) contentWrapper.classList.add('toc-hidden');
+                    if (indexContainer) {
+                        indexContainer.style.opacity = '0';
+                        indexContainer.style.visibility = 'hidden';
+                        setTimeout(function() {
+                            if (indexContainer) indexContainer.style.display = 'none';
+                        }, 100);
+                    }
+                    document.body.offsetHeight; // reflow
+                    if (mainContent) {
+                        mainContent.style.width = '100%';
+                        mainContent.style.maxWidth = '100%';
+                        mainContent.style.flex = '1 1 100%';
+                        mainContent.classList.add('full-width');
+                        mainContent.offsetHeight; // reflow
+                    }
+                    if (toggleIcon) toggleIcon.textContent = '▲';
+                    if (tocIcon) tocIcon.textContent = '▲';
+                    tocVisible = false;
+                }
             }
         }
         
-        // 目次タイトルクリック時のイベント
-        console.log('目次タイトルの設定を開始します');
-        console.log('toggleIndex:', toggleIndex);
-        
+        // 目次タイトルクリック時のイベント（PC・スマホ両対応）
         if (toggleIndex) {
-            console.log('目次タイトルにイベントリスナーを追加します');
-            
-            // 明示的にクリックイベントを設定
             toggleIndex.onclick = function() {
-                console.log('目次タイトルがクリックされました');
-                if (isMobile) {
-                    toggleTableOfContents();
-                }
-                return false;
-            };
-        } else {
-            console.error('目次タイトル(#toggle-index)が見つかりません');
-        }
-        
-        // 目次ボタンクリック時のイベント
-        console.log('目次ボタンの設定を開始します');
-        console.log('toggleToc:', toggleToc);
-        
-        if (toggleToc) {
-            console.log('目次ボタンにイベントリスナーを追加します');
-            
-            // 明示的にクリックイベントを設定
-            toggleToc.onclick = function() {
-                console.log('目次ボタンがクリックされました');
                 toggleTableOfContents();
                 return false;
             };
-        } else {
-            console.error('目次ボタン(#toggle-toc)が見つかりません');
         }
-        
-        // ウィンドウサイズ変更時の処理
+
+        // 目次ボタンクリック時のイベント
+        if (toggleToc) {
+            toggleToc.onclick = function() {
+                toggleTableOfContents();
+                return false;
+            };
+        }
+
+        // ウィンドウサイズ変更時の処理（リロードせずに状態を更新）
         window.addEventListener('resize', function() {
-            const newIsMobile = window.innerWidth <= 991;
-            if (newIsMobile !== isMobile) {
-                location.reload(); // モバイル/PCの切り替え時にページをリロード
-            }
+            isMobile = window.innerWidth <= 991;
         });
 
         index.appendChild(indexList);
