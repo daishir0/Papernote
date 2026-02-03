@@ -996,9 +996,14 @@
         }
 
         async function saveWithoutRedirect() {
+            const saveButton = document.getElementById('saveButton');
             const content = document.getElementById('content').value;
             const formData = new FormData();
             formData.append('content', content);
+
+            // 保存中: ボタンを無効化 + スピナー表示
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
             try {
                 const response = await fetch(window.location.href, {
@@ -1017,6 +1022,10 @@
             } catch (error) {
                 console.error('保存中にエラーが発生しました:', error);
                 showTemporaryMessage('保存失敗!');
+            } finally {
+                // 保存完了: ボタンを復元
+                saveButton.disabled = false;
+                saveButton.innerHTML = '<i class="fas fa-save"></i>';
             }
         }
 
