@@ -122,6 +122,40 @@
                 });
             }
 
+            // 削除ボタン
+            const deletePostButton = document.getElementById('deletePostButton');
+            if (deletePostButton) {
+                deletePostButton.addEventListener('click', () => {
+                    const filename = document.body.dataset.filename;
+                    if (confirm('本当にこの投稿を削除しますか？\n\nこの操作は元に戻せません。')) {
+                        fetch('/delete_post', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: 'filename=' + encodeURIComponent(filename)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.href = '/postlist';
+                            } else {
+                                alert('削除に失敗しました: ' + (data.error || '不明なエラー'));
+                            }
+                        })
+                        .catch(error => {
+                            alert('削除に失敗しました: ' + error.message);
+                        });
+                    }
+                    // オプションメニューを閉じる
+                    const insertOverlay = document.getElementById('insertOverlay');
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
+                });
+            }
+
             // ファイル名をコピーボタン
             const copyFilenameButton = document.getElementById('copyFilenameButton');
             if (copyFilenameButton) {
