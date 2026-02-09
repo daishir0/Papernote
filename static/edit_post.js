@@ -1260,7 +1260,7 @@
 (function() {
     const overlay = document.getElementById('switchPageOverlay');
     const pageList = document.getElementById('pageList');
-    const pageItems = pageList ? pageList.querySelectorAll('.page-item') : [];
+    let pageItems = [];  // 動的に更新されるページアイテム配列
     let selectedIndex = 0;
 
     // Ctrl+K でオーバーレイを開く
@@ -1272,9 +1272,116 @@
         }
     });
 
-    // オーバーレイを開く
-    function openSwitchPageOverlay() {
+    // HTMLエスケープ関数
+    function escapeHtmlForPageList(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ページリストを描画
+    function renderPageList(posts) {
+        pageList.innerHTML = '';
+        pageItems = [];
+
+        if (posts.length === 0) {
+            pageList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">他のページがありません</div>';
+            return;
+        }
+
+        posts.forEach((post, index) => {
+            const item = document.createElement('div');
+            item.className = 'page-item';
+            item.dataset.filename = post.filename;
+            item.dataset.index = index;
+
+            item.innerHTML = `
+                <div class="page-info">
+                    <div class="page-date">
+                        <i class="fas fa-clock"></i> ${escapeHtmlForPageList(post.date)}
+                    </div>
+                    <div class="page-title">${escapeHtmlForPageList(post.title)}</div>
+                    <div class="page-filename">${escapeHtmlForPageList(post.filename)}</div>
+                </div>
+                <div class="page-actions">
+                    <button class="btn-page-view" title="閲覧">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-page-edit" title="編集">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+            `;
+
+            // ホバーイベント
+            item.addEventListener('mouseenter', function() {
+                selectedIndex = index;
+                updateSelection();
+            });
+
+            // クリックイベント（Ctrl+クリック対応）
+            item.addEventListener('click', function(event) {
+                // page-actions内のボタンからのクリックは無視（ボタン側で処理）
+                if (event.target.closest('.page-actions')) {
+                    return;
+                }
+                const filename = item.dataset.filename;
+                // Ctrl+クリック または Cmd+クリック: 新しいタブで開く（モーダルは残す）
+                if (event.ctrlKey || event.metaKey) {
+                    event.preventDefault();
+                    navigateToPage(filename, true);
+                } else {
+                    // 通常クリック: 現在のタブで遷移（モーダルを閉じる）
+                    navigateToPage(filename, false);
+                }
+            });
+
+            // 閲覧ボタン
+            const viewButton = item.querySelector('.btn-page-view');
+            if (viewButton) {
+                viewButton.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    navigateToPage(post.filename, 'view', event);
+                });
+            }
+
+            // 編集ボタン
+            const editButton = item.querySelector('.btn-page-edit');
+            if (editButton) {
+                editButton.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    navigateToPage(post.filename, 'edit', event);
+                });
+            }
+
+            pageList.appendChild(item);
+            pageItems.push(item);
+        });
+    }
+
+    // オーバーレイを開く（非同期で最新データを取得）
+    async function openSwitchPageOverlay() {
+        // まずオーバーレイを表示（ローディング状態）
         overlay.style.display = 'flex';
+        pageList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</div>';
+
+        // サーバーから最新のページ一覧を取得
+        const currentFilename = document.body.dataset.filename;
+        try {
+            const response = await fetch(`/api/ui/recent_posts?exclude=${encodeURIComponent(currentFilename)}`, {
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+            if (response.ok) {
+                const posts = await response.json();
+                renderPageList(posts);
+            } else {
+                pageList.innerHTML = '<div style="padding: 20px; text-align: center; color: #f00;">ページリストの取得に失敗しました</div>';
+            }
+        } catch (error) {
+            console.error('ページリストの取得に失敗:', error);
+            pageList.innerHTML = '<div style="padding: 20px; text-align: center; color: #f00;">エラーが発生しました</div>';
+        }
+
         selectedIndex = 0;
         updateSelection();
 
@@ -1398,31 +1505,6 @@
         if (event.target === overlay) {
             closeSwitchPageOverlay();
         }
-    });
-
-    // マウスホバーで選択状態を変更
-    pageItems.forEach((item, index) => {
-        item.addEventListener('mouseenter', function() {
-            selectedIndex = index;
-            updateSelection();
-        });
-
-        // クリックイベント（Ctrl+クリック対応）
-        item.addEventListener('click', function(event) {
-            // page-actions内のボタンからのクリックは無視（ボタン側で処理）
-            if (event.target.closest('.page-actions')) {
-                return;
-            }
-            const filename = item.dataset.filename;
-            // Ctrl+クリック または Cmd+クリック: 新しいタブで開く（モーダルは残す）
-            if (event.ctrlKey || event.metaKey) {
-                event.preventDefault();
-                navigateToPage(filename, true);
-            } else {
-                // 通常クリック: 現在のタブで遷移（モーダルを閉じる）
-                navigateToPage(filename, false);
-            }
-        });
     });
 })();
 

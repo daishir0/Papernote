@@ -2010,6 +2010,15 @@ def get_relative_time(timestamp):
     years = diff.days // 365
     return f"{years}年前"
 
+@app.route('/api/ui/recent_posts', methods=['GET'])
+@login_required
+@limiter.limit("120 per minute")
+def api_ui_recent_posts():
+    """最新の投稿リストを取得（UI用）"""
+    exclude = request.args.get('exclude', None)
+    recent_posts = get_latest_posts(limit=20, exclude=exclude)
+    return jsonify(recent_posts)
+
 @app.route('/api/backups/<filename>', methods=['GET'])
 @login_required
 def get_backups(filename):
