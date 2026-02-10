@@ -233,6 +233,9 @@
         <button id="toggle-toc" class="btn btn-dark btn-sm none_print">目 <span class="toc-icon">▲</span></button>
         <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;...&gt;</button>
         {% if current_user.is_authenticated %}
+        <button id="copyFilenameButton" class="btn btn-primary btn-sm none_print" title="ファイル名をコピー">
+            <i class="fas fa-copy"></i>
+        </button>
         <button id="switchPageButton" class="btn btn-primary btn-sm none_print" title="他のページへ移動 (Ctrl+K)">
             <i class="fas fa-arrow-right-arrow-left"></i>
         </button>
@@ -1101,6 +1104,20 @@
             } else {
                 alert('Claude Code URLが設定されていません');
             }
+        });
+    }
+
+    // ファイル名をコピーボタン
+    const copyFilenameButton = document.getElementById('copyFilenameButton');
+    if (copyFilenameButton) {
+        copyFilenameButton.addEventListener('click', function() {
+            const filename = document.body.dataset.filename;
+            navigator.clipboard.writeText(filename).then(function() {
+                showTemporaryMessage('ファイル名をコピーしました！');
+            }).catch(function(err) {
+                console.error('コピーに失敗しました:', err);
+                showTemporaryMessage('コピーに失敗しました');
+            });
         });
     }
 </script>

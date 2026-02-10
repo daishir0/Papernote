@@ -156,7 +156,7 @@
                 });
             }
 
-            // ファイル名をコピーボタン
+            // ファイル名をコピーボタン（ツールバー）
             const copyFilenameButton = document.getElementById('copyFilenameButton');
             if (copyFilenameButton) {
                 copyFilenameButton.addEventListener('click', () => {
@@ -167,10 +167,6 @@
                         console.error('コピーに失敗しました:', err);
                         showTemporaryMessage('コピーに失敗しました');
                     });
-                    const insertOverlay = document.getElementById('insertOverlay');
-                    if (insertOverlay) {
-                        insertOverlay.style.display = 'none';
-                    }
                 });
             }
 
