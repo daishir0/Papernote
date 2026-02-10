@@ -1112,7 +1112,8 @@
     if (copyFilenameButton) {
         copyFilenameButton.addEventListener('click', function() {
             const filename = document.body.dataset.filename;
-            navigator.clipboard.writeText(filename).then(function() {
+            const copyText = ' Papernoteの ' + filename + ' ';
+            navigator.clipboard.writeText(copyText).then(function() {
                 showTemporaryMessage('ファイル名をコピーしました！');
             }).catch(function(err) {
                 console.error('コピーに失敗しました:', err);
