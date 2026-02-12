@@ -1183,6 +1183,37 @@ def postdata(filename):
     return markdown
 
 
+@app.route('/api/ui/postlist/preview/<filename>')
+@login_required
+@limiter.limit("300 per minute")
+@csrf.exempt
+def api_ui_postlist_preview(filename):
+    """メモのプレビュー（先頭200文字）を返す"""
+    if not is_valid_filename(filename):
+        abort(400)
+
+    path = os.path.join('./post', filename)
+    if not os.path.exists(path):
+        abort(404)
+
+    try:
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+            raw = f.read(1024)
+    except Exception:
+        abort(500)
+
+    lines = raw.split('\n')
+    body = '\n'.join(lines[2:]).strip() if len(lines) > 2 else ''
+
+    # 画像リンクのMarkdownパターンを除外
+    body = re.sub(r'!\[.*?\]\(/attach/.*?\)', '', body)
+    body = re.sub(r'\[.*?\]\(/attach/.*?\)', '', body)
+    body = body.strip()
+
+    preview = body[:200] if body else '(内容なし)'
+    return jsonify({'preview': preview})
+
+
 @app.route('/rename_post', methods=['POST'])
 @login_required
 def rename_post():

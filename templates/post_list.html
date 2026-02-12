@@ -319,6 +319,33 @@
             display: none;
         }
 
+        /* プレビューツールチップ */
+        .preview-tooltip {
+            position: fixed;
+            max-width: 360px;
+            padding: 10px 14px;
+            background: #1a1a2e;
+            color: #e8e8e8;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            z-index: 1080;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            white-space: pre-wrap;
+            word-break: break-word;
+            display: none;
+        }
+        .preview-tooltip.visible {
+            opacity: 1;
+            display: block;
+        }
+        @media (hover: none) {
+            .preview-tooltip { display: none !important; }
+        }
+
         /* 空状態 */
         .empty-message {
             text-align: center;
@@ -424,7 +451,7 @@
                 <div class="list-container" id="group-{{ group_key }}">
                     {% for file in files %}
                     <div class="list-item" data-filename="{{ file.filename }}">
-                        <div class="item-title" title="{{ file.filename }}">
+                        <div class="item-title">
                             <a href="{{ url_for('post', filename=file.filename) }}">{{ file.title }}</a>
                         </div>
                         <div class="item-date" title="{{ file.date }}">{{ file.relative_time }}</div>
@@ -474,6 +501,9 @@
             {% endif %}
         {% endfor %}
     </div>
+
+    <!-- Preview Tooltip -->
+    <div id="previewTooltip" class="preview-tooltip"></div>
 
     <!-- Rename Modal -->
     <div class="modal fade" id="renameModal" tabindex="-1">
@@ -850,7 +880,7 @@
 
             return `
                 <div class="list-item" data-filename="${escapeHtml(file.filename)}">
-                    <div class="item-title" title="${escapeHtml(file.filename)}">
+                    <div class="item-title">
                         <a href="/post/${encodeURIComponent(file.filename)}">${escapeHtml(file.title)}</a>
                     </div>
                     <div class="item-date" title="${escapeHtml(file.date)}">${escapeHtml(file.relative_time)}</div>
@@ -1068,6 +1098,122 @@
             }
             return null;
         }
+
+        // === プレビューツールチップ ===
+        (function() {
+            // タッチデバイスではスキップ
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) return;
+
+            var tooltip = document.getElementById('previewTooltip');
+            var hoverTimer = null;
+            var abortCtrl = null;
+            var previewCache = new Map();
+            var currentFilename = null;
+
+            function showTooltip(text, x, y) {
+                tooltip.textContent = text;
+                tooltip.classList.add('visible');
+                positionTooltip(x, y);
+            }
+
+            function hideTooltip() {
+                tooltip.classList.remove('visible');
+                currentFilename = null;
+            }
+
+            function positionTooltip(x, y) {
+                var vw = window.innerWidth;
+                var vh = window.innerHeight;
+                var rect = tooltip.getBoundingClientRect();
+                var left = x + 16;
+                var top = y + 16;
+
+                if (left + rect.width > vw - 8) left = x - rect.width - 8;
+                if (top + rect.height > vh - 8) top = y - rect.height - 8;
+                if (left < 8) left = 8;
+                if (top < 8) top = 8;
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+            }
+
+            function cancelPending() {
+                clearTimeout(hoverTimer);
+                hoverTimer = null;
+                if (abortCtrl) {
+                    abortCtrl.abort();
+                    abortCtrl = null;
+                }
+            }
+
+            $(document).on('mouseenter', '.list-item', function(e) {
+                var item = $(this);
+                var filename = item.data('filename');
+                if (!filename) return;
+
+                var startX = e.clientX, startY = e.clientY;
+
+                hoverTimer = setTimeout(function() {
+                    currentFilename = filename;
+
+                    // キャッシュヒット
+                    if (previewCache.has(filename)) {
+                        showTooltip(previewCache.get(filename), startX, startY);
+                        return;
+                    }
+
+                    // Loading表示
+                    showTooltip('読み込み中...', startX, startY);
+
+                    abortCtrl = new AbortController();
+                    fetch('/api/ui/postlist/preview/' + encodeURIComponent(filename), {
+                        signal: abortCtrl.signal
+                    })
+                    .then(function(res) {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.json();
+                    })
+                    .then(function(data) {
+                        var text = data.preview || '(内容なし)';
+                        previewCache.set(filename, text);
+                        // まだ同じアイテムにホバー中なら更新
+                        if (currentFilename === filename) {
+                            showTooltip(text, startX, startY);
+                        }
+                    })
+                    .catch(function(err) {
+                        if (err.name !== 'AbortError') {
+                            console.error('Preview fetch error:', err);
+                        }
+                    })
+                    .finally(function() {
+                        abortCtrl = null;
+                    });
+                }, 800);
+            });
+
+            $(document).on('mouseleave', '.list-item', function() {
+                cancelPending();
+                hideTooltip();
+            });
+
+            $(document).on('mousedown', '.list-item', function() {
+                cancelPending();
+                hideTooltip();
+            });
+
+            $(document).on('mousemove', '.list-item', function(e) {
+                if (tooltip.classList.contains('visible')) {
+                    positionTooltip(e.clientX, e.clientY);
+                }
+            });
+
+            // ドロップダウンメニューが開いたらツールチップを消す
+            $(document).on('show.bs.dropdown', function() {
+                cancelPending();
+                hideTooltip();
+            });
+        })();
 
         // スクロール位置復元
         window.onload = function() {
