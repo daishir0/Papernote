@@ -2190,6 +2190,16 @@ def api_create_post():
 
     content = data['content']
 
+    # 1行目が##で始まらない場合は##を付与（非公開にする）
+    first_line = content.split('\n')[0] if content else ''
+    if not first_line.startswith('##'):
+        if first_line.startswith('#'):
+            # #1個 → ##に修正
+            content = '#' + content
+        else:
+            # #0個 → ##を先頭に付与
+            content = '##' + content
+
     # ファイル名自動生成: [_]YYYYmmdd-HHMMSS.txt
     now = dt.datetime.now()
     filename = f"[_]{now.strftime('%Y%m%d-%H%M%S')}.txt"
