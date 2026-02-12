@@ -1211,7 +1211,7 @@ def rename_post():
 @login_required
 def add_post():
     date_string = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
-    filename = f"[__]{date_string}.txt"
+    filename = f"[_]{date_string}.txt"
     file_path = os.path.join('./post', filename)
     
     with open(file_path, 'w') as new_file:
