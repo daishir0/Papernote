@@ -430,8 +430,8 @@
                         <div class="item-date" title="{{ file.date }}">{{ file.relative_time }}</div>
                         {% if authenticated %}
                         <div class="item-actions">
-                            <button class="btn" title="コメント追加" onclick="openCommentModal('{{ file.filename }}')">
-                                <i class="fas fa-plus"></i>
+                            <button class="btn" title="ファイル名コピー" onclick="copyFilename('{{ file.filename }}')">
+                                <i class="fas fa-clipboard"></i>
                             </button>
                             <button class="btn" title="編集" onclick="editPost('{{ file.filename }}')">
                                 <i class="fas fa-edit"></i>
@@ -442,7 +442,10 @@
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
                                     <li><a class="dropdown-item" href="#" onclick="copyToClipboard('{{ file.filename }}'); return false;">
-                                        <i class="fas fa-clipboard"></i> コピー
+                                        <i class="fas fa-file-alt"></i> 本文コピー
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="openCommentModal('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-plus"></i> コメント追加
                                     </a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="#" onclick="renameFile('{{ file.filename }}'); return false;">
@@ -796,8 +799,8 @@
         function createListItem(file) {
             const actionsHtml = isAuthenticated ? `
                     <div class="item-actions">
-                        <button class="btn" title="コメント追加" onclick="openCommentModal('${escapeHtml(file.filename)}')">
-                            <i class="fas fa-plus"></i>
+                        <button class="btn" title="ファイル名コピー" onclick="copyFilename('${escapeHtml(file.filename)}')">
+                            <i class="fas fa-clipboard"></i>
                         </button>
                         <button class="btn" title="編集" onclick="editPost('${escapeHtml(file.filename)}')">
                             <i class="fas fa-edit"></i>
@@ -808,7 +811,10 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="#" onclick="copyToClipboard('${escapeHtml(file.filename)}'); return false;">
-                                    <i class="fas fa-clipboard"></i> コピー
+                                    <i class="fas fa-file-alt"></i> 本文コピー
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="openCommentModal('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-plus"></i> コメント追加
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="#" onclick="renameFile('${escapeHtml(file.filename)}'); return false;">
@@ -893,6 +899,17 @@
             $('#renameModal').on('shown.bs.modal', function() {
                 $('#newFilename').select();
             });
+        }
+
+        async function copyFilename(filename) {
+            try {
+                var copyText = ' Papernoteの ' + filename + ' ';
+                await navigator.clipboard.writeText(copyText);
+                showTemporaryMessage('ファイル名をコピーしました');
+            } catch (error) {
+                console.error('Copy failed:', error);
+                showTemporaryMessage('コピーに失敗しました');
+            }
         }
 
         async function copyToClipboard(filename) {
