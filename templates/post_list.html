@@ -753,35 +753,45 @@
             var header = $('#header-' + groupKey);
             var isLoaded = header.data('loaded') === true || header.data('loaded') === 'true';
 
-            // 未読み込みの場合は先にデータを取得
             if (!isLoaded) {
-                header.addClass('loading');
-
-                try {
-                    var response = await fetch('/api/ui/postlist/group?view=' + viewMode + '&group=' + encodeURIComponent(groupKey));
-                    if (!response.ok) throw new Error('Failed to fetch');
-
-                    var data = await response.json();
-                    if (data.status === 'success' && data.items) {
-                        appendItemsToGroup(groupKey, data.items);
-                        header.data('loaded', true);
-                        header.removeClass('not-loaded');
-                    }
-                } catch (error) {
-                    console.error('Load group error:', error);
-                    header.removeClass('loading');
-                    return;
+                await loadGroupData(groupKey);
+                if (!container.is(':visible')) {
+                    container.slideDown(200, function() {
+                        header.removeClass('collapsed');
+                        saveToggleState(groupKey, true);
+                    });
+                } else {
+                    saveToggleState(groupKey, true);
                 }
+            } else {
+                container.slideToggle(200, function() {
+                    var isVisible = container.is(':visible');
+                    header.toggleClass('collapsed', !isVisible);
+                    saveToggleState(groupKey, isVisible);
+                });
+            }
+        }
 
+        // データ読み込み専用（表示切り替えなし）
+        async function loadGroupData(groupKey) {
+            var header = $('#header-' + groupKey);
+            var isLoaded = header.data('loaded') === true || header.data('loaded') === 'true';
+            if (isLoaded) return;
+            header.addClass('loading');
+            try {
+                var response = await fetch('/api/ui/postlist/group?view=' + viewMode + '&group=' + encodeURIComponent(groupKey));
+                if (!response.ok) throw new Error('Failed to fetch');
+                var data = await response.json();
+                if (data.status === 'success' && data.items) {
+                    appendItemsToGroup(groupKey, data.items);
+                    header.data('loaded', true);
+                    header.removeClass('not-loaded');
+                }
+            } catch (error) {
+                console.error('Load group data error:', error);
+            } finally {
                 header.removeClass('loading');
             }
-
-            // 表示切り替え
-            container.slideToggle(200, function() {
-                var isVisible = container.is(':visible');
-                header.toggleClass('collapsed', !isVisible);
-                saveToggleState(groupKey, isVisible);
-            });
         }
 
         // グループにアイテムを追加
@@ -876,17 +886,26 @@
 
         function restoreToggleStates() {
             var states = JSON.parse(localStorage.getItem(storageKey)) || {};
+            var sectionsToLoad = [];
             for (var id in states) {
                 var container = $('#group-' + id);
                 var header = $('#header-' + id);
+                if (container.length === 0) continue;
                 if (states[id]) {
                     container.show();
                     header.removeClass('collapsed');
+                    var isLoaded = header.data('loaded') === true || header.data('loaded') === 'true';
+                    if (!isLoaded) {
+                        sectionsToLoad.push(id);
+                    }
                 } else {
                     container.hide();
                     header.addClass('collapsed');
                 }
             }
+            sectionsToLoad.forEach(function(groupKey) {
+                loadGroupData(groupKey);
+            });
         }
 
         // アクション関数
@@ -1020,15 +1039,34 @@
                 return;
             }
 
+            var targetCategory = newCat || selected;
+            localStorage.setItem('scrollPosition', window.scrollY);
+            var currentCategory = getCurrentCategoryForFile(filename);
+            if (currentCategory) {
+                saveToggleState(currentCategory, true);
+            }
+            saveToggleState(targetCategory, true);
+
             $.post('/change_category', {
                 filename: filename,
-                new_category: newCat || selected
+                new_category: targetCategory
             }).done(function() {
                 $('#categoryModal').modal('hide');
                 location.reload(true);
             }).fail(function(xhr) {
                 $('#categoryError').text(xhr.responseJSON ? xhr.responseJSON.error : 'カテゴリ変更に失敗しました').removeClass('d-none');
             });
+        }
+
+        function getCurrentCategoryForFile(filename) {
+            var item = $('.list-item[data-filename="' + filename + '"]');
+            if (item.length > 0) {
+                var container = item.closest('.list-container');
+                if (container.length > 0) {
+                    return container.attr('id').replace('group-', '');
+                }
+            }
+            return null;
         }
 
         // スクロール位置復元
