@@ -298,6 +298,16 @@
             <i class="fas fa-chevron-right"></i>
         </button>
         <div class="slideshow-counter" id="slideshow-counter">1 / 1</div>
+        <div class="slideshow-zoom-controls">
+            <button class="slideshow-zoom-btn" onclick="slideshowZoomOut()" title="縮小 (-)">
+                <i class="fas fa-minus"></i>
+            </button>
+            <span class="slideshow-zoom-level" id="slideshow-zoom-level">100%</span>
+            <button class="slideshow-zoom-btn" onclick="slideshowZoomIn()" title="拡大 (+)">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button class="slideshow-zoom-reset" onclick="slideshowResetZoom()" title="リセット (0)">Reset</button>
+        </div>
     </div>
 </div>
 

@@ -28,7 +28,16 @@
     max-height: 90%;
     object-fit: contain;
     user-select: none;
-    transition: transform 0.3s ease;
+    transition: opacity 0.15s ease;
+    transform-origin: 0 0;
+    cursor: grab;
+}
+.slideshow-image.zoomed {
+    cursor: grab;
+}
+.slideshow-image.panning {
+    cursor: grabbing;
+    transition: none;
 }
 .slideshow-nav {
     position: absolute;
@@ -83,6 +92,58 @@
     z-index: 10000;
 }
 
+/* ズームコントロール */
+.slideshow-zoom-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 10000;
+}
+.slideshow-zoom-btn {
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: white;
+    font-size: 1.2em;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+.slideshow-zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+.slideshow-zoom-level {
+    color: white;
+    font-size: 0.85em;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 10px;
+    border-radius: 12px;
+    min-width: 48px;
+    text-align: center;
+    user-select: none;
+}
+.slideshow-zoom-reset {
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: white;
+    font-size: 0.75em;
+    padding: 4px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.slideshow-zoom-reset:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
 /* スマホ版の調整 */
 @media (max-width: 768px) {
     .slideshow-nav {
@@ -101,5 +162,20 @@
         font-size: 1em;
         padding: 8px 16px;
         bottom: 10px;
+    }
+    .slideshow-zoom-controls {
+        bottom: 10px;
+        right: 10px;
+        gap: 4px;
+    }
+    .slideshow-zoom-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1em;
+    }
+    .slideshow-zoom-level {
+        font-size: 0.75em;
+        padding: 3px 8px;
+        min-width: 40px;
     }
 }
