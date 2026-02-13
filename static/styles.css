@@ -316,7 +316,7 @@ blockquote {
 
 #content table,
 #preview-content table {
-    width: 100%;
+    width: auto;
     margin-bottom: 1rem;
     border-collapse: collapse;
 }
