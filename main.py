@@ -1198,7 +1198,7 @@ def api_ui_postlist_preview(filename):
 
     try:
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-            raw = f.read(1024)
+            raw = f.read(2048)
     except Exception:
         abort(500)
 
@@ -1210,7 +1210,7 @@ def api_ui_postlist_preview(filename):
     body = re.sub(r'\[.*?\]\(/attach/.*?\)', '', body)
     body = body.strip()
 
-    preview = body[:200] if body else '(内容なし)'
+    preview = body[:500] if body else '(内容なし)'
     return jsonify({'preview': preview})
 
 

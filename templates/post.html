@@ -239,11 +239,11 @@
         <button id="switchPageButton" class="btn btn-primary btn-sm none_print" title="他のページへ移動 (Ctrl+K)">
             <i class="fas fa-arrow-right-arrow-left"></i>
         </button>
-        <button id="ccButton" class="btn btn-primary btn-sm none_print" title="Claude Code">
-            <i class="fas fa-bolt"></i>
-        </button>
         <button class="btn btn-success btn-sm none_print" onclick="editPost('{{ content.filename }}')">
             <i class="fas fa-edit"></i>
+        </button>
+        <button id="optionsButton" class="btn btn-primary btn-sm none_print" title="オプション">
+            <i class="fas fa-ellipsis-v"></i>
         </button>
         {% endif %}
     </div>
@@ -292,6 +292,22 @@
     </div>
 </div>
 
+<!-- スライドモーダル -->
+<div class="slide-modal" id="slide-modal">
+    <div class="slide-container">
+        <button class="slide-close" onclick="closeSlideMode()">&times;</button>
+        <button class="slide-nav prev" onclick="navigateSlide(-1)">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="slide-content" id="slide-content"></div>
+        <button class="slide-nav next" onclick="navigateSlide(1)">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <div class="slide-counter" id="slide-counter">1 / 1</div>
+        <div class="slide-help">← → キーでナビゲーション | ESC で終了</div>
+    </div>
+</div>
+
 <!-- ページ切り替えオーバーレイ -->
 {% if current_user.is_authenticated %}
 <div id="switchPageOverlay" class="overlay" style="display:none;">
@@ -320,6 +336,25 @@
         </div>
         <button id="switchPageCancelButton" type="button" class="btn btn-secondary btn-block">
             キャンセル (ESC)
+        </button>
+    </div>
+</div>
+
+<!-- オプションオーバーレイ -->
+<div id="optionsOverlay" class="overlay" style="display:none;">
+    <div class="dialog">
+        <h5>オプション</h5>
+        <button id="slideModeMenuButton" type="button" class="btn btn-primary btn-block mb-2" title="スライドモード">
+            📊 スライドモード
+        </button>
+        <button id="ccMenuButton" type="button" class="btn btn-primary btn-block mb-2" title="Claude Code">
+            ⚡ Claude Code
+        </button>
+        <button id="deletePostButton" type="button" class="btn btn-danger btn-block mb-2" title="この投稿を削除">
+            🗑️ 削除
+        </button>
+        <button id="optionsCancelButton" type="button" class="btn btn-secondary btn-block">
+            キャンセル
         </button>
     </div>
 </div>
@@ -1102,20 +1137,101 @@
         });
     })();
 
-    // Claude Codeボタン
-    const ccButton = document.getElementById('ccButton');
-    if (ccButton) {
-        ccButton.addEventListener('click', function() {
-            const filename = document.body.dataset.filename;
-            const baseUrl = document.body.dataset.claudeCodeUrl;
-            if (baseUrl) {
-                const url = baseUrl + '?papernote=' + encodeURIComponent(filename);
-                window.open(url, '_blank');
-            } else {
-                alert('Claude Code URLが設定されていません');
+    // ============================================
+    // オプションメニュー機能
+    // ============================================
+    (function() {
+        const optionsButton = document.getElementById('optionsButton');
+        const optionsOverlay = document.getElementById('optionsOverlay');
+        const optionsCancelButton = document.getElementById('optionsCancelButton');
+        const ccMenuButton = document.getElementById('ccMenuButton');
+        const deletePostButton = document.getElementById('deletePostButton');
+        const csrfToken = document.body.dataset.csrfToken;
+
+        if (!optionsButton || !optionsOverlay) return;
+
+        // オプションボタンクリック
+        optionsButton.addEventListener('click', function() {
+            optionsOverlay.style.display = 'flex';
+        });
+
+        // キャンセルボタンクリック
+        if (optionsCancelButton) {
+            optionsCancelButton.addEventListener('click', function() {
+                optionsOverlay.style.display = 'none';
+            });
+        }
+
+        // オーバーレイの背景クリックで閉じる
+        optionsOverlay.addEventListener('click', function(event) {
+            if (event.target === optionsOverlay) {
+                optionsOverlay.style.display = 'none';
             }
         });
-    }
+
+        // ESCキーで閉じる
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && optionsOverlay.style.display === 'flex') {
+                optionsOverlay.style.display = 'none';
+            }
+        });
+
+        // スライドモードボタン
+        const slideModeMenuButton = document.getElementById('slideModeMenuButton');
+        if (slideModeMenuButton) {
+            slideModeMenuButton.addEventListener('click', function() {
+                optionsOverlay.style.display = 'none';
+                // スライドモードを開く関数を呼び出す（後で定義される）
+                if (typeof openSlideMode === 'function') {
+                    openSlideMode();
+                }
+            });
+        }
+
+        // Claude Codeボタン
+        if (ccMenuButton) {
+            ccMenuButton.addEventListener('click', function() {
+                const filename = document.body.dataset.filename;
+                const baseUrl = document.body.dataset.claudeCodeUrl;
+                if (baseUrl) {
+                    const url = baseUrl + '?papernote=' + encodeURIComponent(filename);
+                    window.open(url, '_blank');
+                    optionsOverlay.style.display = 'none';
+                } else {
+                    alert('Claude Code URLが設定されていません');
+                }
+            });
+        }
+
+        // 削除ボタン
+        if (deletePostButton) {
+            deletePostButton.addEventListener('click', function() {
+                const filename = document.body.dataset.filename;
+                if (confirm('本当にこの投稿を削除しますか？\n\nこの操作は元に戻せません。')) {
+                    fetch('/delete_post', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: 'filename=' + encodeURIComponent(filename)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.href = '/postlist';
+                        } else {
+                            alert('削除に失敗しました: ' + (data.error || '不明なエラー'));
+                        }
+                    })
+                    .catch(error => {
+                        alert('削除に失敗しました: ' + error.message);
+                    });
+                }
+                optionsOverlay.style.display = 'none';
+            });
+        }
+    })();
 
     // ファイル名をコピーボタン
     const copyFilenameButton = document.getElementById('copyFilenameButton');
@@ -1131,6 +1247,140 @@
             });
         });
     }
+
+    // ============================================
+    // スライドモード機能
+    // ============================================
+    (function() {
+        const slideModal = document.getElementById('slide-modal');
+        const slideContent = document.getElementById('slide-content');
+        const slideCounter = document.getElementById('slide-counter');
+
+        let slides = [];
+        let currentSlideIndex = 0;
+
+        // スライド分割関数
+        function splitIntoSlides() {
+            const contentDiv = document.getElementById('content');
+            const html = contentDiv.innerHTML;
+
+            // <hr>タグで分割
+            const parts = html.split('<hr>');
+            slides = parts.map(part => part.trim()).filter(part => part.length > 0);
+
+            return slides.length;
+        }
+
+        // スライドモードを開く（グローバルスコープに公開）
+        window.openSlideMode = function() {
+            const slideCount = splitIntoSlides();
+
+            if (slideCount === 0) {
+                showTemporaryMessage('スライドが見つかりません（---で区切ってください）');
+                return;
+            }
+
+            currentSlideIndex = 0;
+            slideModal.classList.add('active');
+            showSlide(currentSlideIndex);
+            document.addEventListener('keydown', handleSlideKeydown);
+
+            // スワイプ対応（モバイル）
+            let touchStartX = 0;
+            let touchEndX = 0;
+
+            slideContent.addEventListener('touchstart', function(e) {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            slideContent.addEventListener('touchend', function(e) {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, { passive: true });
+
+            function handleSwipe() {
+                if (touchEndX < touchStartX - 50) {
+                    navigateSlide(1); // 左スワイプ → 次へ
+                }
+                if (touchEndX > touchStartX + 50) {
+                    navigateSlide(-1); // 右スワイプ → 前へ
+                }
+            }
+        };
+
+        // スライドモードを閉じる
+        window.closeSlideMode = function() {
+            slideModal.classList.remove('active');
+            document.removeEventListener('keydown', handleSlideKeydown);
+        };
+
+        // スライドを表示
+        function showSlide(index) {
+            if (index < 0 || index >= slides.length) return;
+
+            slideContent.innerHTML = slides[index];
+            slideCounter.textContent = `${index + 1} / ${slides.length}`;
+
+            // ナビゲーションボタンの有効/無効
+            const prevButton = document.querySelector('.slide-nav.prev');
+            const nextButton = document.querySelector('.slide-nav.next');
+
+            if (prevButton) prevButton.disabled = (index === 0);
+            if (nextButton) nextButton.disabled = (index === slides.length - 1);
+
+            // Mermaid図の再初期化
+            const mermaidElements = slideContent.querySelectorAll('.mermaid');
+            if (mermaidElements.length > 0) {
+                mermaid.init(undefined, mermaidElements);
+            }
+        }
+
+        // スライドナビゲーション
+        window.navigateSlide = function(direction) {
+            const newIndex = currentSlideIndex + direction;
+            if (newIndex >= 0 && newIndex < slides.length) {
+                currentSlideIndex = newIndex;
+                showSlide(currentSlideIndex);
+            }
+        };
+
+        // キーボード操作
+        function handleSlideKeydown(event) {
+            switch(event.key) {
+                case 'ArrowLeft':
+                    event.preventDefault();
+                    navigateSlide(-1);
+                    break;
+                case 'ArrowRight':
+                    event.preventDefault();
+                    navigateSlide(1);
+                    break;
+                case 'Escape':
+                    event.preventDefault();
+                    closeSlideMode();
+                    break;
+                case 'Home':
+                    event.preventDefault();
+                    currentSlideIndex = 0;
+                    showSlide(currentSlideIndex);
+                    break;
+                case 'End':
+                    event.preventDefault();
+                    currentSlideIndex = slides.length - 1;
+                    showSlide(currentSlideIndex);
+                    break;
+            }
+        }
+
+        // モーダルの背景クリックで閉じる
+        if (slideModal) {
+            slideModal.addEventListener('click', function(event) {
+                if (event.target === slideModal) {
+                    closeSlideMode();
+                }
+            });
+        }
+    })();
 </script>
 </body>
 </html>
