@@ -208,7 +208,7 @@
 .slide-content {
     max-width: 90%;
     max-height: 85%;
-    overflow-y: auto;
+    overflow: hidden; /* スクロールバーを非表示 */
     padding: 40px;
     background: white;
     border-radius: 8px;
@@ -226,8 +226,11 @@
     margin-top: 1.5em;
 }
 .slide-content img {
-    max-width: 100%;
-    height: auto;
+    width: 100% !important;
+    height: calc(85vh - 80px) !important; /* 画面高さの85% - padding分 */
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: contain; /* アスペクト比を維持しながら拡大 */
     display: block;
     margin: 20px auto;
     border-radius: 4px;

@@ -1333,6 +1333,15 @@
             if (mermaidElements.length > 0) {
                 mermaid.init(undefined, mermaidElements);
             }
+
+            // 画像のインラインスタイルをリセット（画像サイズ調整機能の影響を除去）
+            const slideImages = slideContent.querySelectorAll('img');
+            slideImages.forEach(img => {
+                img.style.width = '';
+                img.style.height = '';
+                img.style.maxWidth = '';
+                img.style.maxHeight = '';
+            });
         }
 
         // スライドナビゲーション
