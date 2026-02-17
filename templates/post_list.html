@@ -352,6 +352,21 @@
             padding: 2rem;
             color: var(--text-muted);
         }
+
+        /* グラフビュー */
+        #graph-container {
+            width: 100%;
+            height: 80vh;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        #graph-loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
     </style>
 </head>
 <body>
@@ -415,7 +430,19 @@
             <a href="/postlist?view=category" class="view-tab {{ 'active' if view_mode == 'category' else '' }}">
                 <i class="fas fa-folder"></i><span>カテゴリ別</span>
             </a>
+            <a href="/postlist?view=graph" class="view-tab {{ 'active' if view_mode == 'graph' else '' }}">
+                <i class="fa-solid fa-diagram-project"></i><span>グラフ</span>
+            </a>
         </div>
+        {% endif %}
+
+        {% if view_mode == 'graph' %}
+        <!-- グラフビュー -->
+        <div id="graph-loading">
+            <div class="spinner" style="width:2rem;height:2rem;border-width:3px;margin:0 auto 1rem;"></div>
+            <div>グラフを読み込み中...</div>
+        </div>
+        <div id="graph-container" style="display:none;"></div>
         {% endif %}
 
         <!-- リスト本体 -->
@@ -605,6 +632,9 @@
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
     <script src="/static/scripts.js"></script>
+    {% if view_mode == 'graph' %}
+    <script src="/static/cytoscape.min.js"></script>
+    {% endif %}
 
     <script>
         var csrf_token = "{{ csrf_token() }}";
@@ -1100,9 +1130,9 @@
         }
 
         // === プレビューツールチップ ===
-        (function() {
+        var previewTooltip = (function() {
             // タッチデバイスではスキップ
-            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) return;
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) return null;
 
             var tooltip = document.getElementById('previewTooltip');
             var hoverTimer = null;
@@ -1146,23 +1176,17 @@
                 }
             }
 
-            $(document).on('mouseenter', '.list-item', function(e) {
-                var item = $(this);
-                var filename = item.data('filename');
-                if (!filename) return;
-
-                var startX = e.clientX, startY = e.clientY;
-
+            // ファイル名とマウス座標を受け取ってプレビューを表示（遅延あり）
+            function triggerPreview(filename, startX, startY) {
+                cancelPending();
                 hoverTimer = setTimeout(function() {
                     currentFilename = filename;
 
-                    // キャッシュヒット
                     if (previewCache.has(filename)) {
                         showTooltip(previewCache.get(filename), startX, startY);
                         return;
                     }
 
-                    // Loading表示
                     showTooltip('読み込み中...', startX, startY);
 
                     abortCtrl = new AbortController();
@@ -1176,7 +1200,6 @@
                     .then(function(data) {
                         var text = data.preview || '(内容なし)';
                         previewCache.set(filename, text);
-                        // まだ同じアイテムにホバー中なら更新
                         if (currentFilename === filename) {
                             showTooltip(text, startX, startY);
                         }
@@ -1190,6 +1213,12 @@
                         abortCtrl = null;
                     });
                 }, 800);
+            }
+
+            $(document).on('mouseenter', '.list-item', function(e) {
+                var filename = $(this).data('filename');
+                if (!filename) return;
+                triggerPreview(filename, e.clientX, e.clientY);
             });
 
             $(document).on('mouseleave', '.list-item', function() {
@@ -1208,11 +1237,16 @@
                 }
             });
 
-            // ドロップダウンメニューが開いたらツールチップを消す
             $(document).on('show.bs.dropdown', function() {
                 cancelPending();
                 hideTooltip();
             });
+
+            return {
+                triggerPreview: triggerPreview,
+                cancelAndHide: function() { cancelPending(); hideTooltip(); },
+                move: function(x, y) { if (tooltip.classList.contains('visible')) positionTooltip(x, y); }
+            };
         })();
 
         // スクロール位置復元
@@ -1223,6 +1257,211 @@
                 localStorage.removeItem('scrollPosition');
             }
         };
+
+        {% if view_mode == 'graph' %}
+        // グラフビュー初期化
+        (function() {
+            var STORAGE_KEY = 'postlist_graph_layout';
+
+            // LocalStorageからレイアウトを読み込む
+            function loadSavedLayout() {
+                try {
+                    var raw = localStorage.getItem(STORAGE_KEY);
+                    return raw ? JSON.parse(raw) : null;
+                } catch (e) { return null; }
+            }
+
+            // LocalStorageにレイアウトを保存する
+            function saveLayout(cy) {
+                try {
+                    var positions = {};
+                    cy.nodes().forEach(function(node) {
+                        positions[node.id()] = node.position();
+                    });
+                    var layout = {
+                        positions: positions,
+                        zoom: cy.zoom(),
+                        pan: cy.pan()
+                    };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+                } catch (e) {}
+            }
+
+            fetch('/api/ui/postlist/graph')
+                .then(function(res) {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.json();
+                })
+                .then(function(data) {
+                    var nodes = data.nodes || [];
+                    var edges = data.edges || [];
+
+                    document.getElementById('graph-loading').style.display = 'none';
+                    var container = document.getElementById('graph-container');
+                    container.style.display = 'block';
+
+                    if (nodes.length === 0) {
+                        container.innerHTML = '<div style="text-align:center;padding:3rem;color:#6c757d;">リンクが見つかりませんでした。<br>メモ間でリンクを追加すると、ここにグラフが表示されます。</div>';
+                        return;
+                    }
+
+                    // リンク数を集計してノードサイズを決定
+                    var linkCount = {};
+                    nodes.forEach(function(n) { linkCount[n.id] = 0; });
+                    edges.forEach(function(e) {
+                        linkCount[e.source] = (linkCount[e.source] || 0) + 1;
+                        linkCount[e.target] = (linkCount[e.target] || 0) + 1;
+                    });
+
+                    // 保存済みレイアウトを確認
+                    var saved = loadSavedLayout();
+                    var hasSaved = saved && saved.positions && Object.keys(saved.positions).length > 0;
+
+                    var cyElements = [];
+
+                    nodes.forEach(function(n) {
+                        var cnt = linkCount[n.id] || 1;
+                        var elem = {
+                            data: {
+                                id: n.id,
+                                label: n.label,
+                                url: n.url,
+                                size: Math.min(20 + cnt * 6, 60)
+                            }
+                        };
+                        // 保存済み位置があればそれを使う
+                        if (hasSaved && saved.positions[n.id]) {
+                            elem.position = saved.positions[n.id];
+                        }
+                        cyElements.push(elem);
+                    });
+
+                    edges.forEach(function(e, i) {
+                        cyElements.push({
+                            data: {
+                                id: 'e' + i,
+                                source: e.source,
+                                target: e.target
+                            }
+                        });
+                    });
+
+                    var cy = cytoscape({
+                        container: container,
+                        elements: cyElements,
+                        style: [
+                            {
+                                selector: 'node',
+                                style: {
+                                    'label': 'data(label)',
+                                    'width': 'data(size)',
+                                    'height': 'data(size)',
+                                    'background-color': '#0d6efd',
+                                    'color': '#333',
+                                    'font-size': '10px',
+                                    'text-valign': 'bottom',
+                                    'text-halign': 'center',
+                                    'text-margin-y': '4px',
+                                    'text-wrap': 'ellipsis',
+                                    'text-max-width': '120px',
+                                    'border-width': 2,
+                                    'border-color': '#fff',
+                                    'cursor': 'pointer'
+                                }
+                            },
+                            {
+                                selector: 'node:hover',
+                                style: {
+                                    'background-color': '#0b5ed7',
+                                    'border-color': '#0d6efd',
+                                    'border-width': 3
+                                }
+                            },
+                            {
+                                selector: 'edge',
+                                style: {
+                                    'width': 1.5,
+                                    'line-color': '#adb5bd',
+                                    'target-arrow-color': '#adb5bd',
+                                    'target-arrow-shape': 'triangle',
+                                    'curve-style': 'bezier',
+                                    'arrow-scale': 0.8
+                                }
+                            }
+                        ],
+                        layout: hasSaved
+                            ? { name: 'preset' }  // 保存済み位置をそのまま使用
+                            : {                    // 初回はcoseで自動配置
+                                name: 'cose',
+                                idealEdgeLength: 120,
+                                nodeRepulsion: 8000,
+                                gravity: 1.2,
+                                animate: false,
+                                randomize: true
+                              },
+                        wheelSensitivity: 0.3
+                    });
+
+                    // 保存済みのズーム・パンを復元
+                    if (hasSaved) {
+                        cy.zoom(saved.zoom);
+                        cy.pan(saved.pan);
+                    }
+
+                    // ノードドラッグ終了時に保存
+                    cy.on('dragfree', 'node', function() {
+                        saveLayout(cy);
+                    });
+
+                    // ズーム・パン変更後に保存（debounce 500ms）
+                    var saveTimer = null;
+                    cy.on('zoom pan', function() {
+                        clearTimeout(saveTimer);
+                        saveTimer = setTimeout(function() { saveLayout(cy); }, 500);
+                    });
+
+                    // 初回レイアウト完了後も保存
+                    if (!hasSaved) {
+                        cy.one('layoutstop', function() { saveLayout(cy); });
+                    }
+
+                    // ノードホバーでプレビューツールチップ表示
+                    if (previewTooltip) {
+                        cy.on('mouseover', 'node', function(evt) {
+                            var filename = evt.target.id();
+                            var e = evt.originalEvent;
+                            if (e) previewTooltip.triggerPreview(filename, e.clientX, e.clientY);
+                        });
+                        cy.on('mouseout', 'node', function() {
+                            previewTooltip.cancelAndHide();
+                        });
+                        cy.on('mousemove', 'node', function(evt) {
+                            var e = evt.originalEvent;
+                            if (e) previewTooltip.move(e.clientX, e.clientY);
+                        });
+                    }
+
+                    // ノードクリックでメモへ遷移（Ctrl/Cmd+click: 新タブ、Shift+click: 新ウィンドウ）
+                    cy.on('tap', 'node', function(evt) {
+                        var url = evt.target.data('url');
+                        if (!url) return;
+                        var e = evt.originalEvent;
+                        if (e && (e.ctrlKey || e.metaKey)) {
+                            window.open(url, '_blank');
+                        } else if (e && e.shiftKey) {
+                            window.open(url, '_blank', 'noopener');
+                        } else {
+                            window.location.href = url;
+                        }
+                    });
+                })
+                .catch(function(err) {
+                    document.getElementById('graph-loading').innerHTML =
+                        '<div style="color:#dc3545;">グラフの読み込みに失敗しました。</div>';
+                    console.error('Graph error:', err);
+                });
+        })();
+        {% endif %}
     </script>
 </body>
 </html>

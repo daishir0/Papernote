@@ -1214,6 +1214,104 @@ def api_ui_postlist_preview(filename):
     return jsonify({'preview': preview})
 
 
+@app.route('/api/ui/postlist/graph')
+@login_required
+@limiter.limit("30 per minute")
+@csrf.exempt
+def api_ui_postlist_graph():
+    """メモ間のリンク関係をグラフデータとして返す（キャッシュ対応）"""
+    from urllib.parse import unquote
+
+    post_dir = './post'
+    cache_dir = os.path.join(post_dir, '.cache')
+    cache_file = os.path.join(cache_dir, 'graph_data.json')
+
+    # キャッシュの有効性チェック
+    try:
+        os.makedirs(cache_dir, exist_ok=True)
+        if os.path.exists(cache_file):
+            cache_mtime = os.path.getmtime(cache_file)
+            # postディレクトリ内の最新ファイル更新時刻を取得
+            latest_mtime = 0
+            for fname in os.listdir(post_dir):
+                if fname.endswith('.txt'):
+                    fpath = os.path.join(post_dir, fname)
+                    mtime = os.path.getmtime(fpath)
+                    if mtime > latest_mtime:
+                        latest_mtime = mtime
+            if latest_mtime <= cache_mtime:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    return jsonify(json.load(f))
+    except Exception:
+        pass
+
+    # グラフデータ生成（/post/ と /edit_post/ 両方対応、生の角括弧も許容）
+    link_pattern = re.compile(
+        r'https://paper\.path-finder\.jp/(?:post|edit_post)/([^\s\)"\'<>#]+)'
+    )
+
+    titles = {}
+    raw_edges = []
+
+    txt_files = [f for f in os.listdir(post_dir) if f.endswith('.txt')]
+
+    for fname in txt_files:
+        fpath = os.path.join(post_dir, fname)
+        try:
+            with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+        except Exception:
+            continue
+
+        lines = content.split('\n')
+        title = lines[0].strip() if lines else fname
+
+        titles[fname] = title
+
+        for match in link_pattern.finditer(content):
+            raw_target = match.group(1)
+            # URLデコードしてアンカー部分を除去
+            decoded = unquote(raw_target)
+            target_file = decoded.split('#')[0].strip()
+            if target_file and target_file != fname:
+                raw_edges.append((fname, target_file))
+
+    # リンクを持つ（または被リンクがある）ノードを特定
+    linked_sources = {e[0] for e in raw_edges}
+    linked_targets = {e[1] for e in raw_edges if e[1] in titles}
+    relevant_nodes = linked_sources | linked_targets
+
+    nodes = []
+    for nid in sorted(relevant_nodes):
+        node_title = titles.get(nid, nid)
+        nodes.append({
+            'id': nid,
+            'label': node_title[:40] if len(node_title) > 40 else node_title,
+            'url': '/post/' + nid
+        })
+
+    edges = []
+    seen_edges = set()
+    for src, tgt in raw_edges:
+        if tgt not in titles:
+            continue
+        key = (src, tgt)
+        if key not in seen_edges:
+            seen_edges.add(key)
+            edges.append({'source': src, 'target': tgt})
+
+    result = {'nodes': nodes, 'edges': edges}
+
+    # キャッシュ保存
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+    return jsonify(result)
+
+
 @app.route('/rename_post', methods=['POST'])
 @login_required
 def rename_post():
@@ -1838,11 +1936,20 @@ def post_list():
 
     # 認証なしユーザーは強制的にカテゴリ別表示
     if authenticated:
-        view_mode = request.args.get('view', 'date')  # 'date' or 'category'
+        view_mode = request.args.get('view', 'date')  # 'date', 'category', or 'graph'
     else:
         view_mode = 'category'
 
     search_query = request.args.get('search')
+
+    if view_mode == 'graph':
+        # グラフビュー: データはAPIから取得するため空で返す
+        return render_template('post_list.html',
+                               posts={},
+                               group_counts={},
+                               authenticated=authenticated,
+                               form=form,
+                               view_mode=view_mode)
 
     if view_mode == 'category':
         # カテゴリ別表示
