@@ -1949,7 +1949,9 @@ def post_list():
                                group_counts={},
                                authenticated=authenticated,
                                form=form,
-                               view_mode=view_mode)
+                               view_mode=view_mode,
+                               claude_code_url=config.get('claude_code_url', ''),
+                               site_url=config.get('site_url', ''))
 
     if view_mode == 'category':
         # カテゴリ別表示
@@ -1992,7 +1994,9 @@ def post_list():
                            group_counts=group_counts,
                            authenticated=authenticated,
                            form=form,
-                           view_mode=view_mode)
+                           view_mode=view_mode,
+                           claude_code_url=config.get('claude_code_url', ''),
+                           site_url=config.get('site_url', ''))
 
 def get_posts_by_category_with_relative_time():
     """カテゴリ別に投稿を取得（relative_time付き）"""

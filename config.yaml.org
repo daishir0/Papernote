@@ -46,6 +46,9 @@ users:
     username: 'user2'
     password: 'password2'
 
+# サイトベースURL
+site_url: "https://your-paper-site.example.com"
+
 # Claude Code連携設定
 claude_code_url: "https://example.com/cc/"
 

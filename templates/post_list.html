@@ -353,6 +353,45 @@
             color: var(--text-muted);
         }
 
+        /* グラフ ノードコンテキストメニュー */
+        #graph-context-menu {
+            position: fixed;
+            z-index: 2000;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 180px;
+            display: none;
+            overflow: hidden;
+        }
+
+        .graph-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.6rem 1rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            color: #212529;
+            user-select: none;
+        }
+
+        .graph-menu-item:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .graph-menu-item i {
+            width: 1rem;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .graph-menu-divider {
+            border-top: 1px solid var(--border-color);
+            margin: 0;
+        }
+
         /* グラフビュー */
         #graph-container {
             width: 100%;
@@ -532,6 +571,23 @@
     <!-- Preview Tooltip -->
     <div id="previewTooltip" class="preview-tooltip"></div>
 
+    <!-- Graph Node Context Menu -->
+    <div id="graph-context-menu">
+        <div class="graph-menu-item" id="graph-menu-copy">
+            <i class="fas fa-clipboard"></i> ファイル名コピー
+        </div>
+        <div class="graph-menu-item" id="graph-menu-url">
+            <i class="fas fa-link"></i> URLをコピー
+        </div>
+        <hr class="graph-menu-divider">
+        <div class="graph-menu-item" id="graph-menu-edit">
+            <i class="fas fa-edit"></i> 編集
+        </div>
+        <div class="graph-menu-item" id="graph-menu-claude">
+            <i class="fas fa-bolt"></i> Claude Code
+        </div>
+    </div>
+
     <!-- Rename Modal -->
     <div class="modal fade" id="renameModal" tabindex="-1">
         <div class="modal-dialog">
@@ -639,6 +695,9 @@
     <script>
         var csrf_token = "{{ csrf_token() }}";
         var viewMode = "{{ view_mode }}";
+        var claudeCodeUrl = "{{ claude_code_url }}";
+        var siteUrl = "{{ site_url }}";
+        var graphCy = null;  // グラフビュー用 Cytoscape インスタンス
         var storageKey = 'postlistToggleStates_' + viewMode;
         var isAuthenticated = {{ 'true' if authenticated else 'false' }};
 
@@ -691,9 +750,9 @@
                 }
             });
 
-            // 検索ボックスにフォーカスしたら全データを先読み
+            // 検索ボックスにフォーカスしたら全データを先読み（グラフビューは不要）
             $('#searchInput').on('focus', function() {
-                if (!preloadComplete && !isPreloading) {
+                if (viewMode !== 'graph' && !preloadComplete && !isPreloading) {
                     preloadAllData();
                 }
             });
@@ -708,11 +767,13 @@
                 }, 300);
             });
 
-            // Enterキーで検索実行
+            // Enterキーで検索実行（グラフビューはフィルターのみ、ページ遷移しない）
             $('#searchInput').on('keypress', function(e) {
                 if (e.which === 13) {
                     e.preventDefault();
-                    executeSearch();
+                    if (viewMode !== 'graph') {
+                        executeSearch();
+                    }
                 }
             });
         });
@@ -759,7 +820,47 @@
         }
 
         // 検索フィルター
+        // グラフビュー用: ノードをハイライト・半透明化
+        function filterGraphNodes(term) {
+            if (!graphCy) return;
+
+            if (term === '') {
+                // 検索解除: 全ノード・エッジを通常表示
+                graphCy.nodes().style({ 'opacity': 1 });
+                graphCy.edges().style({ 'opacity': 1 });
+                return;
+            }
+
+            var matchedNodes = graphCy.nodes().filter(function(node) {
+                return node.data('label').toLowerCase().indexOf(term) > -1;
+            });
+
+            // 全ノード・エッジをまず半透明に
+            graphCy.nodes().style({ 'opacity': 0.1 });
+            graphCy.edges().style({ 'opacity': 0.05 });
+
+            // マッチしたノードを強調
+            matchedNodes.style({ 'opacity': 1 });
+
+            // マッチしたノードに繋がるエッジと隣接ノードも強調
+            matchedNodes.connectedEdges().style({ 'opacity': 0.6 });
+
+            // 1件のみマッチした場合はそのノードへ自動パン
+            if (matchedNodes.length === 1) {
+                graphCy.animate({
+                    center: { eles: matchedNodes },
+                    zoom: Math.max(graphCy.zoom(), 1.5)
+                }, { duration: 400 });
+            }
+        }
+
         function filterItems(term) {
+            // グラフビューはノードのハイライト処理
+            if (viewMode === 'graph') {
+                filterGraphNodes(term);
+                return;
+            }
+
             if (term === '') {
                 // 検索解除: すべて表示
                 $('.list-item').css('display', '');
@@ -798,6 +899,11 @@
         // 検索実行（Enterキーまたはボタンクリック）
         function executeSearch() {
             var term = $('#searchInput').val().trim();
+            // グラフビューはクライアント側フィルターのみ（ページ遷移しない）
+            if (viewMode === 'graph') {
+                filterGraphNodes(term);
+                return;
+            }
             if (term === '') {
                 // 空の場合は検索解除（パラメータなしでリロード）
                 window.location.href = '/postlist?view=' + viewMode;
@@ -1402,6 +1508,9 @@
                         wheelSensitivity: 0.3
                     });
 
+                    // グローバル変数に登録（検索フィルター用）
+                    graphCy = cy;
+
                     // 保存済みのズーム・パンを復元
                     if (hasSaved) {
                         cy.zoom(saved.zoom);
@@ -1441,8 +1550,85 @@
                         });
                     }
 
-                    // ノードクリックでメモへ遷移（Ctrl/Cmd+click: 新タブ、Shift+click: 新ウィンドウ）
+                    // コンテキストメニュー
+                    var ctxMenu = document.getElementById('graph-context-menu');
+                    var ctxFilename = null;
+                    var isTapHold = false;
+
+                    function showContextMenu(filename, x, y) {
+                        ctxFilename = filename;
+                        // 画面端に被らないよう位置調整
+                        var menuW = 190, menuH = 110;
+                        var left = Math.min(x, window.innerWidth - menuW - 8);
+                        var top = Math.min(y, window.innerHeight - menuH - 8);
+                        ctxMenu.style.left = left + 'px';
+                        ctxMenu.style.top = top + 'px';
+                        ctxMenu.style.display = 'block';
+                    }
+
+                    function hideContextMenu() {
+                        ctxMenu.style.display = 'none';
+                        ctxFilename = null;
+                    }
+
+                    // PC: 右クリック
+                    cy.on('cxttap', 'node', function(evt) {
+                        var e = evt.originalEvent;
+                        showContextMenu(evt.target.id(), e.clientX, e.clientY);
+                    });
+
+                    // スマホ: 長押し
+                    cy.on('taphold', 'node', function(evt) {
+                        isTapHold = true;
+                        var pos = evt.renderedPosition;
+                        var rect = container.getBoundingClientRect();
+                        showContextMenu(evt.target.id(), rect.left + pos.x, rect.top + pos.y);
+                    });
+
+                    // メニュー外クリックで閉じる
+                    document.addEventListener('click', function(e) {
+                        if (!ctxMenu.contains(e.target)) hideContextMenu();
+                    });
+                    document.addEventListener('touchend', function(e) {
+                        if (!ctxMenu.contains(e.target)) hideContextMenu();
+                    });
+
+                    // ファイル名コピー
+                    document.getElementById('graph-menu-copy').addEventListener('click', function() {
+                        if (ctxFilename) copyFilename(ctxFilename);
+                        hideContextMenu();
+                    });
+
+                    // URLをコピー
+                    document.getElementById('graph-menu-url').addEventListener('click', function() {
+                        if (ctxFilename && siteUrl) {
+                            var url = siteUrl + '/post/' + encodeURIComponent(ctxFilename);
+                            navigator.clipboard.writeText(url).then(function() {
+                                showTemporaryMessage('URLをコピーしました');
+                            }).catch(function() {
+                                showTemporaryMessage('コピーに失敗しました');
+                            });
+                        }
+                        hideContextMenu();
+                    });
+
+                    // 編集
+                    document.getElementById('graph-menu-edit').addEventListener('click', function() {
+                        if (ctxFilename) window.location.href = '/edit_post/' + encodeURIComponent(ctxFilename);
+                        hideContextMenu();
+                    });
+
+                    // Claude Code
+                    document.getElementById('graph-menu-claude').addEventListener('click', function() {
+                        if (ctxFilename && claudeCodeUrl) {
+                            window.open(claudeCodeUrl + '?papernote=' + encodeURIComponent(ctxFilename), '_blank');
+                        }
+                        hideContextMenu();
+                    });
+
+                    // ノードクリックでメモへ遷移（長押し後はスキップ、Ctrl/Cmd+click: 新タブ、Shift+click: 新ウィンドウ）
                     cy.on('tap', 'node', function(evt) {
+                        if (isTapHold) { isTapHold = false; return; }
                         var url = evt.target.data('url');
                         if (!url) return;
                         var e = evt.originalEvent;
