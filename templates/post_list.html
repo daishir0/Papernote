@@ -1561,14 +1561,18 @@
                     // 選択モード制御
                     var graphSelectMode = false;
 
+                    // デフォルトは選択を無効化（Ctrl+クリックでの意図しない選択を防ぐ）
+                    cy.nodes().unselectify();
+
                     function setSelectMode(enabled) {
                         graphSelectMode = enabled;
                         if (enabled) {
+                            cy.nodes().selectify();
                             cy.selectionType('additive');
                             document.getElementById('graph-select-mode-btn').classList.add('active');
                             document.getElementById('graph-select-hint').style.display = '';
                         } else {
-                            cy.selectionType('single');
+                            cy.nodes().unselectify();
                             cy.elements().unselect();
                             document.getElementById('graph-select-mode-btn').classList.remove('active');
                             document.getElementById('graph-select-hint').style.display = 'none';
