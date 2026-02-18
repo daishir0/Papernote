@@ -1578,18 +1578,24 @@
                     });
 
                     // スマホ: 長押し
+                    var suppressNextTouchEnd = false;
                     cy.on('taphold', 'node', function(evt) {
                         isTapHold = true;
+                        suppressNextTouchEnd = true;  // 指を離した瞬間のtouchendを1回だけ無視
                         var pos = evt.renderedPosition;
                         var rect = container.getBoundingClientRect();
                         showContextMenu(evt.target.id(), rect.left + pos.x, rect.top + pos.y);
                     });
 
-                    // メニュー外クリックで閉じる
+                    // メニュー外タッチ/クリックで閉じる
                     document.addEventListener('click', function(e) {
                         if (!ctxMenu.contains(e.target)) hideContextMenu();
                     });
                     document.addEventListener('touchend', function(e) {
+                        if (suppressNextTouchEnd) {
+                            suppressNextTouchEnd = false;
+                            return;  // taphold直後のtouchendは無視
+                        }
                         if (!ctxMenu.contains(e.target)) hideContextMenu();
                     });
 
