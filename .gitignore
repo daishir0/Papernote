@@ -83,3 +83,5 @@ tmp/*
 gomi/
 .kiro/
 CLAUDE.md
+
+graph_layout.yaml

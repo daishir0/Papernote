@@ -1312,6 +1312,38 @@ def api_ui_postlist_graph():
     return jsonify(result)
 
 
+@app.route('/api/ui/postlist/graph/layout', methods=['GET'])
+@login_required
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_ui_postlist_graph_layout_get():
+    layout_file = 'graph_layout.yaml'
+    if not os.path.exists(layout_file):
+        return jsonify(None)
+    try:
+        with open(layout_file, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+        return jsonify(data)
+    except Exception:
+        return jsonify(None)
+
+
+@app.route('/api/ui/postlist/graph/layout', methods=['POST'])
+@login_required
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_ui_postlist_graph_layout_post():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'error': 'invalid data'}), 400
+    try:
+        with open('graph_layout.yaml', 'w', encoding='utf-8') as f:
+            yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/rename_post', methods=['POST'])
 @login_required
 def rename_post():

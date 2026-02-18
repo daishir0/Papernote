@@ -1367,17 +1367,10 @@
         {% if view_mode == 'graph' %}
         // グラフビュー初期化
         (function() {
-            var STORAGE_KEY = 'postlist_graph_layout';
+            // 古いLocalStorageデータをクリア
+            try { localStorage.removeItem('postlist_graph_layout'); } catch (e) {}
 
-            // LocalStorageからレイアウトを読み込む
-            function loadSavedLayout() {
-                try {
-                    var raw = localStorage.getItem(STORAGE_KEY);
-                    return raw ? JSON.parse(raw) : null;
-                } catch (e) { return null; }
-            }
-
-            // LocalStorageにレイアウトを保存する
+            // サーバーにレイアウトを保存する
             function saveLayout(cy) {
                 try {
                     var positions = {};
@@ -1389,16 +1382,24 @@
                         zoom: cy.zoom(),
                         pan: cy.pan()
                     };
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+                    fetch('/api/ui/postlist/graph/layout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(layout)
+                    }).catch(function(e) { console.error('Layout save error:', e); });
                 } catch (e) {}
             }
 
-            fetch('/api/ui/postlist/graph')
-                .then(function(res) {
-                    if (!res.ok) throw new Error('HTTP ' + res.status);
-                    return res.json();
-                })
-                .then(function(data) {
+            Promise.all([
+                fetch('/api/ui/postlist/graph').then(function(r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                }),
+                fetch('/api/ui/postlist/graph/layout').then(function(r) { return r.json(); }).catch(function() { return null; })
+            ])
+                .then(function(results) {
+                    var data  = results[0];
+                    var saved = results[1];
                     var nodes = data.nodes || [];
                     var edges = data.edges || [];
 
@@ -1420,7 +1421,6 @@
                     });
 
                     // 保存済みレイアウトを確認
-                    var saved = loadSavedLayout();
                     var hasSaved = saved && saved.positions && Object.keys(saved.positions).length > 0;
 
                     var cyElements = [];
