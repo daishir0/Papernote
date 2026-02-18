@@ -1435,6 +1435,7 @@
                                 id: n.id,
                                 label: n.label,
                                 url: n.url,
+                                exists: n.exists,
                                 size: Math.min(20 + cnt * 6, 60)
                             }
                         };
@@ -1484,6 +1485,24 @@
                                     'background-color': '#0b5ed7',
                                     'border-color': '#0d6efd',
                                     'border-width': 3
+                                }
+                            },
+                            {
+                                selector: 'node[exists = 0]',
+                                style: {
+                                    'background-color': '#adb5bd',
+                                    'border-style': 'dashed',
+                                    'border-color': '#dc3545',
+                                    'border-width': 3,
+                                    'opacity': 0.75,
+                                    'cursor': 'not-allowed'
+                                }
+                            },
+                            {
+                                selector: 'node[exists = 0]:hover',
+                                style: {
+                                    'background-color': '#868e96',
+                                    'opacity': 0.9
                                 }
                             },
                             {
@@ -1568,10 +1587,15 @@
                     // コンテキストメニュー
                     var ctxMenu = document.getElementById('graph-context-menu');
                     var ctxFilename = null;
+                    var ctxNodeExists = 1;
                     var isTapHold = false;
 
-                    function showContextMenu(filename, x, y) {
+                    function showContextMenu(filename, x, y, nodeExists) {
                         ctxFilename = filename;
+                        ctxNodeExists = (nodeExists !== 0);
+                        // 存在しないノードは編集・URLコピーを非表示
+                        document.getElementById('graph-menu-url').style.display = ctxNodeExists ? '' : 'none';
+                        document.getElementById('graph-menu-edit').style.display = ctxNodeExists ? '' : 'none';
                         // 画面端に被らないよう位置調整
                         var menuW = 190, menuH = 110;
                         var left = Math.min(x, window.innerWidth - menuW - 8);
@@ -1589,7 +1613,7 @@
                     // PC: 右クリック
                     cy.on('cxttap', 'node', function(evt) {
                         var e = evt.originalEvent;
-                        showContextMenu(evt.target.id(), e.clientX, e.clientY);
+                        showContextMenu(evt.target.id(), e.clientX, e.clientY, evt.target.data('exists'));
                     });
 
                     // スマホ: 長押し
@@ -1599,7 +1623,7 @@
                         suppressNextTouchEnd = true;  // 指を離した瞬間のtouchendを1回だけ無視
                         var pos = evt.renderedPosition;
                         var rect = container.getBoundingClientRect();
-                        showContextMenu(evt.target.id(), rect.left + pos.x, rect.top + pos.y);
+                        showContextMenu(evt.target.id(), rect.left + pos.x, rect.top + pos.y, evt.target.data('exists'));
                     });
 
                     // メニュー外タッチ/クリックで閉じる
@@ -1650,7 +1674,12 @@
                     // ノードクリックでメモへ遷移（長押し後はスキップ、Ctrl/Cmd+click: 新タブ、Shift+click: 新ウィンドウ）
                     cy.on('tap', 'node', function(evt) {
                         if (isTapHold) { isTapHold = false; return; }
-                        var url = evt.target.data('url');
+                        var nodeData = evt.target.data();
+                        if (!nodeData.exists) {
+                            alert('このファイルは削除または移動されています：\n' + nodeData.id);
+                            return;
+                        }
+                        var url = nodeData.url;
                         if (!url) return;
                         var e = evt.originalEvent;
                         if (e && (e.ctrlKey || e.metaKey)) {

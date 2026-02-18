@@ -1276,25 +1276,28 @@ def api_ui_postlist_graph():
             if target_file and target_file != fname:
                 raw_edges.append((fname, target_file))
 
-    # リンクを持つ（または被リンクがある）ノードを特定
+    # リンクを持つ（または被リンクがある）ノードを特定（存在しないファイルも含める）
     linked_sources = {e[0] for e in raw_edges}
-    linked_targets = {e[1] for e in raw_edges if e[1] in titles}
+    linked_targets = {e[1] for e in raw_edges}
     relevant_nodes = linked_sources | linked_targets
 
     nodes = []
     for nid in sorted(relevant_nodes):
+        exists = nid in titles
         node_title = titles.get(nid, nid)
+        label = node_title[:40] if len(node_title) > 40 else node_title
+        if not exists:
+            label = '⚠ ' + label
         nodes.append({
             'id': nid,
-            'label': node_title[:40] if len(node_title) > 40 else node_title,
-            'url': '/post/' + nid
+            'label': label,
+            'url': '/post/' + nid if exists else None,
+            'exists': 1 if exists else 0
         })
 
     edges = []
     seen_edges = set()
     for src, tgt in raw_edges:
-        if tgt not in titles:
-            continue
         key = (src, tgt)
         if key not in seen_edges:
             seen_edges.add(key)
