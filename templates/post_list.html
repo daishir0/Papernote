@@ -406,6 +406,12 @@
             padding: 3rem;
             color: var(--text-muted);
         }
+
+        #graph-select-mode-btn.active {
+            background-color: #0d6efd;
+            color: #fff;
+            border-color: #0d6efd;
+        }
     </style>
 </head>
 <body>
@@ -477,6 +483,15 @@
 
         {% if view_mode == 'graph' %}
         <!-- グラフビュー -->
+        <div id="graph-toolbar" style="display:none; margin-bottom:0.5rem; align-items:center; gap:0.5rem;">
+            <button id="graph-select-mode-btn" class="btn btn-sm btn-outline-secondary"
+                    title="複数ノードを選択して一緒に移動できます">
+                <i class="fas fa-object-group"></i> 選択モード
+            </button>
+            <small id="graph-select-hint" style="display:none; color:#6c757d;">
+                クリックで選択 · 複数選択後にドラッグで移動 · ESCで解除
+            </small>
+        </div>
         <div id="graph-loading">
             <div class="spinner" style="width:2rem;height:2rem;border-width:3px;margin:0 auto 1rem;"></div>
             <div>グラフを読み込み中...</div>
@@ -1409,6 +1424,7 @@
                     document.getElementById('graph-loading').style.display = 'none';
                     var container = document.getElementById('graph-container');
                     container.style.display = 'block';
+                    document.getElementById('graph-toolbar').style.display = 'flex';
 
                     if (nodes.length === 0) {
                         container.innerHTML = '<div style="text-align:center;padding:3rem;color:#6c757d;">リンクが見つかりませんでした。<br>メモ間でリンクを追加すると、ここにグラフが表示されます。</div>';
@@ -1506,6 +1522,15 @@
                                 }
                             },
                             {
+                                selector: 'node:selected',
+                                style: {
+                                    'border-color': '#ffc107',
+                                    'border-width': 4,
+                                    'border-style': 'solid',
+                                    'background-color': '#0a58ca'
+                                }
+                            },
+                            {
                                 selector: 'edge',
                                 style: {
                                     'width': 1.5,
@@ -1533,6 +1558,41 @@
                     // グローバル変数に登録（検索フィルター用）
                     graphCy = cy;
 
+                    // 選択モード制御
+                    var graphSelectMode = false;
+
+                    function setSelectMode(enabled) {
+                        graphSelectMode = enabled;
+                        if (enabled) {
+                            cy.selectionType('additive');
+                            document.getElementById('graph-select-mode-btn').classList.add('active');
+                            document.getElementById('graph-select-hint').style.display = '';
+                        } else {
+                            cy.selectionType('single');
+                            cy.elements().unselect();
+                            document.getElementById('graph-select-mode-btn').classList.remove('active');
+                            document.getElementById('graph-select-hint').style.display = 'none';
+                        }
+                    }
+
+                    document.getElementById('graph-select-mode-btn').addEventListener('click', function() {
+                        setSelectMode(!graphSelectMode);
+                    });
+
+                    // キャンバス（空白）をクリック → 全解除
+                    cy.on('tap', function(evt) {
+                        if (evt.target === cy && graphSelectMode) {
+                            cy.elements().unselect();
+                        }
+                    });
+
+                    // ESCキーで選択モード終了
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape' && graphSelectMode) {
+                            setSelectMode(false);
+                        }
+                    });
+
                     // 保存済みのズーム・パンを復元
                     // コンテナサイズが保存時と大きく異なる場合はfit()でフィット
                     if (hasSaved) {
@@ -1551,9 +1611,11 @@
                         }
                     }
 
-                    // ノードドラッグ終了時に保存
+                    // ノードドラッグ終了時に保存（複数ノード同時移動時の重複防止のためデバウンス）
+                    var dragSaveTimer = null;
                     cy.on('dragfree', 'node', function() {
-                        saveLayout(cy);
+                        clearTimeout(dragSaveTimer);
+                        dragSaveTimer = setTimeout(function() { saveLayout(cy); }, 150);
                     });
 
                     // ズーム・パン変更後に保存（debounce 500ms）
@@ -1674,6 +1736,7 @@
                     // ノードクリックでメモへ遷移（長押し後はスキップ、Ctrl/Cmd+click: 新タブ、Shift+click: 新ウィンドウ）
                     cy.on('tap', 'node', function(evt) {
                         if (isTapHold) { isTapHold = false; return; }
+                        if (graphSelectMode) return;  // 選択モードではナビゲーションしない
                         var nodeData = evt.target.data();
                         if (!nodeData.exists) {
                             alert('このファイルは削除または移動されています：\n' + nodeData.id);
