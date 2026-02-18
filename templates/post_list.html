@@ -1377,10 +1377,13 @@
                     cy.nodes().forEach(function(node) {
                         positions[node.id()] = node.position();
                     });
+                    var container = document.getElementById('graph-container');
                     var layout = {
                         positions: positions,
                         zoom: cy.zoom(),
-                        pan: cy.pan()
+                        pan: cy.pan(),
+                        containerWidth: container.offsetWidth,
+                        containerHeight: container.offsetHeight
                     };
                     fetch('/api/ui/postlist/graph/layout', {
                         method: 'POST',
@@ -1512,9 +1515,21 @@
                     graphCy = cy;
 
                     // 保存済みのズーム・パンを復元
+                    // コンテナサイズが保存時と大きく異なる場合はfit()でフィット
                     if (hasSaved) {
-                        cy.zoom(saved.zoom);
-                        cy.pan(saved.pan);
+                        var savedW = saved.containerWidth;
+                        var savedH = saved.containerHeight;
+                        var curW   = container.offsetWidth;
+                        var curH   = container.offsetHeight;
+                        var sameViewport = savedW && savedH &&
+                            Math.abs(curW - savedW) / savedW < 0.2 &&
+                            Math.abs(curH - savedH) / savedH < 0.2;
+                        if (sameViewport) {
+                            cy.zoom(saved.zoom);
+                            cy.pan(saved.pan);
+                        } else {
+                            cy.fit(undefined, 40);
+                        }
                     }
 
                     // ノードドラッグ終了時に保存
