@@ -375,6 +375,7 @@
             cursor: pointer;
             color: #212529;
             user-select: none;
+            text-decoration: none;
         }
 
         .graph-menu-item:hover {
@@ -595,9 +596,9 @@
             <i class="fas fa-link"></i> URLをコピー
         </div>
         <hr class="graph-menu-divider">
-        <div class="graph-menu-item" id="graph-menu-edit">
+        <a class="graph-menu-item" id="graph-menu-edit" href="#">
             <i class="fas fa-edit"></i> 編集
-        </div>
+        </a>
         <div class="graph-menu-item" id="graph-menu-claude">
             <i class="fas fa-bolt"></i> Claude Code
         </div>
@@ -1662,6 +1663,10 @@
                         // 存在しないノードは編集・URLコピーを非表示
                         document.getElementById('graph-menu-url').style.display = ctxNodeExists ? '' : 'none';
                         document.getElementById('graph-menu-edit').style.display = ctxNodeExists ? '' : 'none';
+                        // 編集リンクのhrefを動的にセット（ブラウザネイティブの修飾キー処理を利用）
+                        if (ctxNodeExists) {
+                            document.getElementById('graph-menu-edit').href = '/edit_post/' + encodeURIComponent(filename);
+                        }
                         // 画面端に被らないよう位置調整
                         var menuW = 190, menuH = 110;
                         var left = Math.min(x, window.innerWidth - menuW - 8);
@@ -1723,16 +1728,21 @@
                         hideContextMenu();
                     });
 
-                    // 編集
+                    // 編集（<a>タグのhref経由でブラウザネイティブの修飾キー処理に委譲）
+                    // Ctrl/Cmd+クリック→新タブ、Shift+クリック→新ウィンドウ、通常→同タブ
                     document.getElementById('graph-menu-edit').addEventListener('click', function() {
-                        if (ctxFilename) window.location.href = '/edit_post/' + encodeURIComponent(ctxFilename);
                         hideContextMenu();
                     });
 
                     // Claude Code
-                    document.getElementById('graph-menu-claude').addEventListener('click', function() {
+                    document.getElementById('graph-menu-claude').addEventListener('click', function(e) {
                         if (ctxFilename && claudeCodeUrl) {
-                            window.open(claudeCodeUrl + '?papernote=' + encodeURIComponent(ctxFilename), '_blank');
+                            var url = claudeCodeUrl + '?papernote=' + encodeURIComponent(ctxFilename);
+                            if (e.shiftKey) {
+                                window.open(url, '_blank', 'noopener');
+                            } else {
+                                window.open(url, '_blank');
+                            }
                         }
                         hideContextMenu();
                     });
