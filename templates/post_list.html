@@ -1259,7 +1259,6 @@
             var tooltip = document.getElementById('previewTooltip');
             var hoverTimer = null;
             var abortCtrl = null;
-            var previewCache = new Map();
             var currentFilename = null;
 
             function showTooltip(text, x, y) {
@@ -1304,11 +1303,6 @@
                 hoverTimer = setTimeout(function() {
                     currentFilename = filename;
 
-                    if (previewCache.has(filename)) {
-                        showTooltip(previewCache.get(filename), startX, startY);
-                        return;
-                    }
-
                     showTooltip('読み込み中...', startX, startY);
 
                     abortCtrl = new AbortController();
@@ -1321,7 +1315,6 @@
                     })
                     .then(function(data) {
                         var text = data.preview || '(内容なし)';
-                        previewCache.set(filename, text);
                         if (currentFilename === filename) {
                             showTooltip(text, startX, startY);
                         }
