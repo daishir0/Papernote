@@ -1,5 +1,11 @@
         const csrfToken = document.body.dataset.csrfToken;  // CSRFトークンをdata属性から取得
 
+        // Mac判定: Windows=Alt, Mac=Opt+Cmd でエディタショートカットを統一
+        const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+        function isEditModKey(event) {
+            return isMac ? (event.altKey && event.metaKey) : event.altKey;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const contentTextArea = document.getElementById('content');
             if (contentTextArea) {
@@ -34,28 +40,28 @@
                 } else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                     event.preventDefault();
                     saveWithoutRedirect();
-                } else if (event.altKey && (event.code === 'KeyY' || event.key === 'y' || event.key === 'Y')) {
+                } else if (isEditModKey(event) && (event.code === 'KeyY' || event.key === 'y' || event.key === 'Y')) {
                     event.preventDefault();
                     const currentDate = getCurrentDate();
                     insertTextAtCursor(document.getElementById('content'), currentDate);
-                } else if (event.altKey && (event.code === 'KeyH' || event.key === 'h' || event.key === 'H')) {
+                } else if (isEditModKey(event) && (event.code === 'KeyH' || event.key === 'h' || event.key === 'H')) {
                     event.preventDefault();
                     const currentTime = getCurrentTime();
                     insertTextAtCursor(document.getElementById('content'), currentTime);
-                } else if (event.altKey && (event.code === 'Digit1' || event.key === '1')) {
+                } else if (isEditModKey(event) && (event.code === 'Digit1' || event.key === '1')) {
                     event.preventDefault();
                     cycleHeaderLevel(document.getElementById('content'));
-                } else if (event.altKey && (event.code === 'Digit2' || event.key === '2')) {
+                } else if (isEditModKey(event) && (event.code === 'Digit2' || event.key === '2')) {
                     event.preventDefault();
                     cycleDashMark(document.getElementById('content'));
-                } else if (event.altKey && (event.code === 'Digit3' || event.key === '3')) {
+                } else if (isEditModKey(event) && (event.code === 'Digit3' || event.key === '3')) {
                     event.preventDefault();
                     cycleNumberMark(document.getElementById('content'));
-                } else if (event.altKey && (event.code === 'Digit4' || event.key === '4')) {
+                } else if (isEditModKey(event) && (event.code === 'Digit4' || event.key === '4')) {
                     event.preventDefault();
                     cycleQuoteMark(document.getElementById('content'));
-                } else if (event.altKey && (event.code === 'Digit5' || event.key === '5')) {
-                    // ALT+5: Bold（選択範囲がある場合のみ）
+                } else if (isEditModKey(event) && (event.code === 'Digit5' || event.key === '5')) {
+                    // ALT+5 (Win) / Opt+Cmd+5 (Mac): Bold（選択範囲がある場合のみ）
                     event.preventDefault();
                     const textarea = document.getElementById('content');
                     const start = textarea.selectionStart;
@@ -63,26 +69,26 @@
                     if (start !== end) { // 選択範囲がある場合のみ実行
                         wrapSelectedTextWith(textarea, '**');
                     }
-                } else if (event.altKey && (event.code === 'Digit6' || event.key === '6')) {
-                    // ALT+6: 4スペーストグル
+                } else if (isEditModKey(event) && (event.code === 'Digit6' || event.key === '6')) {
+                    // ALT+6 (Win) / Opt+Cmd+6 (Mac): 4スペーストグル
                     event.preventDefault();
                     cycleFourSpaces(document.getElementById('content'));
-                } else if (event.altKey && event.key === 'ArrowUp') {
-                    // ALT+Up: Move cursor to the beginning of the textarea
+                } else if (isEditModKey(event) && event.key === 'ArrowUp') {
+                    // ALT+Up (Win) / Opt+Cmd+Up (Mac): Move cursor to the beginning
                     event.preventDefault();
                     const textarea = document.getElementById('content');
                     textarea.selectionStart = 0;
                     textarea.selectionEnd = 0;
                     textarea.focus();
-                } else if (event.altKey && event.key === 'ArrowDown') {
-                    // ALT+Down: Move cursor to the end of the textarea
+                } else if (isEditModKey(event) && event.key === 'ArrowDown') {
+                    // ALT+Down (Win) / Opt+Cmd+Down (Mac): Move cursor to the end
                     event.preventDefault();
                     const textarea = document.getElementById('content');
                     textarea.selectionStart = textarea.value.length;
                     textarea.selectionEnd = textarea.value.length;
                     textarea.focus();
-                } else if (event.altKey && (event.code === 'KeyA' || event.key === 'a' || event.key === 'A')) {
-                    // ALT+A: AIアシスタントを開く
+                } else if (isEditModKey(event) && (event.code === 'KeyA' || event.key === 'a' || event.key === 'A')) {
+                    // ALT+A (Win) / Opt+Cmd+A (Mac): AIアシスタントを開く
                     event.preventDefault();
                     document.getElementById('aiButton').click();
                 }
