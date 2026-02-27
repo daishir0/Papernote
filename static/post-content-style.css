@@ -58,6 +58,14 @@ pre{
     padding: 10px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
+@media (max-width: 768px) {
+    .post-header .btn {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
 .content-wrapper {
     display: flex;
     gap: 20px;
@@ -151,6 +159,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 .align-right {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 .toggle-button::after {
     content: '▼';

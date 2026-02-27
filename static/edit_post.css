@@ -17,6 +17,7 @@
         .btn-toolbar {
             display: flex;
             flex-wrap: wrap; /* 自動折り返し */
+            align-items: center; /* 異なる高さのボタンを垂直中央揃え */
             gap: 4px;
             /* スティッキーヘッダー化 */
             position: sticky;
@@ -42,7 +43,6 @@
         /* Markdown編集ボタンの最小幅を設定（スマホで押しやすく） */
         .btn-group .btn {
             min-width: 38px;
-            padding: 8px 10px;
         }
         /* スマホ対応 - 横スクロール1行 */
         @media (max-width: 768px) {
@@ -79,6 +79,9 @@
             .btn-toolbar .btn,
             .btn-toolbar .btn-group .btn {
                 min-height: 44px; /* タッチ領域確保 */
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
                 white-space: nowrap; /* テキストの折り返しを防ぐ */
             }
 

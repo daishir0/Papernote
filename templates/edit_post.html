@@ -23,11 +23,13 @@
 </head>
 <body data-filename="{{ filename }}" data-csrf-token="{{ form.csrf_token._value() }}" data-post-url="{{ url_for('post', filename=request.view_args['filename']) }}" data-claude-code-url="{{ claude_code_url }}">
 
-    <a href="/postlist" class="mb-2"><<</a>
-
     <form method="post" class="container" style="margin-left: 0px; margin-right: 0px; max-width: 100%">
         {{ form.hidden_tag() }} <!-- CSRFトークンを追加 -->
         <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+            <!-- 戻るボタン（ツールバー最左端） -->
+            <a href="/postlist" id="backButton" class="btn btn-outline-secondary btn-sm" title="一覧へ戻る">
+                <i class="fas fa-arrow-left"></i><span class="d-none d-sm-inline ms-1">一覧</span>
+            </a>
             <!-- グループ1: Markdown書式（使用頻度: 高） -->
             <div class="btn-group" role="group" aria-label="Markdown formatting">
                 <button id="insertHashButton" type="button" class="btn btn-sm btn-outline-secondary" title="行の先頭に#を挿入">#</button>
@@ -39,17 +41,17 @@
             </div>
 
             <!-- グループ2: 保存・プレビュー・コピー -->
-            <button id="saveButton" type="button" class="btn btn-primary" title="保存 (Ctrl+S)"><i class="fas fa-save"></i></button>
-            <a href="{{ url_for('post', filename=request.view_args['filename']) }}" id="viewPageButton" class="btn btn-primary" title="プレビュー"><i class="fas fa-eye"></i></a>
+            <button id="saveButton" type="button" class="btn btn-sm btn-primary" title="保存 (Ctrl+S)"><i class="fas fa-save"></i></button>
+            <a href="{{ url_for('post', filename=request.view_args['filename']) }}" id="viewPageButton" class="btn btn-sm btn-primary" title="プレビュー"><i class="fas fa-eye"></i></a>
 
             <!-- グループ3: 特殊機能（使用頻度: 中〜高） -->
-            <button id="switchPageButton" type="button" class="btn btn-primary" title="他のページへ移動 (Ctrl+K)"><i class="fas fa-arrow-right-arrow-left"></i></button>
-            <button id="previewToggleButton" type="button" class="btn btn-primary preview-toggle" title="プレビューを表示/非表示">
+            <button id="switchPageButton" type="button" class="btn btn-sm btn-primary" title="他のページへ移動 (Ctrl+K)"><i class="fas fa-arrow-right-arrow-left"></i></button>
+            <button id="previewToggleButton" type="button" class="btn btn-sm btn-primary preview-toggle" title="プレビューを表示/非表示">
                 <i class="fas fa-columns"></i>
             </button>
 
             <!-- オプションボタン（一番右に配置） -->
-            <button id="insertButton" type="button" class="btn btn-primary" title="オプション"><i class="fas fa-ellipsis-v"></i></button>
+            <button id="insertButton" type="button" class="btn btn-sm btn-primary" title="オプション"><i class="fas fa-ellipsis-v"></i></button>
         </div>
         <input type="file" id="fileInput" style="display:none;">
 
