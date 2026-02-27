@@ -108,6 +108,7 @@
                 ccButton.addEventListener('click', () => {
                     const filename = document.body.dataset.filename;
                     const baseUrl = document.body.dataset.claudeCodeUrl;
+                    document.getElementById('insertOverlay').style.display = 'none';
                     if (baseUrl) {
                         const url = `${baseUrl}?papernote=${encodeURIComponent(filename)}`;
                         window.open(url, '_blank');
@@ -162,12 +163,13 @@
                 });
             }
 
-            // ファイル名をコピーボタン（ツールバー）
+            // ファイル名をコピーボタン
             const copyFilenameButton = document.getElementById('copyFilenameButton');
             if (copyFilenameButton) {
                 copyFilenameButton.addEventListener('click', () => {
                     const filename = document.body.dataset.filename;
                     const copyText = ` Papernoteの ${filename} `;
+                    document.getElementById('insertOverlay').style.display = 'none';
                     navigator.clipboard.writeText(copyText).then(() => {
                         showTemporaryMessage('ファイル名をコピーしました！');
                     }).catch(err => {
@@ -512,6 +514,7 @@
 
             // AIボタンクリック
             aiButton.addEventListener('click', () => {
+                insertOverlay.style.display = 'none';
                 const start = contentTextArea.selectionStart;
                 const end = contentTextArea.selectionEnd;
                 const selectedText = contentTextArea.value.substring(start, end);
@@ -1516,7 +1519,7 @@
             event.stopPropagation();
         }
 
-        var openInNewTab = event && event.ctrlKey;
+        var openInNewTab = event && (event.ctrlKey || event.metaKey);
         var url = mode === 'edit' ? '/edit_post/' + filename : '/post/' + filename;
 
         if (openInNewTab) {

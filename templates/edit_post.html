@@ -41,12 +41,9 @@
             <!-- グループ2: 保存・プレビュー・コピー -->
             <button id="saveButton" type="button" class="btn btn-primary" title="保存 (Ctrl+S)"><i class="fas fa-save"></i></button>
             <a href="{{ url_for('post', filename=request.view_args['filename']) }}" id="viewPageButton" class="btn btn-primary" title="プレビュー"><i class="fas fa-eye"></i></a>
-            <button id="copyFilenameButton" type="button" class="btn btn-primary" title="ファイル名をコピー"><i class="fas fa-copy"></i></button>
 
             <!-- グループ3: 特殊機能（使用頻度: 中〜高） -->
             <button id="switchPageButton" type="button" class="btn btn-primary" title="他のページへ移動 (Ctrl+K)"><i class="fas fa-arrow-right-arrow-left"></i></button>
-            <button id="aiButton" type="button" class="btn btn-primary" title="AIアシスタント"><i class="fas fa-robot"></i></button>
-            <button id="ccButton" type="button" class="btn btn-primary" title="Claude Code"><i class="fas fa-bolt"></i></button>
             <button id="previewToggleButton" type="button" class="btn btn-primary preview-toggle" title="プレビューを表示/非表示">
                 <i class="fas fa-columns"></i>
             </button>
@@ -85,11 +82,20 @@
             <button id="newPostButton" type="button" class="btn btn-primary btn-block mb-2" title="新しい投稿を作成">
                 📝 New Post
             </button>
+            <button id="copyFilenameButton" type="button" class="btn btn-primary btn-block mb-2" title="ファイル名をコピー">
+                📋 ファイル名をコピー
+            </button>
             <button id="copyViewUrlButton" type="button" class="btn btn-primary btn-block mb-2" title="閲覧用URLをコピー">
                 🔗 閲覧用URLをコピー
             </button>
             <button id="copyEditUrlButton" type="button" class="btn btn-primary btn-block mb-2" title="編集用URLをコピー">
                 ✏️ 編集用URLをコピー
+            </button>
+            <button id="aiButton" type="button" class="btn btn-primary btn-block mb-2" title="AIアシスタント">
+                🤖 AIアシスタント
+            </button>
+            <button id="ccButton" type="button" class="btn btn-primary btn-block mb-2" title="Claude Code">
+                ⚡ Claude Code
             </button>
             <button id="insertDateButton" type="button" class="btn btn-primary btn-block mb-2" title="現在の日付を挿入">
                 📅 日付 (YYYYMMDD) を挿入
