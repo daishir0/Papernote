@@ -12,6 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon-180x180.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon-192x192.png">
+    <link rel="manifest" href="/static/manifest.json">
 
     <link href="/static/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
@@ -344,6 +345,12 @@
 <div id="optionsOverlay" class="overlay" style="display:none;">
     <div class="dialog">
         <h5>オプション</h5>
+        <button id="copyViewUrlButton" type="button" class="btn btn-primary btn-block mb-2" title="閲覧用URLをコピー">
+            🔗 閲覧用URLをコピー
+        </button>
+        <button id="copyEditUrlButton" type="button" class="btn btn-primary btn-block mb-2" title="編集用URLをコピー">
+            ✏️ 編集用URLをコピー
+        </button>
         <button id="slideModeMenuButton" type="button" class="btn btn-primary btn-block mb-2" title="スライドモード">
             📊 スライドモード
         </button>
@@ -1175,6 +1182,39 @@
                 optionsOverlay.style.display = 'none';
             }
         });
+
+        // 閲覧用URLをコピーボタン
+        const copyViewUrlButton = document.getElementById('copyViewUrlButton');
+        if (copyViewUrlButton) {
+            copyViewUrlButton.addEventListener('click', async function() {
+                optionsOverlay.style.display = 'none';
+                try {
+                    const url = window.location.origin + window.location.pathname;
+                    await navigator.clipboard.writeText(url);
+                    showTemporaryMessage('閲覧用URLをコピーしました');
+                } catch (error) {
+                    console.error('URL copy failed:', error);
+                    showTemporaryMessage('コピーに失敗しました');
+                }
+            });
+        }
+
+        // 編集用URLをコピーボタン
+        const copyEditUrlButton = document.getElementById('copyEditUrlButton');
+        if (copyEditUrlButton) {
+            copyEditUrlButton.addEventListener('click', async function() {
+                optionsOverlay.style.display = 'none';
+                try {
+                    const filename = document.body.dataset.filename;
+                    const url = window.location.origin + '/edit_post/' + filename;
+                    await navigator.clipboard.writeText(url);
+                    showTemporaryMessage('編集用URLをコピーしました');
+                } catch (error) {
+                    console.error('URL copy failed:', error);
+                    showTemporaryMessage('コピーに失敗しました');
+                }
+            });
+        }
 
         // スライドモードボタン
         const slideModeMenuButton = document.getElementById('slideModeMenuButton');

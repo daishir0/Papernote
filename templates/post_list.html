@@ -11,6 +11,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon-180x180.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon-192x192.png">
+    <link rel="manifest" href="/static/manifest.json">
 
     <link href="/static/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
@@ -553,6 +554,12 @@
                                     <li><a class="dropdown-item" href="#" onclick="copyToClipboard('{{ file.filename }}'); return false;">
                                         <i class="fas fa-file-alt"></i> 本文コピー
                                     </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="copyViewUrlToClipboard('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-link"></i> 閲覧用URLをコピー
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="copyEditUrlToClipboard('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-edit"></i> 編集用URLをコピー
+                                    </a></li>
                                     <li><a class="dropdown-item" href="#" onclick="openCommentModal('{{ file.filename }}'); return false;">
                                         <i class="fas fa-plus"></i> コメント追加
                                     </a></li>
@@ -1005,6 +1012,12 @@
                                 <li><a class="dropdown-item" href="#" onclick="copyToClipboard('${escapeHtml(file.filename)}'); return false;">
                                     <i class="fas fa-file-alt"></i> 本文コピー
                                 </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="copyViewUrlToClipboard('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-link"></i> 閲覧用URLをコピー
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="copyEditUrlToClipboard('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-edit"></i> 編集用URLをコピー
+                                </a></li>
                                 <li><a class="dropdown-item" href="#" onclick="openCommentModal('${escapeHtml(file.filename)}'); return false;">
                                     <i class="fas fa-plus"></i> コメント追加
                                 </a></li>
@@ -1109,6 +1122,28 @@
                 showTemporaryMessage('ファイル名をコピーしました');
             } catch (error) {
                 console.error('Copy failed:', error);
+                showTemporaryMessage('コピーに失敗しました');
+            }
+        }
+
+        async function copyViewUrlToClipboard(filename) {
+            try {
+                const url = window.location.origin + '/post/' + encodeURIComponent(filename);
+                await navigator.clipboard.writeText(url);
+                showTemporaryMessage('閲覧用URLをコピーしました');
+            } catch (error) {
+                console.error('URL copy failed:', error);
+                showTemporaryMessage('コピーに失敗しました');
+            }
+        }
+
+        async function copyEditUrlToClipboard(filename) {
+            try {
+                const url = window.location.origin + '/edit_post/' + filename;
+                await navigator.clipboard.writeText(url);
+                showTemporaryMessage('編集用URLをコピーしました');
+            } catch (error) {
+                console.error('URL copy failed:', error);
                 showTemporaryMessage('コピーに失敗しました');
             }
         }

@@ -337,6 +337,46 @@
                 });
             }
 
+            // 閲覧用URLをコピーボタン
+            const copyViewUrlButton = document.getElementById('copyViewUrlButton');
+            if (copyViewUrlButton) {
+                copyViewUrlButton.addEventListener('click', async () => {
+                    const insertOverlay = document.getElementById('insertOverlay');
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
+                    try {
+                        const filename = document.body.dataset.filename;
+                        const url = window.location.origin + '/post/' + encodeURIComponent(filename);
+                        await navigator.clipboard.writeText(url);
+                        showTemporaryMessage('閲覧用URLをコピーしました');
+                    } catch (error) {
+                        console.error('URL copy failed:', error);
+                        showTemporaryMessage('コピーに失敗しました');
+                    }
+                });
+            }
+
+            // 編集用URLをコピーボタン
+            const copyEditUrlButton = document.getElementById('copyEditUrlButton');
+            if (copyEditUrlButton) {
+                copyEditUrlButton.addEventListener('click', async () => {
+                    const insertOverlay = document.getElementById('insertOverlay');
+                    if (insertOverlay) {
+                        insertOverlay.style.display = 'none';
+                    }
+                    try {
+                        const filename = document.body.dataset.filename;
+                        const url = window.location.origin + '/edit_post/' + filename;
+                        await navigator.clipboard.writeText(url);
+                        showTemporaryMessage('編集用URLをコピーしました');
+                    } catch (error) {
+                        console.error('URL copy failed:', error);
+                        showTemporaryMessage('コピーに失敗しました');
+                    }
+                });
+            }
+
             // New Postボタン
             const newPostButton = document.getElementById('newPostButton');
             if (newPostButton) {
