@@ -988,12 +988,27 @@ def is_valid_filename(filename):
     # ファイル名がディレクトリトラバーサルを含まないかチェック
     if '..' in filename or filename.startswith('/'):
         return False
-    
+
     # ファイル名が有効な文字のみを含むかチェック
     if not re.match(r'^[^/\\:*?"<>|]+\.txt$', filename):
         return False
-    
+
     return True
+
+def split_markdown_by_sections(text):
+    """Markdownを `# ` ヘッダー行でセクション分割（クライアント側と同一ロジック）"""
+    lines = text.split('\n')
+    sections = []
+    current = []
+    for line in lines:
+        if line.startswith('# ') and current:
+            sections.append('\n'.join(current))
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        sections.append('\n'.join(current))
+    return sections
 
 @app.route('/post/<filename>')
 def post(filename):
@@ -1013,27 +1028,41 @@ def post(filename):
             # 認証されていない場合、404エラーを返す
             abort(404)
 
+    INITIAL_SECTION_COUNT = 3
+
     with open(path, 'r', encoding='utf-8', errors='ignore') as memo_file:
         lines = memo_file.readlines()
         title = html.escape(lines[0].strip()) if lines else ""
-        tags = html.escape(lines[1].strip()) if len(lines) > 1 else ""
-        markdown = html.escape(''.join(lines[2:]))  # 3行目以降を抽出
+        tags  = html.escape(lines[1].strip()) if len(lines) > 1 else ""
+        full_markdown = ''.join(lines[2:])
 
     # 1行目が##で始まる場合は認証されていない場合に返答しない
     if not authenticated and title.startswith('##'):
         abort(404)
 
+    sections       = split_markdown_by_sections(full_markdown)
+    total_sections = len(sections)
+    initial_count  = min(INITIAL_SECTION_COUNT, total_sections)
+    initial_markdown = html.escape('\n'.join(sections[:initial_count]))
+
     content = {
-        'markdown': markdown,
+        'initial_markdown': initial_markdown,
         'filename': filename,
-        'title': title,
-        'tags': tags
+        'title':    title,
+        'tags':     tags,
     }
 
     # 認証済みの場合のみページ切り替え用の最新投稿リストを取得
     recent_posts = get_latest_posts(limit=20, exclude=filename) if authenticated else []
 
-    return render_template('post.html', content=content, authenticated=authenticated, recent_posts=recent_posts, claude_code_url=config.get('claude_code_url', ''))
+    return render_template('post.html',
+        content=content,
+        authenticated=authenticated,
+        recent_posts=recent_posts,
+        claude_code_url=config.get('claude_code_url', ''),
+        total_sections=total_sections,
+        initial_sections_count=initial_count,
+    )
 
 @app.route('/postmd/<filename>')
 def markdown_file(filename):
@@ -1063,6 +1092,49 @@ def markdown_file(filename):
         abort(404)
 
     return markdown, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+@app.route('/api/ui/postsections/<filename>')
+@limiter.limit("120 per minute")
+@csrf.exempt
+def api_ui_postsections(filename):
+    """投稿のMarkdownセクションを指定範囲で返す（遅延ロード用）"""
+    if not is_valid_filename(filename):
+        abort(400)
+
+    path = os.path.join('./post', filename)
+    if not os.path.exists(path):
+        abort(404)
+
+    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+        lines = f.readlines()
+
+    # 非公開記事チェック（/post/<filename> と同じ判定）
+    title = lines[0].strip() if lines else ""
+    if not current_user.is_authenticated and title.startswith('##'):
+        abort(404)
+
+    try:
+        offset = int(request.args.get('offset', 0))
+        count  = int(request.args.get('count', 3))
+    except (ValueError, TypeError):
+        abort(400)
+
+    count = min(count, 500)   # "すべて表示" で一括取得できるよう上限を大きく設定
+    if offset < 0 or count < 1:
+        abort(400)
+
+    full_markdown = ''.join(lines[2:])
+    sections = split_markdown_by_sections(full_markdown)
+    total    = len(sections)
+    sliced   = sections[offset:offset + count]
+
+    return jsonify({
+        'sections': sliced,
+        'total':    total,
+        'offset':   offset,
+        'count':    len(sliced),
+        'has_more': (offset + count) < total,
+    })
 
 class EditPostForm(FlaskForm):
     content = TextAreaField('Content', validators=[DataRequired()])

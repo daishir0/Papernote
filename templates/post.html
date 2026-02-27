@@ -200,9 +200,21 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
+        /* セクション段階的ロード UI */
+        .load-more-container {
+            text-align: center;
+            padding: 12px 8px 20px;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 20px;
+        }
+
     </style>
 </head>
-<body data-filename="{{ content.filename }}" data-claude-code-url="{{ claude_code_url }}" data-csrf-token="{{ csrf_token() }}">
+<body data-filename="{{ content.filename }}"
+      data-claude-code-url="{{ claude_code_url }}"
+      data-csrf-token="{{ csrf_token() }}"
+      data-total-sections="{{ total_sections }}"
+      data-initial-sections="{{ initial_sections_count }}">
 
 <div class="post-header">
     <a id="back-to-index" class="none_print" href="/postlist"><<</a>
@@ -290,9 +302,12 @@
     
     <div class="main-content">
 <template id="markdown-content">
-{{ content['markdown'] | safe }}
+{{ content['initial_markdown'] | safe }}
 </template>
         <div id="content"></div>
+        <div id="load-more-container" class="load-more-container none_print" style="display:none;">
+            <button id="load-more-btn" class="btn btn-dark btn-sm">次の3件を表示 ▼</button>
+        </div>
     </div>
 
 </div>
@@ -385,9 +400,9 @@
     let allCodesOpen = false;
 
     // セクション段階的ロード用変数
-    let allSections = [];
+    let totalSections = 0;   // サーバーから取得した総セクション数
+    let isFetching = false;  // 二重fetch防止フラグ
     let renderedCount = 0;
-    const INITIAL_COUNT = 3;
     const LOAD_MORE_COUNT = 3;
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -444,7 +459,6 @@
     });
 
     document.addEventListener('DOMContentLoaded', function() {
-        const markdownText = document.getElementById('markdown-content').content.textContent;
         const renderer = new marked.Renderer();
 
         renderer.code = function(code, language) {
@@ -491,23 +505,6 @@
             const table = originalTable.call(this, header, body);
             return '<div class="table-responsive">' + table + '</div>';
         };
-
-        // セクション分割関数（`# `で始まる行をセクション区切りとして認識）
-        function splitMarkdownBySections(text) {
-            const lines = text.split('\n');
-            const sections = [];
-            let current = [];
-            for (const line of lines) {
-                if (line.match(/^# /) && current.length > 0) {
-                    sections.push(current.join('\n'));
-                    current = [line];
-                } else {
-                    current.push(line);
-                }
-            }
-            if (current.length > 0) sections.push(current.join('\n'));
-            return sections;
-        }
 
         // セキュリティフィルタ適用
         function applySecurityFilter(html) {
@@ -576,68 +573,86 @@
             }
         }
 
-        // 追加レンダリング関数
-        function renderMoreSections(count) {
+        // 追加レンダリング関数（非同期fetch版）
+        async function renderMoreSections(count) {
+            if (isFetching) return;
+            isFetching = true;
+
             const contentDiv = document.getElementById('content');
-            const end = (count === Infinity) ? allSections.length : Math.min(renderedCount + count, allSections.length);
-            const toRender = allSections.slice(renderedCount, end);
+            const filename   = document.body.dataset.filename;
+            const fetchCount = (count === Infinity) ? (totalSections - renderedCount) : count;
 
-            toRender.forEach(sectionText => {
-                const sectionHtml = applySecurityFilter(marked.parse(sectionText));
-                const wrapper = document.createElement('div');
-                wrapper.innerHTML = sectionHtml;
-                wrapper.style.display = 'none';
-                contentDiv.appendChild(wrapper);
-                $(wrapper).slideDown(300);
-            });
+            try {
+                const res = await fetch(
+                    `/api/ui/postsections/${encodeURIComponent(filename)}?offset=${renderedCount}&count=${fetchCount}`
+                );
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
 
-            renderedCount = end;
-
-            // mermaid再初期化
-            const newMermaids = contentDiv.querySelectorAll('.mermaid:not([data-processed])');
-            if (newMermaids.length > 0) {
-                mermaid.init(undefined, newMermaids);
-            }
-
-            buildTableOfContents();
-            updateLoadMoreUI();
-        }
-
-        // ヘッダーバッジUI更新
-        function updateLoadMoreUI() {
-            const badge = document.getElementById('section-badge-btn');
-            const badgeText = document.getElementById('section-badge-text');
-            if (!badge) return;
-            if (renderedCount >= allSections.length) {
-                badge.style.display = 'none';
-            } else {
-                badgeText.textContent = `${renderedCount}/${allSections.length}`;
-                badge.style.display = '';
-            }
-        }
-
-        // セクション分割・初期レンダリング
-        allSections = splitMarkdownBySections(markdownText);
-
-        if (allSections.length <= INITIAL_COUNT) {
-            // セクションが3件以下: 従来通り全表示、バッジ非表示
-            document.getElementById('content').innerHTML = applySecurityFilter(marked.parse(markdownText));
-            renderedCount = allSections.length;
-        } else {
-            // セクションが4件以上: 最初の3件のみレンダリング
-            const initialText = allSections.slice(0, INITIAL_COUNT).join('\n');
-            document.getElementById('content').innerHTML = applySecurityFilter(marked.parse(initialText));
-            renderedCount = INITIAL_COUNT;
-
-            // ヘッダーバッジ表示・更新
-            updateLoadMoreUI();
-
-            const sectionBadgeBtn = document.getElementById('section-badge-btn');
-            if (sectionBadgeBtn) {
-                sectionBadgeBtn.addEventListener('click', function() {
-                    renderMoreSections(Infinity);
+                data.sections.forEach(sectionText => {
+                    const sectionHtml = applySecurityFilter(marked.parse(sectionText));
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = sectionHtml;
+                    wrapper.style.display = 'none';
+                    contentDiv.appendChild(wrapper);
+                    $(wrapper).slideDown(300);
                 });
+
+                renderedCount += data.count;
+
+                // mermaid再初期化
+                const newMermaids = contentDiv.querySelectorAll('.mermaid:not([data-processed])');
+                if (newMermaids.length > 0) mermaid.init(undefined, newMermaids);
+
+                buildTableOfContents();
+                updateLoadMoreUI();
+
+            } catch (err) {
+                console.error('セクション取得エラー:', err);
+                showTemporaryMessage('セクションの読み込みに失敗しました');
+            } finally {
+                isFetching = false;
             }
+        }
+
+        // ヘッダーバッジ＋下部ボタンUI更新
+        function updateLoadMoreUI() {
+            const badge     = document.getElementById('section-badge-btn');
+            const badgeText = document.getElementById('section-badge-text');
+            const container = document.getElementById('load-more-container');
+            const remaining = totalSections - renderedCount;
+
+            if (remaining <= 0) {
+                if (badge)     badge.style.display = 'none';
+                if (container) container.style.display = 'none';
+            } else {
+                if (badge) {
+                    badgeText.textContent = `${renderedCount}/${totalSections}`;
+                    badge.style.display = '';
+                }
+                if (container) container.style.display = 'block';
+            }
+        }
+
+        // サーバーから総セクション数・初期済み数を取得
+        totalSections = parseInt(document.body.dataset.totalSections) || 0;
+        renderedCount = parseInt(document.body.dataset.initialSections) || 0;
+
+        // <template> に埋め込まれた初期Markdownをレンダリング
+        const initialMarkdown = document.getElementById('markdown-content').content.textContent;
+        document.getElementById('content').innerHTML = applySecurityFilter(marked.parse(initialMarkdown));
+
+        // バッジ・ボタンの初期表示
+        updateLoadMoreUI();
+
+        // イベントリスナー登録
+        const sectionBadgeBtn = document.getElementById('section-badge-btn');
+        if (sectionBadgeBtn) {
+            sectionBadgeBtn.addEventListener('click', () => renderMoreSections(Infinity));
+        }
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => renderMoreSections(LOAD_MORE_COUNT));
         }
 
         mermaid.init(undefined, document.querySelectorAll('.mermaid'));
