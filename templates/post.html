@@ -20,78 +20,78 @@
     <link rel="stylesheet" href="/static/post-content-style.css">
     <link rel="stylesheet" href="/static/slideshow.css">
     <style>
-        /* 画像サイズ調整UI */
-        .image-size-control {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            margin-right: 5px;
-        }
-        .image-size-control input[type="range"] {
-            width: 100px;
-            margin: 0 5px;
-        }
-        .image-size-control .size-label {
-            min-width: 45px;
-            font-size: 0.85em;
-            font-weight: bold;
-        }
-        .image-size-control .btn {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-        }
-
-        /* スマホ版: ドロップダウンメニュー */
-        .image-size-dropdown {
+        /* ⋮ ドロップダウン */
+        .options-dropdown {
             position: relative;
             display: inline-block;
         }
-        .size-menu {
+        .options-menu {
             display: none;
             position: absolute;
             right: 0;
-            top: 100%;
+            top: calc(100% + 4px);
             background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            z-index: 1001;
-            min-width: 120px;
-            margin-top: 5px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1050;
+            min-width: 220px;
+            padding: 4px 0;
         }
-        .size-menu.show {
-            display: block;
-        }
-        .size-menu button {
-            display: block;
-            width: 100%;
-            padding: 8px 12px;
-            border: none;
-            background: none;
-            text-align: left;
+        .options-menu.show { display: block; }
+        .options-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
             cursor: pointer;
             font-size: 0.9em;
+            color: #333;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            transition: background 0.15s;
         }
-        .size-menu button:hover {
-            background-color: #f0f0f0;
+        .options-menu-item:hover { background: #f8f9fa; }
+        .options-menu-item.danger { color: #dc3545; }
+        .options-menu-item.danger:hover { background: #fff5f5; }
+        .options-menu-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px 4px;
+            font-size: 0.82em;
+            color: #888;
+            pointer-events: none;
         }
-        .size-menu button.active {
-            background-color: #e3f2fd;
-            font-weight: bold;
+        .options-menu-divider {
+            height: 1px;
+            background: #e9ecef;
+            margin: 4px 0;
         }
-
-        /* スマホ版の調整 */
-        @media (max-width: 768px) {
-            .image-size-control {
-                display: none !important;
-            }
+        /* 画像サイズプリセット */
+        .image-size-presets {
+            display: flex;
+            gap: 4px;
+            padding: 2px 16px 8px;
         }
-
-        /* PC版の調整 */
-        @media (min-width: 769px) {
-            .image-size-dropdown {
-                display: none !important;
-            }
+        .image-size-presets button {
+            flex: 1;
+            padding: 5px 2px;
+            font-size: 0.78em;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.15s;
+            line-height: 1.3;
+        }
+        .image-size-presets button:hover,
+        .image-size-presets button.active {
+            background: #212529;
+            color: white;
+            border-color: #212529;
         }
 
         /* ページ切り替えオーバーレイ用スタイル */
@@ -199,6 +199,7 @@
             color: #fff;
             background: rgba(255, 255, 255, 0.2);
         }
+
     </style>
 </head>
 <body data-filename="{{ content.filename }}" data-claude-code-url="{{ claude_code_url }}" data-csrf-token="{{ csrf_token() }}">
@@ -206,47 +207,75 @@
 <div class="post-header">
     <a id="back-to-index" class="none_print" href="/postlist"><<</a>
     <div class="align-right">
-        <!-- PC版: 画像サイズ調整スライダー -->
-        <div class="image-size-control none_print">
-            <button class="btn btn-dark btn-sm" onclick="adjustImageSize(-10)">
-                <i class="fas fa-minus"></i>
-            </button>
-            <input type="range" id="image-size-slider" min="50" max="200" value="100" step="10">
-            <button class="btn btn-dark btn-sm" onclick="adjustImageSize(10)">
-                <i class="fas fa-plus"></i>
-            </button>
-            <span class="size-label" id="size-label">100%</span>
-        </div>
+        <!-- セクション進捗バッジ -->
+        <button id="section-badge-btn" class="btn btn-outline-secondary btn-sm none_print" style="display:none;" title="残りのセクションをすべて表示">
+            <span id="section-badge-text">3/10</span> ▼▼
+        </button>
 
-        <!-- スマホ版: 画像サイズドロップダウン -->
-        <div class="image-size-dropdown none_print">
-            <button class="btn btn-dark btn-sm" onclick="toggleSizeMenu()">
-                <i class="fas fa-image"></i>
-            </button>
-            <div class="size-menu" id="size-menu">
-                <button onclick="setImageSize(70)">小 (70%)</button>
-                <button onclick="setImageSize(100)" class="active">中 (100%)</button>
-                <button onclick="setImageSize(150)">大 (150%)</button>
-                <button onclick="setImageSize(200)">特大 (200%)</button>
-            </div>
-        </div>
+        <!-- 目次ボタン -->
+        <button id="toggle-toc" class="btn btn-dark btn-sm none_print"><i class="fas fa-list"></i> 目次 <span class="toc-icon">▲</span></button>
 
-        <button id="toggle-toc" class="btn btn-dark btn-sm none_print">目 <span class="toc-icon">▲</span></button>
-        <button id="toggle-all-codes" class="btn btn-dark btn-sm toggle-button collapsed none_print">&lt;...&gt;</button>
         {% if current_user.is_authenticated %}
-        <button id="copyFilenameButton" class="btn btn-primary btn-sm none_print" title="ファイル名をコピー">
-            <i class="fas fa-copy"></i>
-        </button>
-        <button id="switchPageButton" class="btn btn-primary btn-sm none_print" title="他のページへ移動 (Ctrl+K)">
-            <i class="fas fa-arrow-right-arrow-left"></i>
-        </button>
+        <!-- 編集ボタン -->
         <button class="btn btn-success btn-sm none_print" onclick="editPost('{{ content.filename }}')">
             <i class="fas fa-edit"></i>
         </button>
-        <button id="optionsButton" class="btn btn-primary btn-sm none_print" title="オプション">
-            <i class="fas fa-ellipsis-v"></i>
-        </button>
         {% endif %}
+
+        <!-- ⋮ ドロップダウン -->
+        <div class="options-dropdown none_print">
+            <button id="optionsButton" class="btn btn-primary btn-sm" title="オプション" onclick="toggleOptionsMenu()">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div class="options-menu" id="options-menu">
+                <!-- 画像サイズ -->
+                <div class="options-menu-label">
+                    <i class="fas fa-image"></i> 画像サイズ
+                </div>
+                <div class="image-size-presets">
+                    <button onclick="setImageSize(70)">小<br>70%</button>
+                    <button onclick="setImageSize(100)" class="active" id="img-preset-100">中<br>100%</button>
+                    <button onclick="setImageSize(150)">大<br>150%</button>
+                    <button onclick="setImageSize(200)">特大<br>200%</button>
+                </div>
+                <div class="options-menu-divider"></div>
+                <!-- コードセクション -->
+                <button class="options-menu-item" id="toggle-all-codes">
+                    <i class="fas fa-code"></i> コードセクション 表示/非表示
+                </button>
+                {% if current_user.is_authenticated %}
+                <div class="options-menu-divider"></div>
+                <!-- ファイル名コピー -->
+                <button class="options-menu-item" id="copyFilenameButton">
+                    <i class="fas fa-copy"></i> ファイル名をコピー
+                </button>
+                <!-- ページ切り替え -->
+                <button class="options-menu-item" id="switchPageButton">
+                    <i class="fas fa-arrow-right-arrow-left"></i> ページ切り替え (Ctrl+K)
+                </button>
+                <!-- URL コピー -->
+                <button class="options-menu-item" id="copyViewUrlButton">
+                    <i class="fas fa-link"></i> 閲覧用URLをコピー
+                </button>
+                <button class="options-menu-item" id="copyEditUrlButton">
+                    <i class="fas fa-pen"></i> 編集用URLをコピー
+                </button>
+                <!-- スライドモード -->
+                <button class="options-menu-item" id="slideModeMenuButton">
+                    <i class="fas fa-chart-bar"></i> スライドモード
+                </button>
+                <!-- Claude Code -->
+                <button class="options-menu-item" id="ccMenuButton">
+                    <i class="fas fa-bolt"></i> Claude Code
+                </button>
+                <div class="options-menu-divider"></div>
+                <!-- 削除 -->
+                <button class="options-menu-item danger" id="deletePostButton">
+                    <i class="fas fa-trash"></i> 削除
+                </button>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
@@ -341,30 +370,6 @@
     </div>
 </div>
 
-<!-- オプションオーバーレイ -->
-<div id="optionsOverlay" class="overlay" style="display:none;">
-    <div class="dialog">
-        <h5>オプション</h5>
-        <button id="copyViewUrlButton" type="button" class="btn btn-primary btn-block mb-2" title="閲覧用URLをコピー">
-            🔗 閲覧用URLをコピー
-        </button>
-        <button id="copyEditUrlButton" type="button" class="btn btn-primary btn-block mb-2" title="編集用URLをコピー">
-            ✏️ 編集用URLをコピー
-        </button>
-        <button id="slideModeMenuButton" type="button" class="btn btn-primary btn-block mb-2" title="スライドモード">
-            📊 スライドモード
-        </button>
-        <button id="ccMenuButton" type="button" class="btn btn-primary btn-block mb-2" title="Claude Code">
-            ⚡ Claude Code
-        </button>
-        <button id="deletePostButton" type="button" class="btn btn-danger btn-block mb-2" title="この投稿を削除">
-            🗑️ 削除
-        </button>
-        <button id="optionsCancelButton" type="button" class="btn btn-secondary btn-block">
-            キャンセル
-        </button>
-    </div>
-</div>
 {% endif %}
 
 <script src="/static/jquery-3.7.0.min.js"></script>
@@ -378,6 +383,12 @@
     let isMobile = false;
     let tocVisible = true;
     let allCodesOpen = false;
+
+    // セクション段階的ロード用変数
+    let allSections = [];
+    let renderedCount = 0;
+    const INITIAL_COUNT = 3;
+    const LOAD_MORE_COUNT = 3;
 
     document.addEventListener('DOMContentLoaded', function() {
         // モバイル判定
@@ -481,101 +492,178 @@
             return '<div class="table-responsive">' + table + '</div>';
         };
 
-        const html = marked.parse(markdownText);
-
-        // 画面表示の際、以下のタグをエスケープ
-        const tagsToEscape = ['title', 'script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'link', 'meta'];
-        let escapedHtml = html;
-        tagsToEscape.forEach(tag => {
-            const regex = new RegExp(`<${tag}>`, 'g');
-            const closingRegex = new RegExp(`</${tag}>`, 'g');
-            escapedHtml = escapedHtml.replace(regex, `&lt;${tag}&gt;`).replace(closingRegex, `&lt;/${tag}&gt;`);
-        });
-
-        document.getElementById('content').innerHTML = escapedHtml;
-        mermaid.init(undefined, document.querySelectorAll('.mermaid'));
-
-        // インデックス生成
-        const index = document.getElementById('index');
-        const indexList = index.querySelector('ul');
-        const toggleAllCodesButton = document.getElementById('toggle-all-codes');
-        // 目次対象の見出しレベル（必要に応じて変更可能）
-        const headings = document.querySelectorAll('#content h1');
-        // const headings = document.querySelectorAll('#content h1, #content h2');
-        // const headings = document.querySelectorAll('#content h1, #content h2, #content h3');
-        // const headings = document.querySelectorAll('#content h1, #content h2, #content h3, #content h4, #content h5, #content h6');
-
-        // インデックスのリストアイテムを追加
-        if (headings.length === 0) {
-            const noIndex = document.createElement('li');
-            noIndex.textContent = '目次項目がありません';
-            noIndex.style.color = '#666';
-            indexList.appendChild(noIndex);
-        } else {
-            headings.forEach(heading => {
-                const level = parseInt(heading.tagName.substring(1));
-                const listItem = document.createElement('li');
-                listItem.style.marginLeft = (level - 1) * 20 + 'px'; // インデントを設定
-                const link = document.createElement('a');
-                const id = heading.textContent.replace(/\s+/g, '-').toLowerCase();
-                heading.id = id; // HタグにIDを設定
-                link.href = `#${id}`;
-                link.textContent = heading.textContent;
-                
-                // 目次内のリンクにクリックイベントを追加（モバイル表示時のみ動作）
-                link.addEventListener('click', function(e) {
-                    // クリック時にウィンドウ幅で判定
-                    if (window.innerWidth <= 991) {
-                        // 通常のリンク動作は維持しつつ、目次を非表示にする
-                        setTimeout(function() {
-                            // 目次を非表示にする
-                            if (indexContent) {
-                                $(indexContent).slideUp();
-                            }
-                            if (toggleIcon) {
-                                toggleIcon.textContent = '▲';
-                            }
-
-                            // 目次ボタンのアイコンも更新
-                            if (tocIcon) {
-                                tocIcon.textContent = '▲';
-                            }
-
-                            // 目次の表示状態を更新
-                            tocVisible = false;
-
-                            // content-wrapperにtoc-hiddenクラスを追加
-                            const contentWrapper = document.querySelector('.content-wrapper');
-                            if (contentWrapper) {
-                                contentWrapper.classList.add('toc-hidden');
-                            }
-                        }, 100);
-                    }
-                });
-                
-                listItem.appendChild(link);
-                indexList.appendChild(listItem);
-            });
+        // セクション分割関数（`# `で始まる行をセクション区切りとして認識）
+        function splitMarkdownBySections(text) {
+            const lines = text.split('\n');
+            const sections = [];
+            let current = [];
+            for (const line of lines) {
+                if (line.match(/^# /) && current.length > 0) {
+                    sections.push(current.join('\n'));
+                    current = [line];
+                } else {
+                    current.push(line);
+                }
+            }
+            if (current.length > 0) sections.push(current.join('\n'));
+            return sections;
         }
 
+        // セキュリティフィルタ適用
+        function applySecurityFilter(html) {
+            const tagsToEscape = ['title', 'script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'link', 'meta'];
+            let escaped = html;
+            tagsToEscape.forEach(tag => {
+                const regex = new RegExp(`<${tag}>`, 'g');
+                const closingRegex = new RegExp(`</${tag}>`, 'g');
+                escaped = escaped.replace(regex, `&lt;${tag}&gt;`).replace(closingRegex, `&lt;/${tag}&gt;`);
+            });
+            return escaped;
+        }
 
-        // Codeボタンの機能
+        // 目次生成関数（追加レンダリング後にも呼び出す）
+        function buildTableOfContents() {
+            const index = document.getElementById('index');
+            const indexList = index.querySelector('ul');
+            indexList.innerHTML = '';
+            // 目次対象の見出しレベル（必要に応じて変更可能）
+            const headings = document.querySelectorAll('#content h1');
+            // const headings = document.querySelectorAll('#content h1, #content h2');
+            // const headings = document.querySelectorAll('#content h1, #content h2, #content h3');
+            // const headings = document.querySelectorAll('#content h1, #content h2, #content h3, #content h4, #content h5, #content h6');
+
+            if (headings.length === 0) {
+                const noIndex = document.createElement('li');
+                noIndex.textContent = '目次項目がありません';
+                noIndex.style.color = '#666';
+                indexList.appendChild(noIndex);
+            } else {
+                headings.forEach(heading => {
+                    const level = parseInt(heading.tagName.substring(1));
+                    const listItem = document.createElement('li');
+                    listItem.style.marginLeft = (level - 1) * 20 + 'px'; // インデントを設定
+                    const link = document.createElement('a');
+                    const id = heading.textContent.replace(/\s+/g, '-').toLowerCase();
+                    heading.id = id; // HタグにIDを設定
+                    link.href = `#${id}`;
+                    link.textContent = heading.textContent;
+
+                    // 目次内のリンクにクリックイベントを追加（モバイル表示時のみ動作）
+                    link.addEventListener('click', function(e) {
+                        if (window.innerWidth <= 991) {
+                            setTimeout(function() {
+                                if (indexContent) {
+                                    $(indexContent).slideUp();
+                                }
+                                if (toggleIcon) {
+                                    toggleIcon.textContent = '▲';
+                                }
+                                if (tocIcon) {
+                                    tocIcon.textContent = '▲';
+                                }
+                                tocVisible = false;
+                                const contentWrapper = document.querySelector('.content-wrapper');
+                                if (contentWrapper) {
+                                    contentWrapper.classList.add('toc-hidden');
+                                }
+                            }, 100);
+                        }
+                    });
+
+                    listItem.appendChild(link);
+                    indexList.appendChild(listItem);
+                });
+            }
+        }
+
+        // 追加レンダリング関数
+        function renderMoreSections(count) {
+            const contentDiv = document.getElementById('content');
+            const end = (count === Infinity) ? allSections.length : Math.min(renderedCount + count, allSections.length);
+            const toRender = allSections.slice(renderedCount, end);
+
+            toRender.forEach(sectionText => {
+                const sectionHtml = applySecurityFilter(marked.parse(sectionText));
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = sectionHtml;
+                wrapper.style.display = 'none';
+                contentDiv.appendChild(wrapper);
+                $(wrapper).slideDown(300);
+            });
+
+            renderedCount = end;
+
+            // mermaid再初期化
+            const newMermaids = contentDiv.querySelectorAll('.mermaid:not([data-processed])');
+            if (newMermaids.length > 0) {
+                mermaid.init(undefined, newMermaids);
+            }
+
+            buildTableOfContents();
+            updateLoadMoreUI();
+        }
+
+        // ヘッダーバッジUI更新
+        function updateLoadMoreUI() {
+            const badge = document.getElementById('section-badge-btn');
+            const badgeText = document.getElementById('section-badge-text');
+            if (!badge) return;
+            if (renderedCount >= allSections.length) {
+                badge.style.display = 'none';
+            } else {
+                badgeText.textContent = `${renderedCount}/${allSections.length}`;
+                badge.style.display = '';
+            }
+        }
+
+        // セクション分割・初期レンダリング
+        allSections = splitMarkdownBySections(markdownText);
+
+        if (allSections.length <= INITIAL_COUNT) {
+            // セクションが3件以下: 従来通り全表示、バッジ非表示
+            document.getElementById('content').innerHTML = applySecurityFilter(marked.parse(markdownText));
+            renderedCount = allSections.length;
+        } else {
+            // セクションが4件以上: 最初の3件のみレンダリング
+            const initialText = allSections.slice(0, INITIAL_COUNT).join('\n');
+            document.getElementById('content').innerHTML = applySecurityFilter(marked.parse(initialText));
+            renderedCount = INITIAL_COUNT;
+
+            // ヘッダーバッジ表示・更新
+            updateLoadMoreUI();
+
+            const sectionBadgeBtn = document.getElementById('section-badge-btn');
+            if (sectionBadgeBtn) {
+                sectionBadgeBtn.addEventListener('click', function() {
+                    renderMoreSections(Infinity);
+                });
+            }
+        }
+
+        mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+
+        const toggleAllCodesButton = document.getElementById('toggle-all-codes');
+
+        // インデックス生成
+        buildTableOfContents();
+
+        // Codeボタンの機能（ドロップダウン内）
         if (toggleAllCodesButton) {
             toggleAllCodesButton.onclick = function() {
-                const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
+                const menu = document.getElementById('options-menu');
+                if (menu) menu.classList.remove('show');
 
+                const codeBlocks = document.querySelectorAll('pre[id^="code-"]');
                 if (allCodesOpen) {
                     codeBlocks.forEach(codeBlock => {
                         codeBlock.style.display = 'none';
                     });
                     allCodesOpen = false;
-                    toggleAllCodesButton.classList.add('collapsed');
                 } else {
                     codeBlocks.forEach(codeBlock => {
                         codeBlock.style.display = 'block';
                     });
                     allCodesOpen = true;
-                    toggleAllCodesButton.classList.remove('collapsed');
                 }
                 return false;
             };
@@ -794,33 +882,15 @@
             const contentImages = document.querySelectorAll('#content img');
             contentImages.forEach(img => {
                 if (img.complete && img.naturalWidth > 0) {
-                    // 既に読み込み済み
                     recordImageOriginalSize(img);
                 } else {
-                    // 読み込み完了を待つ
                     img.addEventListener('load', function() {
                         recordImageOriginalSize(img);
                     });
                 }
             });
         }, 500);
-
-        // スライダーでの調整
-        const slider = document.getElementById('image-size-slider');
-        if (slider) {
-            slider.addEventListener('input', function() {
-                setImageSize(parseInt(this.value));
-            });
-        }
     });
-
-    // ボタンで±調整
-    function adjustImageSize(delta) {
-        const newSize = Math.max(50, Math.min(200, currentImageSize + delta));
-        setImageSize(newSize);
-        const slider = document.getElementById('image-size-slider');
-        if (slider) slider.value = newSize;
-    }
 
     // サイズを設定
     function setImageSize(size) {
@@ -829,34 +899,29 @@
         images.forEach(img => {
             let originalWidth = imageOriginalSizes.get(img);
 
-            // 初期サイズが未記録または不正な場合はnaturalWidthを使用
             if (!originalWidth || originalWidth < 10) {
                 originalWidth = img.naturalWidth;
                 if (originalWidth > 10) {
                     imageOriginalSizes.set(img, originalWidth);
                 } else {
-                    // 有効なサイズがなければこの画像はスキップ
                     return;
                 }
             }
 
             const newWidth = originalWidth * (size / 100);
             img.style.width = newWidth + 'px';
-            img.style.height = 'auto'; // アスペクト比を維持
-            img.style.maxWidth = 'none'; // maxWidthを解除
-            img.style.maxHeight = 'none'; // maxHeightも解除
+            img.style.height = 'auto';
+            img.style.maxWidth = 'none';
+            img.style.maxHeight = 'none';
         });
 
-        // ラベル更新
-        const label = document.getElementById('size-label');
-        if (label) label.textContent = size + '%';
-
-        // スライダー更新
-        const slider = document.getElementById('image-size-slider');
-        if (slider) slider.value = size;
-
-        // スマホメニューのアクティブ状態更新
-        updateSizeMenuActive(size);
+        // ドロップダウン内プリセットボタンのアクティブ状態更新
+        const presets = document.querySelectorAll('.image-size-presets button');
+        presets.forEach(btn => {
+            btn.classList.remove('active');
+            const btnSize = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
+            if (btnSize === size) btn.classList.add('active');
+        });
     }
 
     // リセット
@@ -864,34 +929,16 @@
         setImageSize(100);
     }
 
-    // スマホメニューのトグル
-    function toggleSizeMenu() {
-        const menu = document.getElementById('size-menu');
-        if (menu) {
-            menu.classList.toggle('show');
-        }
+    // ⋮ ドロップダウン開閉
+    function toggleOptionsMenu() {
+        document.getElementById('options-menu').classList.toggle('show');
     }
 
-    // スマホメニューのアクティブ状態更新
-    function updateSizeMenuActive(size) {
-        const menu = document.getElementById('size-menu');
-        if (!menu) return;
-
-        const buttons = menu.querySelectorAll('button');
-        buttons.forEach(btn => {
-            btn.classList.remove('active');
-            const btnSize = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
-            if (btnSize === size) {
-                btn.classList.add('active');
-            }
-        });
-    }
-
-    // メニュー外クリックで閉じる
+    // 外側クリックでドロップダウンを閉じる
     document.addEventListener('click', function(e) {
-        const menu = document.getElementById('size-menu');
-        const dropdown = document.querySelector('.image-size-dropdown');
-        if (menu && dropdown && !dropdown.contains(e.target)) {
+        const menu = document.getElementById('options-menu');
+        const btn = document.getElementById('optionsButton');
+        if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
             menu.classList.remove('show');
         }
     });
@@ -1145,55 +1192,26 @@
     })();
 
     // ============================================
-    // オプションメニュー機能
+    // オプションドロップダウン機能
     // ============================================
     (function() {
-        const optionsButton = document.getElementById('optionsButton');
-        const optionsOverlay = document.getElementById('optionsOverlay');
-        const optionsCancelButton = document.getElementById('optionsCancelButton');
-        const ccMenuButton = document.getElementById('ccMenuButton');
-        const deletePostButton = document.getElementById('deletePostButton');
         const csrfToken = document.body.dataset.csrfToken;
 
-        if (!optionsButton || !optionsOverlay) return;
-
-        // オプションボタンクリック
-        optionsButton.addEventListener('click', function() {
-            optionsOverlay.style.display = 'flex';
-        });
-
-        // キャンセルボタンクリック
-        if (optionsCancelButton) {
-            optionsCancelButton.addEventListener('click', function() {
-                optionsOverlay.style.display = 'none';
-            });
+        function closeMenu() {
+            const menu = document.getElementById('options-menu');
+            if (menu) menu.classList.remove('show');
         }
-
-        // オーバーレイの背景クリックで閉じる
-        optionsOverlay.addEventListener('click', function(event) {
-            if (event.target === optionsOverlay) {
-                optionsOverlay.style.display = 'none';
-            }
-        });
-
-        // ESCキーで閉じる
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape' && optionsOverlay.style.display === 'flex') {
-                optionsOverlay.style.display = 'none';
-            }
-        });
 
         // 閲覧用URLをコピーボタン
         const copyViewUrlButton = document.getElementById('copyViewUrlButton');
         if (copyViewUrlButton) {
             copyViewUrlButton.addEventListener('click', async function() {
-                optionsOverlay.style.display = 'none';
+                closeMenu();
                 try {
                     const url = window.location.origin + window.location.pathname;
                     await navigator.clipboard.writeText(url);
                     showTemporaryMessage('閲覧用URLをコピーしました');
                 } catch (error) {
-                    console.error('URL copy failed:', error);
                     showTemporaryMessage('コピーに失敗しました');
                 }
             });
@@ -1203,14 +1221,13 @@
         const copyEditUrlButton = document.getElementById('copyEditUrlButton');
         if (copyEditUrlButton) {
             copyEditUrlButton.addEventListener('click', async function() {
-                optionsOverlay.style.display = 'none';
+                closeMenu();
                 try {
                     const filename = document.body.dataset.filename;
                     const url = window.location.origin + '/edit_post/' + filename;
                     await navigator.clipboard.writeText(url);
                     showTemporaryMessage('編集用URLをコピーしました');
                 } catch (error) {
-                    console.error('URL copy failed:', error);
                     showTemporaryMessage('コピーに失敗しました');
                 }
             });
@@ -1220,8 +1237,7 @@
         const slideModeMenuButton = document.getElementById('slideModeMenuButton');
         if (slideModeMenuButton) {
             slideModeMenuButton.addEventListener('click', function() {
-                optionsOverlay.style.display = 'none';
-                // スライドモードを開く関数を呼び出す（後で定義される）
+                closeMenu();
                 if (typeof openSlideMode === 'function') {
                     openSlideMode();
                 }
@@ -1229,6 +1245,7 @@
         }
 
         // Claude Codeボタン
+        const ccMenuButton = document.getElementById('ccMenuButton');
         if (ccMenuButton) {
             ccMenuButton.addEventListener('click', function() {
                 const filename = document.body.dataset.filename;
@@ -1236,7 +1253,7 @@
                 if (baseUrl) {
                     const url = baseUrl + '?papernote=' + encodeURIComponent(filename);
                     window.open(url, '_blank');
-                    optionsOverlay.style.display = 'none';
+                    closeMenu();
                 } else {
                     alert('Claude Code URLが設定されていません');
                 }
@@ -1244,8 +1261,10 @@
         }
 
         // 削除ボタン
+        const deletePostButton = document.getElementById('deletePostButton');
         if (deletePostButton) {
             deletePostButton.addEventListener('click', function() {
+                closeMenu();
                 const filename = document.body.dataset.filename;
                 if (confirm('本当にこの投稿を削除しますか？\n\nこの操作は元に戻せません。')) {
                     fetch('/delete_post', {
@@ -1268,7 +1287,6 @@
                         alert('削除に失敗しました: ' + error.message);
                     });
                 }
-                optionsOverlay.style.display = 'none';
             });
         }
     })();
@@ -1277,6 +1295,8 @@
     const copyFilenameButton = document.getElementById('copyFilenameButton');
     if (copyFilenameButton) {
         copyFilenameButton.addEventListener('click', function() {
+            const menu = document.getElementById('options-menu');
+            if (menu) menu.classList.remove('show');
             const filename = document.body.dataset.filename;
             const copyText = ' Papernoteの ' + filename + ' ';
             navigator.clipboard.writeText(copyText).then(function() {
