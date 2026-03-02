@@ -44,7 +44,7 @@ static/tw/*
 
 text-file-search-php/*
 
-__pycache__/*
+__pycache__/
 
 search/*
 
@@ -82,6 +82,8 @@ tmp/*
 
 gomi/
 .kiro/
+.claude/commands/
+outputs/
 CLAUDE.md
 
 graph_layout.yaml
