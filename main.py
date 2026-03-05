@@ -1387,6 +1387,180 @@ def api_ui_postlist_graph():
     return jsonify(result)
 
 
+def _parse_date_text(text, today):
+    """テキストから日付を解析する。返却: (date_obj, matched_text) or None"""
+    # YYYYMMDD (8桁連続)
+    m = re.search(r'(\d{4})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])', text)
+    if m:
+        try:
+            d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            return (d, m.group(0))
+        except ValueError:
+            pass
+
+    # YYYY/M/D or YYYY-M-D
+    m = re.search(r'(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})', text)
+    if m:
+        try:
+            d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            return (d, m.group(0))
+        except ValueError:
+            pass
+
+    # YYYY年M月D日
+    m = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', text)
+    if m:
+        try:
+            d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            return (d, m.group(0))
+        except ValueError:
+            pass
+
+    # M月D日
+    m = re.search(r'(\d{1,2})月(\d{1,2})日', text)
+    if m:
+        try:
+            month, day = int(m.group(1)), int(m.group(2))
+            d = datetime.date(today.year, month, day)
+            if (today - d).days > 180:
+                d = datetime.date(today.year + 1, month, day)
+            return (d, m.group(0))
+        except ValueError:
+            pass
+
+    # M/D (but not part of YYYY/M/D already matched above)
+    m = re.search(r'(?<!\d[/\-])(\d{1,2})/(\d{1,2})(?!/|\d)', text)
+    if m:
+        try:
+            month, day = int(m.group(1)), int(m.group(2))
+            if 1 <= month <= 12 and 1 <= day <= 31:
+                d = datetime.date(today.year, month, day)
+                if (today - d).days > 180:
+                    d = datetime.date(today.year + 1, month, day)
+                return (d, m.group(0))
+        except ValueError:
+            pass
+
+    # 来週
+    if '来週' in text:
+        days_until_monday = (7 - today.weekday()) % 7
+        if days_until_monday == 0:
+            days_until_monday = 7
+        d = today + datetime.timedelta(days=days_until_monday)
+        return (d, '来週')
+
+    # 来月
+    if '来月' in text:
+        if today.month == 12:
+            d = datetime.date(today.year + 1, 1, 1)
+        else:
+            d = datetime.date(today.year, today.month + 1, 1)
+        return (d, '来月')
+
+    # 今月
+    if '今月' in text:
+        d = datetime.date(today.year, today.month, 1)
+        return (d, '今月')
+
+    # N月末
+    m = re.search(r'(\d{1,2})月末', text)
+    if m:
+        try:
+            month = int(m.group(1))
+            if 1 <= month <= 12:
+                import calendar
+                year = today.year
+                last_day = calendar.monthrange(year, month)[1]
+                d = datetime.date(year, month, last_day)
+                if (today - d).days > 180:
+                    year += 1
+                    last_day = calendar.monthrange(year, month)[1]
+                    d = datetime.date(year, month, last_day)
+                return (d, m.group(0))
+        except ValueError:
+            pass
+
+    # N月 (単独、D日なし)
+    m = re.search(r'(\d{1,2})月(?!\d|末)', text)
+    if m:
+        try:
+            month = int(m.group(1))
+            if 1 <= month <= 12:
+                d = datetime.date(today.year, month, 1)
+                if (today - d).days > 180:
+                    d = datetime.date(today.year + 1, month, 1)
+                return (d, m.group(0))
+        except ValueError:
+            pass
+
+    return None
+
+
+def extract_dates_from_line(line, today):
+    """1行から**太字**で囲まれた日付情報のみを抽出する。複数ある場合は今日に最も近い日付を採用。"""
+    candidates = []
+    for m in re.finditer(r'\*\*(.+?)\*\*', line):
+        result = _parse_date_text(m.group(1), today)
+        if result:
+            candidates.append(result)
+    if not candidates:
+        return None
+    return min(candidates, key=lambda x: abs((x[0] - today).days))
+
+
+@app.route('/api/ui/postlist/graph/timeline', methods=['POST'])
+@login_required
+@limiter.limit("30 per minute")
+@csrf.exempt
+def api_ui_postlist_graph_timeline():
+    """グラフ上のメモから日時情報を抽出してタイムライン表示用データを返す"""
+    data = request.get_json(silent=True)
+    if not data or 'filenames' not in data:
+        return jsonify({'items': []})
+
+    filenames = data['filenames'][:200]
+    today = datetime.date.today()
+    weekday_names = ['月', '火', '水', '木', '金', '土', '日']
+    items = []
+
+    for filename in filenames:
+        if not is_valid_filename(filename):
+            continue
+        path = os.path.join('./post', filename)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = []
+                for i, line in enumerate(f):
+                    if i >= 22:
+                        break
+                    lines.append(line.rstrip('\n'))
+        except Exception:
+            continue
+
+        title = lines[0] if lines else filename
+        # 本文は3行目以降（タイトル行+タグ行をスキップ）
+        body_lines = lines[2:] if len(lines) > 2 else []
+
+        for line in body_lines:
+            result = extract_dates_from_line(line, today)
+            if result:
+                d, matched = result
+                wd = weekday_names[d.weekday()]
+                date_label = f"{d.month}/{d.day}({wd})"
+                items.append({
+                    'date': d.isoformat(),
+                    'date_label': date_label,
+                    'line': line.strip(),
+                    'filename': filename,
+                    'title': title
+                })
+
+    items.sort(key=lambda x: x['date'])
+    return jsonify({'items': items})
+
+
 @app.route('/api/ui/postlist/graph/layout', methods=['GET'])
 @login_required
 @limiter.limit("60 per minute")

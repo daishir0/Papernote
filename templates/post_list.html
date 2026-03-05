@@ -490,6 +490,10 @@
                     title="複数ノードを選択して一緒に移動できます">
                 <i class="fas fa-object-group"></i> 選択モード
             </button>
+            <button id="graph-timeline-btn" class="btn btn-sm btn-outline-secondary"
+                    title="メモから日時情報を集約して表示">
+                <i class="fas fa-calendar-alt"></i> 予定
+            </button>
             <small id="graph-select-hint" style="display:none; color:#6c757d;">
                 クリックで選択 · 複数選択後にドラッグで移動 · ESCで解除
             </small>
@@ -706,6 +710,22 @@
             </div>
         </div>
     </div>
+
+    {% if view_mode == 'graph' %}
+    <div class="modal fade" id="timelineModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-calendar-alt"></i> 予定タイムライン</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="timelineBody">
+                    <div class="text-center text-muted">読み込み中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <script src="/static/jquery-3.7.0.min.js"></script>
     <script src="/static/popper.min.js"></script>
@@ -1802,6 +1822,108 @@
                     console.error('Graph error:', err);
                 });
         })();
+
+        // タイムライン機能
+        document.getElementById('graph-timeline-btn').addEventListener('click', function() {
+            var filenames = graphCy.nodes('[exists = 1]').map(function(n) { return n.id(); });
+            var modal = new bootstrap.Modal(document.getElementById('timelineModal'));
+            document.getElementById('timelineBody').innerHTML = '<div class="text-center text-muted">読み込み中...</div>';
+            modal.show();
+
+            fetch('/api/ui/postlist/graph/timeline', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf_token },
+                body: JSON.stringify({ filenames: filenames })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) { renderTimeline(data.items); })
+            .catch(function() {
+                document.getElementById('timelineBody').innerHTML = '<div class="text-center text-danger">読み込みに失敗しました。</div>';
+            });
+        });
+
+        function renderTimeline(items) {
+            var body = document.getElementById('timelineBody');
+            if (!items || items.length === 0) {
+                body.innerHTML = '<div class="text-center text-muted">日時情報が見つかりませんでした。</div>';
+                return;
+            }
+
+            var today = new Date();
+            var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+            // 日付ごとにグループ化
+            var groups = {};
+            var dateOrder = [];
+            items.forEach(function(item) {
+                if (!groups[item.date]) {
+                    groups[item.date] = [];
+                    dateOrder.push(item.date);
+                }
+                groups[item.date].push(item);
+            });
+
+            var html = '';
+            var todaySeparatorInserted = false;
+
+            dateOrder.forEach(function(dateKey) {
+                // 今日セパレーター挿入
+                if (!todaySeparatorInserted && dateKey >= todayStr) {
+                    if (dateKey > todayStr) {
+                        html += '<div style="display:flex;align-items:center;margin:1rem 0;gap:0.5rem;">' +
+                            '<hr style="flex:1;border-top:2px solid #0d6efd;margin:0;">' +
+                            '<span style="color:#0d6efd;font-weight:bold;white-space:nowrap;">今日 (' + (today.getMonth()+1) + '/' + today.getDate() + ')</span>' +
+                            '<hr style="flex:1;border-top:2px solid #0d6efd;margin:0;">' +
+                            '</div>';
+                    }
+                    todaySeparatorInserted = true;
+                }
+
+                // 日付ラベル
+                var label = groups[dateKey][0].date_label;
+                var isToday = (dateKey === todayStr);
+                var headerStyle = isToday ? 'color:#0d6efd;font-weight:bold;' : 'color:#6c757d;font-weight:bold;';
+                var dayLabel = isToday ? label + ' (今日)' : label;
+
+                // 昨日・明日判定
+                var yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                var yesterdayStr = yesterday.getFullYear() + '-' + String(yesterday.getMonth()+1).padStart(2,'0') + '-' + String(yesterday.getDate()).padStart(2,'0');
+                var tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                var tomorrowStr = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth()+1).padStart(2,'0') + '-' + String(tomorrow.getDate()).padStart(2,'0');
+                if (dateKey === yesterdayStr) dayLabel = label + ' (昨日)';
+                if (dateKey === tomorrowStr) dayLabel = label + ' (明日)';
+
+                html += '<div style="margin-top:0.75rem;margin-bottom:0.25rem;' + headerStyle + '">' + dayLabel + '</div>';
+
+                groups[dateKey].forEach(function(item) {
+                    html += '<a href="/post/' + encodeURIComponent(item.filename) + '" ' +
+                        'style="display:block;padding:0.4rem 0.6rem;text-decoration:none;color:inherit;border-radius:4px;margin-bottom:2px;" ' +
+                        'onmouseover="this.style.backgroundColor=\'#f0f0f0\'" onmouseout="this.style.backgroundColor=\'transparent\'">' +
+                        '<span>' + escapeHtml(item.line) + '</span> ' +
+                        '<span style="color:#aaa;font-size:0.85em;">' + escapeHtml(item.title) + '</span>' +
+                        '</a>';
+                });
+            });
+
+            // 全て過去の場合、今日セパレーターを末尾に
+            if (!todaySeparatorInserted) {
+                html += '<div style="display:flex;align-items:center;margin:1rem 0;gap:0.5rem;">' +
+                    '<hr style="flex:1;border-top:2px solid #0d6efd;margin:0;">' +
+                    '<span style="color:#0d6efd;font-weight:bold;white-space:nowrap;">今日 (' + (today.getMonth()+1) + '/' + today.getDate() + ')</span>' +
+                    '<hr style="flex:1;border-top:2px solid #0d6efd;margin:0;">' +
+                    '</div>';
+            }
+
+            body.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         {% endif %}
     </script>
 </body>
