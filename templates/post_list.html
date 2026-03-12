@@ -545,9 +545,6 @@
                         <div class="item-date" title="{{ file.date }}">{{ file.relative_time }}</div>
                         {% if authenticated %}
                         <div class="item-actions">
-                            <button class="btn" title="ファイル名コピー" onclick="copyFilename('{{ file.filename }}')">
-                                <i class="fas fa-clipboard"></i>
-                            </button>
                             <button class="btn" title="編集" onclick="editPost('{{ file.filename }}')">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -556,6 +553,9 @@
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#" onclick="copyFilename('{{ file.filename }}'); return false;">
+                                        <i class="fas fa-clipboard"></i> ファイル名コピー
+                                    </a></li>
                                     <li><a class="dropdown-item" href="#" onclick="copyToClipboard('{{ file.filename }}'); return false;">
                                         <i class="fas fa-file-alt"></i> 本文コピー
                                     </a></li>
@@ -1019,9 +1019,6 @@
         function createListItem(file) {
             const actionsHtml = isAuthenticated ? `
                     <div class="item-actions">
-                        <button class="btn" title="ファイル名コピー" onclick="copyFilename('${escapeHtml(file.filename)}')">
-                            <i class="fas fa-clipboard"></i>
-                        </button>
                         <button class="btn" title="編集" onclick="editPost('${escapeHtml(file.filename)}')">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1030,6 +1027,9 @@
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="copyFilename('${escapeHtml(file.filename)}'); return false;">
+                                    <i class="fas fa-clipboard"></i> ファイル名コピー
+                                </a></li>
                                 <li><a class="dropdown-item" href="#" onclick="copyToClipboard('${escapeHtml(file.filename)}'); return false;">
                                     <i class="fas fa-file-alt"></i> 本文コピー
                                 </a></li>
