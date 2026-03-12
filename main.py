@@ -2596,6 +2596,75 @@ def api_get_post(filename):
             "message": "Internal server error"
         }), 500
 
+# API: セクション単位で取得
+@app.route('/api/posts/<filename>/sections', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_get_post_sections(filename):
+    """
+    投稿をH1セクション単位で取得
+    クエリパラメータ:
+      - offset: 取得開始セクション番号（0始まり、デフォルト: 0）
+      - count: 取得セクション数（デフォルト: 3、最大: 500）
+    """
+    if not is_valid_api_filename(filename):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid filename or access denied"
+        }), 400
+
+    file_path = os.path.join('./post', filename)
+
+    if not os.path.isfile(file_path):
+        return jsonify({
+            "status": "error",
+            "message": "File not found"
+        }), 404
+
+    try:
+        offset = int(request.args.get('offset', 0))
+        count = int(request.args.get('count', 3))
+    except (ValueError, TypeError):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid offset or count parameter"
+        }), 400
+
+    count = min(count, 500)
+    if offset < 0 or count < 1:
+        return jsonify({
+            "status": "error",
+            "message": "offset must be >= 0 and count must be >= 1"
+        }), 400
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        full_markdown = ''.join(lines[2:])
+        sections = split_markdown_by_sections(full_markdown)
+        total = len(sections)
+        sliced = sections[offset:offset + count]
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "filename": filename,
+                "sections": sliced,
+                "total": total,
+                "offset": offset,
+                "count": len(sliced),
+                "has_more": (offset + count) < total
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error reading sections of {filename}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
 # API 2: 新規投稿作成
 @app.route('/api/posts', methods=['POST'])
 @require_api_key

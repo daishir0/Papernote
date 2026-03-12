@@ -144,11 +144,14 @@ def _call_claude_code(prompt: str, timeout_sec: int = 900) -> tuple:
         (success: bool, output: str)
     """
     try:
+        # CLAUDECODE環境変数を除去してネストエラーを回避
+        env = {k: v for k, v in os.environ.items() if k != 'CLAUDECODE'}
         result = subprocess.run(
             ["claude", "-p", prompt, "--output-format", "text"],
             capture_output=True,
             text=True,
-            timeout=timeout_sec
+            timeout=timeout_sec,
+            env=env
         )
 
         if result.returncode == 0:
