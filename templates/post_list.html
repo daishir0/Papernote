@@ -1605,6 +1605,11 @@
                         wheelSensitivity: 0.3
                     });
 
+                    // 保存済みレイアウト復元時は画面サイズに合わせて自動フィット
+                    if (hasSaved) {
+                        cy.fit(undefined, 20);
+                    }
+
                     // グローバル変数に登録（検索フィルター用）
                     graphCy = cy;
 
