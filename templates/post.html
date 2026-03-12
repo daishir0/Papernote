@@ -668,7 +668,8 @@
         document.getElementById('content').addEventListener('click', async function(e) {
             const h1 = e.target.closest('#content > h1, #content div > h1');
             if (!h1 || h1.tagName !== 'H1') return;
-            const text = ` セクション「${h1.textContent}」 `;
+            const filename = document.body.dataset.filename;
+            const text = ` Papernoteの ${filename} のセクション「${h1.textContent}」 `;
             try {
                 await navigator.clipboard.writeText(text);
                 showTemporaryMessage('セクション名をコピーしました');
