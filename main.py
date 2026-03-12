@@ -2665,6 +2665,119 @@ def api_get_post_sections(filename):
             "message": "Internal server error"
         }), 500
 
+# API: セクションタイトル一覧
+@app.route('/api/posts/<filename>/sections/titles', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_get_post_section_titles(filename):
+    """投稿の全セクションタイトル一覧を取得"""
+    if not is_valid_api_filename(filename):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid filename or access denied"
+        }), 400
+
+    file_path = os.path.join('./post', filename)
+
+    if not os.path.isfile(file_path):
+        return jsonify({
+            "status": "error",
+            "message": "File not found"
+        }), 404
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        full_markdown = ''.join(lines[2:])
+        sections = split_markdown_by_sections(full_markdown)
+
+        titles = []
+        for i, sec in enumerate(sections):
+            first_line = sec.split('\n', 1)[0]
+            title = first_line.lstrip('# ').strip() if first_line.startswith('# ') else first_line.strip()
+            titles.append({"index": i, "title": title})
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "filename": filename,
+                "titles": titles,
+                "total": len(titles)
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error reading section titles of {filename}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+# API: セクション名で検索取得
+@app.route('/api/posts/<filename>/sections/search', methods=['GET'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_search_post_sections(filename):
+    """
+    セクションタイトルを部分一致検索し、マッチしたセクション本文を返す
+    クエリパラメータ:
+      - q: 検索キーワード（必須、タイトル部分一致・大文字小文字区別なし）
+    """
+    if not is_valid_api_filename(filename):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid filename or access denied"
+        }), 400
+
+    file_path = os.path.join('./post', filename)
+
+    if not os.path.isfile(file_path):
+        return jsonify({
+            "status": "error",
+            "message": "File not found"
+        }), 404
+
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify({
+            "status": "error",
+            "message": "Missing 'q' parameter"
+        }), 400
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        full_markdown = ''.join(lines[2:])
+        sections = split_markdown_by_sections(full_markdown)
+        query_lower = query.lower()
+
+        matched = []
+        for i, sec in enumerate(sections):
+            first_line = sec.split('\n', 1)[0]
+            title = first_line.lstrip('# ').strip() if first_line.startswith('# ') else first_line.strip()
+            if query_lower in title.lower():
+                matched.append({"index": i, "title": title, "content": sec})
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "filename": filename,
+                "query": query,
+                "sections": matched,
+                "matched": len(matched),
+                "total": len(sections)
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error searching sections of {filename}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
 # API 2: 新規投稿作成
 @app.route('/api/posts', methods=['POST'])
 @require_api_key
