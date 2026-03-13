@@ -1494,14 +1494,19 @@
 
                     var cyElements = [];
 
+                    var now = Date.now();
                     nodes.forEach(function(n) {
                         var cnt = linkCount[n.id] || 1;
+                        var mtime = n.modified_at ? n.modified_at * 1000 : 0;
+                        var days = (now - mtime) / (1000 * 60 * 60 * 24);
+                        var age = days <= 3 ? 0 : days <= 7 ? 1 : days <= 30 ? 2 : 3;
                         var elem = {
                             data: {
                                 id: n.id,
                                 label: n.label,
                                 url: n.url,
                                 exists: n.exists,
+                                age: age,
                                 size: Math.min(20 + cnt * 6, 60)
                             }
                         };
@@ -1532,7 +1537,7 @@
                                     'label': 'data(label)',
                                     'width': 'data(size)',
                                     'height': 'data(size)',
-                                    'background-color': '#0d6efd',
+                                    'background-color': '#adb5bd',
                                     'color': '#333',
                                     'font-size': '10px',
                                     'text-valign': 'bottom',
@@ -1546,12 +1551,20 @@
                                 }
                             },
                             {
-                                selector: 'node:hover',
-                                style: {
-                                    'background-color': '#0b5ed7',
-                                    'border-color': '#0d6efd',
-                                    'border-width': 3
-                                }
+                                selector: 'node[age = 0]',
+                                style: { 'background-color': '#0d6efd' }
+                            },
+                            {
+                                selector: 'node[age = 1]',
+                                style: { 'background-color': '#4d94ff' }
+                            },
+                            {
+                                selector: 'node[age = 2]',
+                                style: { 'background-color': '#a0c4ff' }
+                            },
+                            {
+                                selector: 'node[age = 3]',
+                                style: { 'background-color': '#adb5bd' }
                             },
                             {
                                 selector: 'node[exists = 0]',
@@ -1609,6 +1622,55 @@
                     if (hasSaved) {
                         cy.fit(undefined, 20);
                     }
+
+                    // --- ダブルタップ＆ドラッグズーム（Google Maps風） ---
+                    var lastTapTime = 0;
+                    var doubleTapDragging = false;
+                    var dragStartY = 0;
+                    var dragStartZoom = 1;
+                    var DOUBLE_TAP_DELAY = 300; // ms
+
+                    container.addEventListener('touchstart', function(e) {
+                        if (e.touches.length !== 1) return;
+                        var now = Date.now();
+                        var dt = now - lastTapTime;
+
+                        if (dt < DOUBLE_TAP_DELAY) {
+                            // ダブルタップ検出 → ドラッグズームモード開始
+                            e.preventDefault();
+                            doubleTapDragging = true;
+                            dragStartY = e.touches[0].clientY;
+                            dragStartZoom = cy.zoom();
+                            // Cytoscapeのパン・ズームを一時無効化
+                            cy.userZoomingEnabled(false);
+                            cy.userPanningEnabled(false);
+                        }
+                        lastTapTime = now;
+                    }, { passive: false });
+
+                    container.addEventListener('touchmove', function(e) {
+                        if (!doubleTapDragging) return;
+                        e.preventDefault();
+                        var deltaY = dragStartY - e.touches[0].clientY; // 上=正=ズームイン
+                        var factor = Math.pow(1.01, deltaY); // 1pxあたり1%ズーム
+                        cy.zoom({
+                            level: dragStartZoom * factor,
+                            renderedPosition: { x: container.offsetWidth / 2, y: container.offsetHeight / 2 }
+                        });
+                    }, { passive: false });
+
+                    container.addEventListener('touchend', function(e) {
+                        if (doubleTapDragging) {
+                            doubleTapDragging = false;
+                            cy.userZoomingEnabled(true);
+                            cy.userPanningEnabled(true);
+
+                            // ドラッグなし（単純ダブルタップ）→ ズームインアニメーション
+                            if (Math.abs(cy.zoom() - dragStartZoom) < 0.01) {
+                                cy.animate({ zoom: cy.zoom() * 1.8 }, { duration: 250 });
+                            }
+                        }
+                    });
 
                     // グローバル変数に登録（検索フィルター用）
                     graphCy = cy;

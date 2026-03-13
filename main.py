@@ -1364,7 +1364,8 @@ def api_ui_postlist_graph():
             'id': nid,
             'label': label,
             'url': '/post/' + nid if exists else None,
-            'exists': 1 if exists else 0
+            'exists': 1 if exists else 0,
+            'modified_at': os.path.getmtime(os.path.join(post_dir, nid)) if exists else None
         })
 
     edges = []
