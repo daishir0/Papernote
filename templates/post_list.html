@@ -1504,7 +1504,7 @@
                         var cnt = linkCount[n.id] || 1;
                         var mtime = n.modified_at ? n.modified_at * 1000 : 0;
                         var days = (now - mtime) / (1000 * 60 * 60 * 24);
-                        var age = days <= 3 ? 0 : days <= 7 ? 1 : days <= 30 ? 2 : 3;
+                        var age = days <= 1 ? 0 : days <= 3 ? 1 : days <= 7 ? 2 : days <= 30 ? 3 : 4;
                         var elem = {
                             data: {
                                 id: n.id,
@@ -1557,18 +1557,22 @@
                             },
                             {
                                 selector: 'node[age = 0]',
-                                style: { 'background-color': '#0d6efd' }
+                                style: { 'background-color': '#d9534f' }
                             },
                             {
                                 selector: 'node[age = 1]',
-                                style: { 'background-color': '#4d94ff' }
+                                style: { 'background-color': '#0d6efd' }
                             },
                             {
                                 selector: 'node[age = 2]',
-                                style: { 'background-color': '#a0c4ff' }
+                                style: { 'background-color': '#4d94ff' }
                             },
                             {
                                 selector: 'node[age = 3]',
+                                style: { 'background-color': '#a0c4ff' }
+                            },
+                            {
+                                selector: 'node[age = 4]',
                                 style: { 'background-color': '#adb5bd' }
                             },
                             {
