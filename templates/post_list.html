@@ -430,24 +430,22 @@
         <!-- ツールバー -->
         <div class="toolbar">
             {% if authenticated %}
-            <div class="btn-group">
-                <form action="{{ url_for('add_post') }}" method="post" class="d-inline">
+            <div class="btn-group d-inline">
+                <form action="{{ url_for('add_post') }}" method="post" class="d-inline" id="addPostForm">
                     {{ form.hidden_tag() }}
                     <button type="submit" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus"></i> New
                     </button>
                 </form>
-                <div class="dropdown d-inline">
-                    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-upload"></i>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="/upload_text"><i class="fas fa-file-alt"></i> Text</a></li>
-                        <li><a class="dropdown-item" href="/webtomd"><i class="fas fa-file-code"></i> Web to MD</a></li>
-                        <li><a class="dropdown-item" href="/youtube"><i class="fab fa-youtube"></i> YouTube</a></li>
-                        <li><a class="dropdown-item" href="/upload_movie"><i class="fas fa-video"></i> Movie</a></li>
-                    </ul>
-                </div>
+                <button class="btn btn-primary btn-sm dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown">
+                    <span class="visually-hidden">メニュー</span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="/upload_text"><i class="fas fa-file-alt"></i> Text</a></li>
+                    <li><a class="dropdown-item" href="/webtomd"><i class="fas fa-file-code"></i> Web to MD</a></li>
+                    <li><a class="dropdown-item" href="/youtube"><i class="fab fa-youtube"></i> YouTube</a></li>
+                    <li><a class="dropdown-item" href="/upload_movie"><i class="fas fa-video"></i> Movie</a></li>
+                </ul>
                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="closeAll()">
                     <i class="fas fa-compress-alt"></i> Close
                 </button>
@@ -791,6 +789,13 @@
                 if (e.key === '/' && !$(e.target).is('input, textarea')) {
                     e.preventDefault();
                     $('#searchInput').focus().select();
+                }
+            });
+
+            // `c`キーで新規作成
+            $(document).on('keydown', function(e) {
+                if (e.key === 'c' && !$(e.target).is('input, textarea, select')) {
+                    document.getElementById('addPostForm').submit();
                 }
             });
 
