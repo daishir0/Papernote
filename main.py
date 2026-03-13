@@ -1336,7 +1336,7 @@ def api_ui_postlist_graph():
             continue
 
         lines = content.split('\n')
-        title = lines[0].strip() if lines else fname
+        title = lines[0].lstrip('#').strip() if lines else fname
 
         titles[fname] = title
 
