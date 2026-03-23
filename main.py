@@ -1566,6 +1566,70 @@ def api_ui_postlist_graph_timeline():
     return jsonify({'items': items})
 
 
+@app.route('/api/ui/postlist/graph/achievements', methods=['POST'])
+@login_required
+@limiter.limit("30 per minute")
+@csrf.exempt
+def api_ui_postlist_graph_achievements():
+    """グラフ上のメモからH1の8桁日付を抽出して過去実績データを返す"""
+    data = request.get_json(silent=True)
+    if not data or 'filenames' not in data:
+        return jsonify({'items': []})
+
+    filenames = data['filenames'][:200]
+    days = data.get('days', 7)
+    today = datetime.date.today()
+    cutoff = today - datetime.timedelta(days=days)
+    weekday_names = ['月', '火', '水', '木', '金', '土', '日']
+    items = []
+    h1_pattern = re.compile(r'^# (\d{8})(.*)')
+
+    for filename in filenames:
+        if not is_valid_filename(filename):
+            continue
+        path = os.path.join('./post', filename)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                file_lines = f.readlines()
+        except Exception:
+            continue
+
+        title = file_lines[0].rstrip('\n') if file_lines else filename
+
+        in_code_fence = False
+        for line in file_lines:
+            stripped = line.strip()
+            if stripped.startswith('```') or stripped.startswith('~~~'):
+                in_code_fence = not in_code_fence
+                continue
+            if in_code_fence:
+                continue
+            m = h1_pattern.match(stripped)
+            if m:
+                date_str = m.group(1)
+                rest = m.group(2).strip()
+                try:
+                    d = datetime.date(int(date_str[:4]), int(date_str[4:6]), int(date_str[6:8]))
+                except ValueError:
+                    continue
+                if cutoff <= d <= today:
+                    wd = weekday_names[d.weekday()]
+                    date_label = f"{d.month}/{d.day}({wd})"
+                    text = stripped[2:]  # "# " を除去
+                    items.append({
+                        'date': d.isoformat(),
+                        'date_label': date_label,
+                        'text': text,
+                        'filename': filename,
+                        'title': title
+                    })
+
+    items.sort(key=lambda x: x['date'])
+    return jsonify({'items': items})
+
+
 @app.route('/api/ui/postlist/graph/layout', methods=['GET'])
 @login_required
 @limiter.limit("60 per minute")

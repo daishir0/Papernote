@@ -719,7 +719,17 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="timelineBody">
-                    <div class="text-center text-muted">読み込み中...</div>
+                    <div id="achievementsSection" style="display:none;">
+                        <div style="text-align:center;margin-bottom:0.5rem;">
+                            <button id="achievementsToggleBtn" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-history"></i> 過去実績を表示（1週間）
+                            </button>
+                        </div>
+                        <div id="achievementsContent"></div>
+                    </div>
+                    <div id="scheduleSection">
+                        <div class="text-center text-muted">読み込み中...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1903,8 +1913,15 @@
         // タイムライン機能
         document.getElementById('graph-timeline-btn').addEventListener('click', function() {
             var filenames = graphCy.nodes('[exists = 1]').map(function(n) { return n.id(); });
+            window._timelineFilenames = filenames;
             var modal = new bootstrap.Modal(document.getElementById('timelineModal'));
-            document.getElementById('timelineBody').innerHTML = '<div class="text-center text-muted">読み込み中...</div>';
+            document.getElementById('scheduleSection').innerHTML = '<div class="text-center text-muted">読み込み中...</div>';
+            document.getElementById('achievementsContent').innerHTML = '';
+            document.getElementById('achievementsSection').style.display = 'none';
+            var btn = document.getElementById('achievementsToggleBtn');
+            btn.innerHTML = '<i class="fas fa-history"></i> 過去実績を表示（1週間）';
+            btn.disabled = false;
+            btn._stage = 0;
             modal.show();
 
             fetch('/api/ui/postlist/graph/timeline', {
@@ -1913,14 +1930,17 @@
                 body: JSON.stringify({ filenames: filenames })
             })
             .then(function(r) { return r.json(); })
-            .then(function(data) { renderTimeline(data.items); })
+            .then(function(data) {
+                renderTimeline(data.items);
+                document.getElementById('achievementsSection').style.display = 'block';
+            })
             .catch(function() {
-                document.getElementById('timelineBody').innerHTML = '<div class="text-center text-danger">読み込みに失敗しました。</div>';
+                document.getElementById('scheduleSection').innerHTML = '<div class="text-center text-danger">読み込みに失敗しました。</div>';
             });
         });
 
         function renderTimeline(items) {
-            var body = document.getElementById('timelineBody');
+            var body = document.getElementById('scheduleSection');
             if (!items || items.length === 0) {
                 body.innerHTML = '<div class="text-center text-muted">日時情報が見つかりませんでした。</div>';
                 return;
@@ -1994,6 +2014,94 @@
             }
 
             body.innerHTML = html;
+        }
+
+        // 過去実績ボタン
+        document.getElementById('achievementsToggleBtn').addEventListener('click', function() {
+            var btn = this;
+            var stages = [
+                { days: 7, next: '過去実績をさらに表示（30日）' },
+                { days: 30, next: '過去実績をさらに表示（90日）' },
+                { days: 90, next: null }
+            ];
+            var stage = btn._stage || 0;
+            if (stage >= stages.length) return;
+            var days = stages[stage].days;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 読み込み中...';
+
+            fetch('/api/ui/postlist/graph/achievements', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf_token },
+                body: JSON.stringify({ filenames: window._timelineFilenames || [], days: days })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                renderAchievements(data.items);
+                btn._stage = stage + 1;
+                if (stages[stage].next) {
+                    btn.innerHTML = '<i class="fas fa-history"></i> ' + stages[stage].next;
+                    btn.disabled = false;
+                } else {
+                    btn.innerHTML = '<i class="fas fa-check"></i> 全期間表示済み（90日）';
+                    btn.disabled = true;
+                }
+            })
+            .catch(function() {
+                btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 取得失敗';
+                btn.disabled = false;
+                btn._stage = stage;
+            });
+        });
+
+        function renderAchievements(items) {
+            var container = document.getElementById('achievementsContent');
+            if (!items || items.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted" style="margin-bottom:0.5rem;">該当する実績がありません。</div>';
+                return;
+            }
+
+            var today = new Date();
+            var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+            // 日付ごとにグループ化
+            var groups = {};
+            var dateOrder = [];
+            items.forEach(function(item) {
+                if (!groups[item.date]) {
+                    groups[item.date] = [];
+                    dateOrder.push(item.date);
+                }
+                groups[item.date].push(item);
+            });
+
+            var html = '';
+            dateOrder.forEach(function(dateKey) {
+                var label = groups[dateKey][0].date_label;
+                var isToday = (dateKey === todayStr);
+
+                var yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                var yesterdayStr = yesterday.getFullYear() + '-' + String(yesterday.getMonth()+1).padStart(2,'0') + '-' + String(yesterday.getDate()).padStart(2,'0');
+
+                var dayLabel = isToday ? label + ' (今日)' : label;
+                if (dateKey === yesterdayStr) dayLabel = label + ' (昨日)';
+
+                html += '<div style="margin-top:0.5rem;margin-bottom:0.15rem;color:#6c757d;font-weight:bold;font-size:0.9em;">' + dayLabel + '</div>';
+
+                groups[dateKey].forEach(function(item) {
+                    html += '<a href="/post/' + encodeURIComponent(item.filename) + '" ' +
+                        'style="display:block;padding:0.3rem 0.6rem;text-decoration:none;color:inherit;border-radius:4px;margin-bottom:1px;border-left:3px solid #dee2e6;" ' +
+                        'onmouseover="this.style.backgroundColor=\'#f0f0f0\'" onmouseout="this.style.backgroundColor=\'transparent\'">' +
+                        '<span style="color:#6c757d;">✓</span> ' +
+                        '<span>' + escapeHtml(item.text) + '</span> ' +
+                        '<span style="color:#aaa;font-size:0.85em;">(' + escapeHtml(item.title) + ')</span>' +
+                        '</a>';
+                });
+            });
+
+            html += '<hr style="margin:0.75rem 0;border-top:1px dashed #dee2e6;">';
+            container.innerHTML = html;
         }
 
         function escapeHtml(text) {
