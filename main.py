@@ -996,12 +996,16 @@ def is_valid_filename(filename):
     return True
 
 def split_markdown_by_sections(text):
-    """Markdownを `# ` ヘッダー行でセクション分割（クライアント側と同一ロジック）"""
+    """Markdownを `# ` ヘッダー行でセクション分割（コードブロック内は無視）"""
     lines = text.split('\n')
     sections = []
     current = []
+    in_code_fence = False
     for line in lines:
-        if line.startswith('# ') and current:
+        stripped = line.strip()
+        if stripped.startswith('```') or stripped.startswith('~~~'):
+            in_code_fence = not in_code_fence
+        if not in_code_fence and line.startswith('# ') and current:
             sections.append('\n'.join(current))
             current = [line]
         else:
