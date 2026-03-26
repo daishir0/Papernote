@@ -1146,8 +1146,13 @@
             }).join('\n');
 
             textArea.value = before + newText + after;
-            textArea.selectionStart = lineStart;
-            textArea.selectionEnd = lineStart + newText.length;
+            if (newText.indexOf('\n') === -1) {
+                textArea.selectionStart = lineStart + newText.length;
+                textArea.selectionEnd = lineStart + newText.length;
+            } else {
+                textArea.selectionStart = lineStart;
+                textArea.selectionEnd = lineStart + newText.length;
+            }
             textArea.focus();
 
             // プレビュー更新のために input イベントを発火
@@ -1188,8 +1193,13 @@
             }).join('\n');
 
             textArea.value = before + newText + after;
-            textArea.selectionStart = lineStart;
-            textArea.selectionEnd = lineStart + newText.length;
+            if (newText.indexOf('\n') === -1) {
+                textArea.selectionStart = lineStart + newText.length;
+                textArea.selectionEnd = lineStart + newText.length;
+            } else {
+                textArea.selectionStart = lineStart;
+                textArea.selectionEnd = lineStart + newText.length;
+            }
             textArea.focus();
 
             // プレビュー更新のために input イベントを発火
@@ -1230,8 +1240,13 @@
             }).join('\n');
 
             textArea.value = before + newText + after;
-            textArea.selectionStart = lineStart;
-            textArea.selectionEnd = lineStart + newText.length;
+            if (newText.indexOf('\n') === -1) {
+                textArea.selectionStart = lineStart + newText.length;
+                textArea.selectionEnd = lineStart + newText.length;
+            } else {
+                textArea.selectionStart = lineStart;
+                textArea.selectionEnd = lineStart + newText.length;
+            }
             textArea.focus();
 
             // プレビュー更新のために input イベントを発火
@@ -1261,8 +1276,13 @@
             }).join('\n');
 
             textArea.value = before + newText + after;
-            textArea.selectionStart = lineStart;
-            textArea.selectionEnd = lineStart + newText.length;
+            if (newText.indexOf('\n') === -1) {
+                textArea.selectionStart = lineStart + newText.length;
+                textArea.selectionEnd = lineStart + newText.length;
+            } else {
+                textArea.selectionStart = lineStart;
+                textArea.selectionEnd = lineStart + newText.length;
+            }
             textArea.focus();
 
             // プレビュー更新のために input イベントを発火
@@ -1292,8 +1312,13 @@
             }).join('\n');
 
             textArea.value = before + newText + after;
-            textArea.selectionStart = lineStart;
-            textArea.selectionEnd = lineStart + newText.length;
+            if (newText.indexOf('\n') === -1) {
+                textArea.selectionStart = lineStart + newText.length;
+                textArea.selectionEnd = lineStart + newText.length;
+            } else {
+                textArea.selectionStart = lineStart;
+                textArea.selectionEnd = lineStart + newText.length;
+            }
             textArea.focus();
 
             // プレビュー更新のために input イベントを発火
