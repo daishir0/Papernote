@@ -609,6 +609,9 @@
         <a class="graph-menu-item" id="graph-menu-edit" href="#">
             <i class="fas fa-edit"></i> 編集
         </a>
+        <div class="graph-menu-item" id="graph-menu-comment">
+            <i class="fas fa-plus"></i> コメント追加
+        </div>
         <div class="graph-menu-item" id="graph-menu-claude">
             <i class="fas fa-bolt"></i> Claude Code
         </div>
@@ -1228,8 +1231,7 @@
             $('#commentFilename').val(filename);
             $('#commentText').val('');
             $('#positionTop').prop('checked', true);
-            $('#commentModal').modal('show');
-            setTimeout(function() {
+            $('#commentModal').off('shown.bs.modal').on('shown.bs.modal', function() {
                 $('#commentText').focus();
                 $('#commentText').off('keypress').on('keypress', function(e) {
                     if (e.which === 13) {
@@ -1237,7 +1239,8 @@
                         submitComment();
                     }
                 });
-            }, 300);
+            });
+            $('#commentModal').modal('show');
         }
 
         function submitComment() {
@@ -1256,7 +1259,9 @@
                 position: position
             }).done(function() {
                 $('#commentModal').modal('hide');
-                location.reload();
+                if (viewMode !== 'graph') {
+                    location.reload();
+                }
             }).fail(function(xhr) {
                 alert(xhr.responseJSON ? xhr.responseJSON.error : 'コメント追加に失敗しました');
             });
@@ -1798,6 +1803,7 @@
                         // 存在しないノードは編集・URLコピーを非表示
                         document.getElementById('graph-menu-url').style.display = ctxNodeExists ? '' : 'none';
                         document.getElementById('graph-menu-edit').style.display = ctxNodeExists ? '' : 'none';
+                        document.getElementById('graph-menu-comment').style.display = ctxNodeExists ? '' : 'none';
                         // 編集リンクのhrefを動的にセット（ブラウザネイティブの修飾キー処理を利用）
                         if (ctxNodeExists) {
                             document.getElementById('graph-menu-edit').href = '/edit_post/' + encodeURIComponent(filename);
@@ -1866,6 +1872,12 @@
                     // 編集（<a>タグのhref経由でブラウザネイティブの修飾キー処理に委譲）
                     // Ctrl/Cmd+クリック→新タブ、Shift+クリック→新ウィンドウ、通常→同タブ
                     document.getElementById('graph-menu-edit').addEventListener('click', function() {
+                        hideContextMenu();
+                    });
+
+                    // コメント追加
+                    document.getElementById('graph-menu-comment').addEventListener('click', function() {
+                        if (ctxFilename) openCommentModal(ctxFilename);
                         hideContextMenu();
                     });
 
