@@ -50,6 +50,56 @@ from pytube import YouTube
 import yt_dlp
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
+import xml.etree.ElementTree as ET
+
+def sanitize_svg(file_content: bytes) -> bytes:
+    """SVGをバリデーション＋サニタイズして安全なバイト列を返す。
+
+    Raises:
+        ValueError: UTF-8デコード失敗またはXMLパース失敗時
+    """
+    try:
+        svg_text = file_content.decode('utf-8')
+    except UnicodeDecodeError as e:
+        raise ValueError(f"Invalid UTF-8 in SVG: {e}")
+
+    try:
+        root = ET.fromstring(svg_text)
+    except ET.ParseError as e:
+        raise ValueError(f"Invalid XML in SVG: {e}")
+
+    SVG_NS = 'http://www.w3.org/2000/svg'
+    XLINK_NS = 'http://www.w3.org/1999/xlink'
+
+    def remove_dangerous(element):
+        to_remove = []
+        for child in element:
+            tag = child.tag if isinstance(child.tag, str) else ''
+            local_name = tag.split('}')[-1] if '}' in tag else tag
+            if local_name in ('script', 'foreignObject'):
+                to_remove.append(child)
+            else:
+                remove_dangerous(child)
+        for child in to_remove:
+            element.remove(child)
+
+        attrs_to_remove = []
+        for attr in element.attrib:
+            attr_local = attr.split('}')[-1] if '}' in attr else attr
+            if attr_local.lower().startswith('on'):
+                attrs_to_remove.append(attr)
+            elif element.attrib[attr].strip().lower().startswith('javascript:'):
+                attrs_to_remove.append(attr)
+        for attr in attrs_to_remove:
+            del element.attrib[attr]
+
+    remove_dangerous(root)
+
+    ET.register_namespace('', SVG_NS)
+    ET.register_namespace('xlink', XLINK_NS)
+
+    return ET.tostring(root, encoding='unicode').encode('utf-8')
+
 
 processing = False
 
@@ -460,6 +510,14 @@ def attach_upload():
         original_filename = file.filename
         file_ext = original_filename.rsplit('.', 1)[1].lower()
         file_content = file.read()
+
+        # SVGバリデーション＋サニタイズ
+        if file_ext == 'svg':
+            try:
+                file_content = sanitize_svg(file_content)
+            except ValueError as e:
+                return jsonify({'error': f'Invalid SVG: {str(e)}'}), 400
+
         file_hash = hashlib.sha256(file_content).hexdigest()
         new_filename = f"{file_hash}.{file_ext}"
         file_path = os.path.join(UPLOAD_FOLDER, new_filename)
@@ -3857,8 +3915,8 @@ def api_upload_image():
     レスポンス: Markdown形式のURL
     """
     # 対応フォーマット
-    ALLOWED_IMAGE_FORMATS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-    ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
+    ALLOWED_IMAGE_FORMATS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'heic', 'heif'}
+    ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/heif'}
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
     if 'file' not in request.files:
@@ -3894,6 +3952,35 @@ def api_upload_image():
                 "message": f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB"
             }), 413
 
+        # SVGバリデーション＋サニタイズ
+        if ext == 'svg':
+            try:
+                file_content = sanitize_svg(file_content)
+            except ValueError as e:
+                return jsonify({
+                    "status": "error",
+                    "message": f"Invalid SVG: {str(e)}"
+                }), 400
+
+        # HEIC/HEIF → JPEG自動変換
+        if ext in {'heic', 'heif'}:
+            try:
+                from io import BytesIO
+                heic_image = Image.open(BytesIO(file_content))
+                if heic_image.mode in ('RGBA', 'LA', 'P'):
+                    heic_image = heic_image.convert('RGB')
+                jpeg_buf = BytesIO()
+                heic_image.save(jpeg_buf, 'JPEG', quality=90, optimize=True)
+                file_content = jpeg_buf.getvalue()
+                ext = 'jpg'
+                app.logger.info(f"API: HEIC→JPEG変換成功: {original_filename}")
+            except Exception as e:
+                app.logger.error(f"API: HEIC変換エラー: {str(e)}")
+                return jsonify({
+                    "status": "error",
+                    "message": f"HEIC conversion failed: {str(e)}"
+                }), 500
+
         # SHA256ハッシュ計算
         file_hash = hashlib.sha256(file_content).hexdigest()
 
@@ -3912,43 +3999,48 @@ def api_upload_image():
             with open(file_path, 'wb') as f:
                 f.write(file_content)
 
-            # サムネイル生成（500x500）
-            try:
-                from io import BytesIO
-                img = Image.open(BytesIO(file_content))
-
-                # EXIF情報に基づいて画像を回転
+            # サムネイル生成
+            if ext == 'svg':
+                # SVGはベクター形式のためそのままコピー
+                import shutil
+                shutil.copy(file_path, thumbnail_path)
+            else:
                 try:
-                    for orientation in ExifTags.TAGS.keys():
-                        if ExifTags.TAGS[orientation] == 'Orientation':
-                            break
-                    exif = img._getexif()
-                    if exif is not None:
-                        exif_orientation = exif.get(orientation, 1)
-                        if exif_orientation == 3:
-                            img = img.rotate(180, expand=True)
-                        elif exif_orientation == 6:
-                            img = img.rotate(270, expand=True)
-                        elif exif_orientation == 8:
-                            img = img.rotate(90, expand=True)
-                except:
-                    pass
+                    from io import BytesIO
+                    img = Image.open(BytesIO(file_content))
 
-                # サムネイル生成
-                img.thumbnail((500, 500), Image.Resampling.LANCZOS)
+                    # EXIF情報に基づいて画像を回転
+                    try:
+                        for orientation in ExifTags.TAGS.keys():
+                            if ExifTags.TAGS[orientation] == 'Orientation':
+                                break
+                        exif = img._getexif()
+                        if exif is not None:
+                            exif_orientation = exif.get(orientation, 1)
+                            if exif_orientation == 3:
+                                img = img.rotate(180, expand=True)
+                            elif exif_orientation == 6:
+                                img = img.rotate(270, expand=True)
+                            elif exif_orientation == 8:
+                                img = img.rotate(90, expand=True)
+                    except:
+                        pass
 
-                # 透明度対応（PNG/GIF以外はRGBに変換）
-                if ext in {'jpg', 'jpeg', 'webp'}:
-                    if img.mode in ('RGBA', 'LA', 'P'):
-                        img = img.convert('RGB')
+                    # サムネイル生成（500x500）
+                    img.thumbnail((500, 500), Image.Resampling.LANCZOS)
 
-                # サムネイル保存
-                img.save(thumbnail_path, quality=85, optimize=True)
+                    # 透明度対応（PNG/GIF以外はRGBに変換）
+                    if ext in {'jpg', 'jpeg', 'webp'}:
+                        if img.mode in ('RGBA', 'LA', 'P'):
+                            img = img.convert('RGB')
 
-            except Exception as e:
-                app.logger.error(f"Error generating thumbnail: {str(e)}")
-                # サムネイル生成に失敗しても元画像は保持
-                thumbnail_filename = new_filename
+                    # サムネイル保存
+                    img.save(thumbnail_path, quality=85, optimize=True)
+
+                except Exception as e:
+                    app.logger.error(f"Error generating thumbnail: {str(e)}")
+                    # サムネイル生成に失敗しても元画像は保持
+                    thumbnail_filename = new_filename
 
         # Markdown形式のURL生成
         markdown_url = f"[![{original_filename}](/attach/{thumbnail_filename})](/attach/{new_filename})"
