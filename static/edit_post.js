@@ -859,6 +859,7 @@
                             if (typeof initializeSlideshowImages === 'function') {
                                 initializeSlideshowImages('#preview-content');
                             }
+
                         } catch (error) {
                             console.error('Markdown rendering error:', error);
                             const previewContent = document.getElementById('preview-content');
@@ -1075,6 +1076,7 @@
             }
         }
 
+        window.saveWithoutRedirect = saveWithoutRedirect;
         async function saveWithoutRedirect() {
             const saveButton = document.getElementById('saveButton');
             const content = document.getElementById('content').value;

@@ -151,6 +151,13 @@ function showCurrentSlide() {
 
     counter.textContent = `${currentSlideIndex + 1} / ${slideshowImages.length}`;
     preloadAdjacentImages(currentSlideIndex);
+
+    // SVG編集ボタンの表示制御
+    const editSvgBtn = document.getElementById('slideshowEditSvgBtn');
+    if (editSvgBtn) {
+        const isSvg = currentImage.full && currentImage.full.match(/\/attach\/[a-f0-9]+\.svg(\?|$)/i);
+        editSvgBtn.style.display = isSvg ? 'inline-block' : 'none';
+    }
 }
 
 // ============================================
@@ -404,6 +411,22 @@ function handleSwipe() {
         } else {
             navigateSlideshow(-1);
         }
+    }
+}
+
+// ============================================
+// SVGエディタ連携
+// ============================================
+function slideshowOpenSvgEditor() {
+    if (slideshowImages.length === 0) return;
+    const currentImage = slideshowImages[currentSlideIndex];
+    if (!currentImage || !currentImage.full) return;
+
+    // スライドショーを閉じてからSVGエディタを開く
+    closeSlideshowModal();
+
+    if (typeof svgEditor !== 'undefined') {
+        svgEditor.open(currentImage.full);
     }
 }
 

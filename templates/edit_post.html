@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="/static/post-content-style.css">
     <link rel="stylesheet" href="/static/slideshow.css">
     <link rel="stylesheet" href="/static/edit_post.css">
+    <link rel="stylesheet" href="/static/svg_editor.css">
 </head>
 <body data-filename="{{ filename }}" data-csrf-token="{{ form.csrf_token._value() }}" data-post-url="{{ url_for('post', filename=request.view_args['filename']) }}" data-claude-code-url="{{ claude_code_url }}">
 
@@ -299,6 +300,8 @@
     <script src="/static/marked.min.js"></script>
     <script src="/static/mermaid.min.js"></script>
     <script src="/static/slideshow.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="/static/svg_editor.js"></script>
     <script src="/static/edit_post.js"></script>
 
 <!-- スライドショーモーダル -->
@@ -322,6 +325,9 @@
                 <i class="fas fa-plus"></i>
             </button>
             <button class="slideshow-zoom-reset" onclick="slideshowResetZoom()" title="リセット (0)">Reset</button>
+            <button class="slideshow-zoom-btn slideshow-edit-svg-btn" id="slideshowEditSvgBtn" onclick="slideshowOpenSvgEditor()" title="SVGを編集" style="display:none; margin-left: 8px; background: #0d6efd; color: #fff; border-color: #0d6efd;">
+                <i class="fas fa-pen"></i>
+            </button>
         </div>
     </div>
 </div>
@@ -347,6 +353,95 @@
 </div>
 
 
+<!-- SVGエディタオーバーレイ -->
+<div id="svgEditorOverlay" style="display:none;">
+    <!-- ツールバー -->
+    <div class="svg-editor-toolbar">
+        <!-- ツール選択 -->
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-secondary tool-btn active" data-tool="select" title="選択 (V)"><i class="fas fa-mouse-pointer"></i></button>
+            <button class="btn btn-sm btn-outline-secondary tool-btn" data-tool="rect" title="矩形"><i class="far fa-square"></i></button>
+            <button class="btn btn-sm btn-outline-secondary tool-btn" data-tool="ellipse" title="楕円"><i class="far fa-circle"></i></button>
+            <button class="btn btn-sm btn-outline-secondary tool-btn" data-tool="line" title="線"><i class="fas fa-minus"></i></button>
+            <button class="btn btn-sm btn-outline-secondary tool-btn" data-tool="arrow" title="矢印線"><i class="fas fa-long-arrow-alt-right"></i></button>
+            <button class="btn btn-sm btn-outline-secondary tool-btn" data-tool="text" title="テキスト"><i class="fas fa-font"></i></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <!-- アクション -->
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-secondary" data-action="undo" title="元に戻す (Ctrl+Z)"><i class="fas fa-undo"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" data-action="redo" title="やり直し (Ctrl+Y)"><i class="fas fa-redo"></i></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-secondary" data-action="copy" title="コピー (Ctrl+C)"><i class="fas fa-copy"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" data-action="paste" title="貼り付け (Ctrl+V)"><i class="fas fa-paste"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" data-action="delete" title="削除 (Del)"><i class="fas fa-trash"></i></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <!-- Z順序 -->
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-secondary" data-action="bringFront" title="最前面へ"><i class="fas fa-layer-group"></i><i class="fas fa-arrow-up" style="font-size:8px;"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" data-action="sendBack" title="最背面へ"><i class="fas fa-layer-group"></i><i class="fas fa-arrow-down" style="font-size:8px;"></i></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <!-- 整列 -->
+        <button class="btn btn-sm btn-outline-secondary" data-action-menu="align" title="整列"><i class="fas fa-align-left"></i> <i class="fas fa-caret-down" style="font-size:10px;"></i></button>
+        <!-- グループ -->
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-secondary" data-action="group" title="グループ化"><i class="fas fa-object-group"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" data-action="ungroup" title="グループ解除"><i class="fas fa-object-ungroup"></i></button>
+        </div>
+        <div class="toolbar-sep"></div>
+        <button class="btn btn-sm btn-outline-secondary" data-action="grid" title="グリッド表示"><i class="fas fa-th"></i></button>
+        <button class="btn btn-sm btn-outline-secondary" data-action="resize" title="キャンバスサイズ変更"><i class="fas fa-expand-arrows-alt"></i></button>
+        <div class="toolbar-sep"></div>
+        <!-- 保存・閉じる -->
+        <button class="btn btn-sm btn-primary" data-action="save" title="保存 (Ctrl+S)"><i class="fas fa-save"></i> 保存</button>
+        <button class="btn btn-sm btn-outline-danger" data-action="close" title="閉じる (Esc)"><i class="fas fa-times"></i></button>
+        <!-- ズーム -->
+        <div class="toolbar-zoom">
+            <button class="btn btn-sm btn-outline-secondary" data-action="zoomOut" title="縮小"><i class="fas fa-search-minus"></i></button>
+            <span class="zoom-level">100%</span>
+            <button class="btn btn-sm btn-outline-secondary" data-action="zoomIn" title="拡大"><i class="fas fa-search-plus"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" data-action="fit" title="フィット"><i class="fas fa-compress-arrows-alt"></i></button>
+        </div>
+    </div>
+    <!-- メインボディ -->
+    <div class="svg-editor-body">
+        <div class="svg-editor-canvas-wrap">
+            <canvas id="svgEditorCanvas"></canvas>
+        </div>
+        <div class="svg-editor-props">
+            <p class="prop-empty">要素を選択してください</p>
+        </div>
+    </div>
+    <!-- 整列ドロップダウン -->
+    <div class="svg-editor-align-menu">
+        <button data-align="left"><i class="fas fa-align-left"></i> 左揃え</button>
+        <button data-align="centerH"><i class="fas fa-align-center"></i> 左右中央</button>
+        <button data-align="right"><i class="fas fa-align-right"></i> 右揃え</button>
+        <button data-align="top"><i class="fas fa-align-left fa-rotate-90"></i> 上揃え</button>
+        <button data-align="centerV"><i class="fas fa-align-center fa-rotate-90"></i> 上下中央</button>
+        <button data-align="bottom"><i class="fas fa-align-right fa-rotate-90"></i> 下揃え</button>
+    </div>
+    <!-- キャンバスリサイズダイアログ -->
+    <div class="svg-editor-resize-dialog">
+        <h5>キャンバスサイズ</h5>
+        <div class="prop-row">
+            <label>幅</label>
+            <input type="number" id="resizeWidth" min="100" max="4000">
+        </div>
+        <div class="prop-row">
+            <label>高さ</label>
+            <input type="number" id="resizeHeight" min="100" max="4000">
+        </div>
+        <div class="dialog-btns">
+            <button class="btn btn-sm btn-secondary" id="resizeCancel">キャンセル</button>
+            <button class="btn btn-sm btn-primary" id="resizeOk">適用</button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

@@ -1,0 +1,297 @@
+/* ============================================
+   SVGエディタ — PowerPoint風フル編集
+   ============================================ */
+
+/* --- オーバーレイ --- */
+#svgEditorOverlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #f0f0f0;
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+}
+
+/* --- トップツールバー --- */
+.svg-editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+    min-height: 44px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.svg-editor-toolbar .btn-group {
+    display: inline-flex;
+    gap: 1px;
+}
+
+.svg-editor-toolbar .toolbar-sep {
+    width: 1px;
+    height: 28px;
+    background: #ddd;
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+.svg-editor-toolbar .btn {
+    padding: 4px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.svg-editor-toolbar .btn.active {
+    background: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+}
+
+.svg-editor-toolbar .btn i {
+    font-size: 14px;
+}
+
+.svg-editor-toolbar .toolbar-zoom {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: #555;
+}
+
+.svg-editor-toolbar .toolbar-zoom .zoom-level {
+    min-width: 45px;
+    text-align: center;
+}
+
+/* --- メインボディ --- */
+.svg-editor-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* --- キャンバスエリア --- */
+.svg-editor-canvas-wrap {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e8e8e8;
+    position: relative;
+}
+
+.svg-editor-canvas-wrap .canvas-container {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+
+/* --- 右プロパティパネル --- */
+.svg-editor-props {
+    width: 240px;
+    background: #fff;
+    border-left: 1px solid #ddd;
+    overflow-y: auto;
+    flex-shrink: 0;
+    padding: 12px;
+    font-size: 13px;
+}
+
+.svg-editor-props h6 {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 12px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #eee;
+}
+
+.svg-editor-props h6:first-child {
+    margin-top: 0;
+}
+
+.svg-editor-props .prop-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.svg-editor-props .prop-row label {
+    min-width: 50px;
+    font-size: 12px;
+    color: #666;
+    flex-shrink: 0;
+}
+
+.svg-editor-props .prop-row input[type="number"] {
+    width: 100%;
+    padding: 3px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.svg-editor-props .prop-row input[type="color"] {
+    width: 32px;
+    height: 26px;
+    padding: 1px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.svg-editor-props .prop-row input[type="range"] {
+    flex: 1;
+}
+
+.svg-editor-props .prop-row select {
+    width: 100%;
+    padding: 3px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.svg-editor-props .prop-empty {
+    color: #aaa;
+    font-size: 12px;
+    text-align: center;
+    padding: 20px 0;
+}
+
+/* --- 整列ドロップダウン --- */
+.svg-editor-align-menu {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 4px;
+    z-index: 10001;
+    display: none;
+}
+
+.svg-editor-align-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 4px 12px;
+    border: none;
+    background: none;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: 3px;
+}
+
+.svg-editor-align-menu button:hover {
+    background: #f0f0f0;
+}
+
+/* --- キャンバスリサイズダイアログ --- */
+.svg-editor-resize-dialog {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    padding: 20px;
+    z-index: 10002;
+    display: none;
+    min-width: 280px;
+}
+
+.svg-editor-resize-dialog h5 {
+    margin: 0 0 12px;
+    font-size: 15px;
+}
+
+.svg-editor-resize-dialog .prop-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.svg-editor-resize-dialog .prop-row label {
+    min-width: 40px;
+    font-size: 13px;
+}
+
+.svg-editor-resize-dialog .prop-row input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.svg-editor-resize-dialog .dialog-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: flex-end;
+}
+
+/* --- トースト通知 --- */
+.svg-editor-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    z-index: 10003;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.svg-editor-toast.show {
+    opacity: 1;
+}
+
+/* --- スライドショー内SVG編集ボタン --- */
+.slideshow-edit-svg-btn {
+    padding: 4px 12px !important;
+    font-size: 13px !important;
+    border-radius: 4px !important;
+    font-weight: 500;
+}
+
+.slideshow-edit-svg-btn:hover {
+    background: #0b5ed7 !important;
+}
+
+/* --- カーソル --- */
+.svg-editor-canvas-wrap.tool-rect,
+.svg-editor-canvas-wrap.tool-ellipse,
+.svg-editor-canvas-wrap.tool-line,
+.svg-editor-canvas-wrap.tool-arrow {
+    cursor: crosshair;
+}
+
+.svg-editor-canvas-wrap.tool-text {
+    cursor: text;
+}
+
+.svg-editor-canvas-wrap.tool-pan {
+    cursor: grab;
+}
+
+.svg-editor-canvas-wrap.tool-pan:active {
+    cursor: grabbing;
+}

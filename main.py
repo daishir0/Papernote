@@ -600,6 +600,47 @@ def attach_upload():
     return jsonify({'error': 'File type not allowed'}), 400
 
 
+@login_required
+@app.route('/attach_save_svg', methods=['POST'])
+def attach_save_svg():
+    """SVGエディタからの保存エンドポイント"""
+    import shutil
+    data = request.get_json()
+    if not data or 'svg_content' not in data or 'filename' not in data:
+        return jsonify({'error': 'Missing svg_content or filename'}), 400
+
+    svg_content = data['svg_content']
+    original_filename = data['filename']
+
+    # ファイル名バリデーション（SHA256ハッシュ.svg形式）
+    import re
+    if not re.match(r'^[a-f0-9]{64}\.svg$', original_filename):
+        return jsonify({'error': 'Invalid filename format'}), 400
+
+    # SVGサニタイズ
+    try:
+        svg_bytes = sanitize_svg(svg_content.encode('utf-8'))
+    except ValueError as e:
+        return jsonify({'error': f'Invalid SVG: {str(e)}'}), 400
+
+    # 新しいハッシュでファイル名を決定
+    file_hash = hashlib.sha256(svg_bytes).hexdigest()
+    new_filename = f"{file_hash}.svg"
+    file_path = os.path.join(UPLOAD_FOLDER, new_filename)
+
+    # 保存
+    with open(file_path, 'wb') as f:
+        f.write(svg_bytes)
+
+    # サムネイルコピー
+    small_filename = f"s_{new_filename}"
+    small_file_path = os.path.join(UPLOAD_FOLDER, small_filename)
+    shutil.copy(file_path, small_file_path)
+
+    file_url = f"/attach/{new_filename}"
+    return jsonify({'url': file_url, 'filename': new_filename})
+
+
 @app.route('/attach/<filename>')
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
