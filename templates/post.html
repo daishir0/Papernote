@@ -346,12 +346,29 @@
         <button class="slide-nav prev" onclick="navigateSlide(-1)">
             <i class="fas fa-chevron-left"></i>
         </button>
-        <div class="slide-content" id="slide-content"></div>
+        <div class="slide-content-wrap">
+            <div class="slide-content" id="slide-content"></div>
+            <canvas class="slide-draw-canvas" id="slideDrawCanvas"></canvas>
+        </div>
         <button class="slide-nav next" onclick="navigateSlide(1)">
             <i class="fas fa-chevron-right"></i>
         </button>
-        <div class="slide-counter" id="slide-counter">1 / 1</div>
-        <div class="slide-help">← → キーでナビゲーション | ESC で終了</div>
+        <div class="slide-bottom-bar">
+            <div class="slide-counter" id="slide-counter">1 / 1</div>
+            <div class="slide-pen-toolbar" id="slidePenToolbar">
+                <button class="slide-pen-btn" id="slidePenToggle" title="ペン (P)"><i class="fas fa-pen"></i></button>
+                <span class="slide-pen-colors" id="slidePenColors" style="display:none;">
+                    <button class="slide-pen-color active" data-color="#e00" title="赤" style="background:#e00;"></button>
+                    <button class="slide-pen-color" data-color="#f0c000" title="黄" style="background:#f0c000;"></button>
+                    <button class="slide-pen-color" data-color="#08f" title="青" style="background:#08f;"></button>
+                    <button class="slide-pen-color" data-color="#fff" title="白" style="background:#fff; border:1px solid #888;"></button>
+                    <button class="slide-pen-color" data-color="#222" title="黒" style="background:#222;"></button>
+                    <button class="slide-pen-btn" id="slidePenThick" title="太さ切替"><i class="fas fa-circle" style="font-size:8px;"></i></button>
+                    <button class="slide-pen-btn" id="slidePenClear" title="全消去"><i class="fas fa-eraser"></i></button>
+                </span>
+            </div>
+        </div>
+        <div class="slide-help">← → キーでナビゲーション | P でペン | ESC で終了</div>
     </div>
 </div>
 
@@ -1350,6 +1367,130 @@
         let slides = [];
         let currentSlideIndex = 0;
 
+        // ペン描画
+        const drawCanvas = document.getElementById('slideDrawCanvas');
+        const drawCtx = drawCanvas ? drawCanvas.getContext('2d') : null;
+        let penActive = false;
+        let penColor = '#e00';
+        let penWidth = 3;
+        let isDrawingPen = false;
+        let lastPenX = 0;
+        let lastPenY = 0;
+
+        function resizeDrawCanvas() {
+            if (!drawCanvas) return;
+            const wrap = drawCanvas.parentElement;
+            if (!wrap) return;
+            const rect = wrap.getBoundingClientRect();
+            drawCanvas.width = rect.width;
+            drawCanvas.height = rect.height;
+        }
+
+        function clearDrawCanvas() {
+            if (!drawCanvas || !drawCtx) return;
+            drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        }
+
+        function togglePen() {
+            penActive = !penActive;
+            const btn = document.getElementById('slidePenToggle');
+            const colors = document.getElementById('slidePenColors');
+            if (btn) btn.classList.toggle('active', penActive);
+            if (colors) colors.style.display = penActive ? 'inline-flex' : 'none';
+            if (drawCanvas) drawCanvas.classList.toggle('active', penActive);
+        }
+
+        function setPenOff() {
+            penActive = false;
+            const btn = document.getElementById('slidePenToggle');
+            const colors = document.getElementById('slidePenColors');
+            if (btn) btn.classList.remove('active');
+            if (colors) colors.style.display = 'none';
+            if (drawCanvas) drawCanvas.classList.remove('active');
+        }
+
+        // ペン描画イベント
+        if (drawCanvas) {
+            drawCanvas.addEventListener('mousedown', function(e) {
+                if (!penActive) return;
+                isDrawingPen = true;
+                const rect = drawCanvas.getBoundingClientRect();
+                lastPenX = e.clientX - rect.left;
+                lastPenY = e.clientY - rect.top;
+            });
+            drawCanvas.addEventListener('mousemove', function(e) {
+                if (!isDrawingPen || !penActive) return;
+                const rect = drawCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                drawCtx.beginPath();
+                drawCtx.moveTo(lastPenX, lastPenY);
+                drawCtx.lineTo(x, y);
+                drawCtx.strokeStyle = penColor;
+                drawCtx.lineWidth = penWidth;
+                drawCtx.lineCap = 'round';
+                drawCtx.lineJoin = 'round';
+                drawCtx.stroke();
+                lastPenX = x;
+                lastPenY = y;
+            });
+            drawCanvas.addEventListener('mouseup', function() { isDrawingPen = false; });
+            drawCanvas.addEventListener('mouseleave', function() { isDrawingPen = false; });
+
+            // タッチ対応
+            drawCanvas.addEventListener('touchstart', function(e) {
+                if (!penActive) return;
+                e.preventDefault();
+                isDrawingPen = true;
+                const rect = drawCanvas.getBoundingClientRect();
+                const t = e.touches[0];
+                lastPenX = t.clientX - rect.left;
+                lastPenY = t.clientY - rect.top;
+            }, { passive: false });
+            drawCanvas.addEventListener('touchmove', function(e) {
+                if (!isDrawingPen || !penActive) return;
+                e.preventDefault();
+                const rect = drawCanvas.getBoundingClientRect();
+                const t = e.touches[0];
+                const x = t.clientX - rect.left;
+                const y = t.clientY - rect.top;
+                drawCtx.beginPath();
+                drawCtx.moveTo(lastPenX, lastPenY);
+                drawCtx.lineTo(x, y);
+                drawCtx.strokeStyle = penColor;
+                drawCtx.lineWidth = penWidth;
+                drawCtx.lineCap = 'round';
+                drawCtx.lineJoin = 'round';
+                drawCtx.stroke();
+                lastPenX = x;
+                lastPenY = y;
+            }, { passive: false });
+            drawCanvas.addEventListener('touchend', function() { isDrawingPen = false; });
+        }
+
+        // ペンツールバーイベント
+        const penToggleBtn = document.getElementById('slidePenToggle');
+        if (penToggleBtn) penToggleBtn.addEventListener('click', togglePen);
+
+        const penClearBtn = document.getElementById('slidePenClear');
+        if (penClearBtn) penClearBtn.addEventListener('click', clearDrawCanvas);
+
+        const penThickBtn = document.getElementById('slidePenThick');
+        if (penThickBtn) {
+            penThickBtn.addEventListener('click', function() {
+                penWidth = penWidth === 3 ? 8 : penWidth === 8 ? 16 : 3;
+                this.querySelector('i').style.fontSize = penWidth === 3 ? '6px' : penWidth === 8 ? '10px' : '16px';
+            });
+        }
+
+        document.querySelectorAll('.slide-pen-color').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                penColor = this.dataset.color;
+                document.querySelectorAll('.slide-pen-color').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
         // スライド分割関数
         function splitIntoSlides() {
             const contentDiv = document.getElementById('content');
@@ -1373,7 +1514,10 @@
 
             currentSlideIndex = 0;
             slideModal.classList.add('active');
+            setPenOff();
             showSlide(currentSlideIndex);
+            // キャンバスリサイズ（モーダル表示後に実行）
+            requestAnimationFrame(resizeDrawCanvas);
             document.addEventListener('keydown', handleSlideKeydown);
 
             // スワイプ対応（モバイル）
@@ -1402,6 +1546,8 @@
         // スライドモードを閉じる
         window.closeSlideMode = function() {
             slideModal.classList.remove('active');
+            setPenOff();
+            clearDrawCanvas();
             document.removeEventListener('keydown', handleSlideKeydown);
         };
 
@@ -1409,6 +1555,7 @@
         function showSlide(index) {
             if (index < 0 || index >= slides.length) return;
 
+            clearDrawCanvas();
             slideContent.innerHTML = slides[index];
             slideCounter.textContent = `${index + 1} / ${slides.length}`;
 
@@ -1468,6 +1615,18 @@
                     event.preventDefault();
                     currentSlideIndex = slides.length - 1;
                     showSlide(currentSlideIndex);
+                    break;
+                case 'p':
+                case 'P':
+                    event.preventDefault();
+                    togglePen();
+                    break;
+                case 'c':
+                case 'C':
+                    if (penActive) {
+                        event.preventDefault();
+                        clearDrawCanvas();
+                    }
                     break;
             }
         }
