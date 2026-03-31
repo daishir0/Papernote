@@ -206,14 +206,16 @@
     align-items: center;
 }
 .slide-content {
-    max-width: 90%;
-    max-height: 85%;
-    overflow: hidden; /* スクロールバーを非表示 */
+    /* PowerPoint風: 16:9固定アスペクト比 */
+    width: min(90vw, 85vh * 16 / 9);
+    height: min(85vh, 90vw * 9 / 16);
+    overflow-y: auto;
     padding: 40px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     transition: opacity 0.3s ease;
+    box-sizing: border-box;
 }
 .slide-content h1 {
     margin-top: 0;
@@ -226,11 +228,11 @@
     margin-top: 1.5em;
 }
 .slide-content img {
-    width: 100% !important;
-    height: calc(85vh - 80px) !important; /* 画面高さの85% - padding分 */
-    max-width: none !important;
-    max-height: none !important;
-    object-fit: contain; /* アスペクト比を維持しながら拡大 */
+    max-width: 100% !important;
+    max-height: 60vh !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
     display: block;
     margin: 20px auto;
     border-radius: 4px;
@@ -374,8 +376,8 @@
 /* スマホ版のスライドモード調整 */
 @media (max-width: 768px) {
     .slide-content {
-        max-width: 95%;
-        max-height: 80%;
+        width: min(95vw, 80vh * 16 / 9);
+        height: min(80vh, 95vw * 9 / 16);
         padding: 20px;
         font-size: 0.9em;
     }
