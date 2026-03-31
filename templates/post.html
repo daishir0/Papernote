@@ -346,8 +346,7 @@
         <button class="slide-nav prev" onclick="navigateSlide(-1)">
             <i class="fas fa-chevron-left"></i>
         </button>
-        <div class="slide-content-wrap">
-            <div class="slide-content" id="slide-content"></div>
+        <div class="slide-content" id="slide-content">
             <canvas class="slide-draw-canvas" id="slideDrawCanvas"></canvas>
         </div>
         <button class="slide-nav next" onclick="navigateSlide(1)">
@@ -1378,12 +1377,10 @@
         let lastPenY = 0;
 
         function resizeDrawCanvas() {
-            if (!drawCanvas) return;
-            const wrap = drawCanvas.parentElement;
-            if (!wrap) return;
-            const rect = wrap.getBoundingClientRect();
-            drawCanvas.width = rect.width;
-            drawCanvas.height = rect.height;
+            if (!drawCanvas || !slideContent) return;
+            // スクロール領域全体をカバー（scrollHeightで描画がスクロールに追従）
+            drawCanvas.width = slideContent.scrollWidth;
+            drawCanvas.height = slideContent.scrollHeight;
         }
 
         function clearDrawCanvas() {
@@ -1410,29 +1407,36 @@
         }
 
         // ペン描画イベント
+        // canvasはslide-content内にあるため、座標はスクロールオフセット込みで計算
+        function penCoords(clientX, clientY) {
+            const rect = slideContent.getBoundingClientRect();
+            return {
+                x: clientX - rect.left + slideContent.scrollLeft,
+                y: clientY - rect.top + slideContent.scrollTop,
+            };
+        }
+
         if (drawCanvas) {
             drawCanvas.addEventListener('mousedown', function(e) {
                 if (!penActive) return;
                 isDrawingPen = true;
-                const rect = drawCanvas.getBoundingClientRect();
-                lastPenX = e.clientX - rect.left;
-                lastPenY = e.clientY - rect.top;
+                const p = penCoords(e.clientX, e.clientY);
+                lastPenX = p.x;
+                lastPenY = p.y;
             });
             drawCanvas.addEventListener('mousemove', function(e) {
                 if (!isDrawingPen || !penActive) return;
-                const rect = drawCanvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const p = penCoords(e.clientX, e.clientY);
                 drawCtx.beginPath();
                 drawCtx.moveTo(lastPenX, lastPenY);
-                drawCtx.lineTo(x, y);
+                drawCtx.lineTo(p.x, p.y);
                 drawCtx.strokeStyle = penColor;
                 drawCtx.lineWidth = penWidth;
                 drawCtx.lineCap = 'round';
                 drawCtx.lineJoin = 'round';
                 drawCtx.stroke();
-                lastPenX = x;
-                lastPenY = y;
+                lastPenX = p.x;
+                lastPenY = p.y;
             });
             drawCanvas.addEventListener('mouseup', function() { isDrawingPen = false; });
             drawCanvas.addEventListener('mouseleave', function() { isDrawingPen = false; });
@@ -1442,28 +1446,26 @@
                 if (!penActive) return;
                 e.preventDefault();
                 isDrawingPen = true;
-                const rect = drawCanvas.getBoundingClientRect();
                 const t = e.touches[0];
-                lastPenX = t.clientX - rect.left;
-                lastPenY = t.clientY - rect.top;
+                const p = penCoords(t.clientX, t.clientY);
+                lastPenX = p.x;
+                lastPenY = p.y;
             }, { passive: false });
             drawCanvas.addEventListener('touchmove', function(e) {
                 if (!isDrawingPen || !penActive) return;
                 e.preventDefault();
-                const rect = drawCanvas.getBoundingClientRect();
                 const t = e.touches[0];
-                const x = t.clientX - rect.left;
-                const y = t.clientY - rect.top;
+                const p = penCoords(t.clientX, t.clientY);
                 drawCtx.beginPath();
                 drawCtx.moveTo(lastPenX, lastPenY);
-                drawCtx.lineTo(x, y);
+                drawCtx.lineTo(p.x, p.y);
                 drawCtx.strokeStyle = penColor;
                 drawCtx.lineWidth = penWidth;
                 drawCtx.lineCap = 'round';
                 drawCtx.lineJoin = 'round';
                 drawCtx.stroke();
-                lastPenX = x;
-                lastPenY = y;
+                lastPenX = p.x;
+                lastPenY = p.y;
             }, { passive: false });
             drawCanvas.addEventListener('touchend', function() { isDrawingPen = false; });
         }
@@ -1557,6 +1559,10 @@
 
             clearDrawCanvas();
             slideContent.innerHTML = slides[index];
+            // canvasをコンテンツの上に再追加（innerHTMLで消えるため）
+            if (drawCanvas) {
+                slideContent.appendChild(drawCanvas);
+            }
             slideCounter.textContent = `${index + 1} / ${slides.length}`;
 
             // ナビゲーションボタンの有効/無効
@@ -1580,6 +1586,9 @@
                 img.style.maxWidth = '';
                 img.style.maxHeight = '';
             });
+
+            // canvasをスクロール領域全体にリサイズ
+            requestAnimationFrame(resizeDrawCanvas);
         }
 
         // スライドナビゲーション

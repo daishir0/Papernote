@@ -207,6 +207,7 @@
 }
 .slide-content {
     /* PowerPoint風: 16:9固定アスペクト比 */
+    position: relative;
     width: min(90vw, 85vh * 16 / 9);
     height: min(85vh, 90vw * 9 / 16);
     overflow-y: auto;
@@ -380,19 +381,10 @@
 }
 
 /* スライド書き込みオーバーレイ */
-.slide-content-wrap {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
 .slide-draw-canvas {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 8px;
     pointer-events: none;
     z-index: 1;
 }
