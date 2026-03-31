@@ -155,8 +155,8 @@ function showCurrentSlide() {
     // SVG編集ボタンの表示制御
     const editSvgBtn = document.getElementById('slideshowEditSvgBtn');
     if (editSvgBtn) {
-        const isSvg = currentImage.full && currentImage.full.match(/\/attach\/[a-f0-9]+\.svg(\?|$)/i);
-        editSvgBtn.style.display = isSvg ? 'inline-block' : 'none';
+        const isEditable = currentImage.full && currentImage.full.match(/\/attach\/[a-f0-9]+\.(svg|jpg|jpeg|png|gif)(\?|$)/i);
+        editSvgBtn.style.display = isEditable ? 'inline-block' : 'none';
     }
 }
 

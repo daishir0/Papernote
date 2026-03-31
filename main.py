@@ -19,6 +19,7 @@ from PIL import Image, ExifTags
 from pillow_heif import register_heif_opener
 import string
 import hashlib
+import base64
 
 # HEIFフォーマット（HEIC）のサポートを有効化
 register_heif_opener()
@@ -636,6 +637,57 @@ def attach_save_svg():
     small_filename = f"s_{new_filename}"
     small_file_path = os.path.join(UPLOAD_FOLDER, small_filename)
     shutil.copy(file_path, small_file_path)
+
+    file_url = f"/attach/{new_filename}"
+    return jsonify({'url': file_url, 'filename': new_filename})
+
+
+@login_required
+@app.route('/attach_save_image', methods=['POST'])
+def attach_save_image():
+    """画像注釈エディタからの保存エンドポイント（JPG/PNG/GIF対応）"""
+    data = request.get_json()
+    if not data or 'image_data' not in data or 'filename' not in data:
+        return jsonify({'error': 'Missing image_data or filename'}), 400
+
+    image_data = data['image_data']
+    original_filename = data['filename']
+
+    # ファイル名バリデーション
+    if not re.match(r'^[a-f0-9]{64}\.(jpg|jpeg|png|gif)$', original_filename):
+        return jsonify({'error': 'Invalid filename format'}), 400
+
+    # base64デコード
+    try:
+        header, b64 = image_data.split(',', 1)
+        image_bytes = base64.b64decode(b64)
+    except Exception as e:
+        return jsonify({'error': f'Invalid image data: {str(e)}'}), 400
+
+    # MIMEタイプから拡張子を判定
+    mime_format = header.split(';')[0].split('/')[1]
+    ext = 'jpg' if mime_format == 'jpeg' else mime_format
+
+    # SHA256ハッシュでファイル名を決定
+    file_hash = hashlib.sha256(image_bytes).hexdigest()
+    new_filename = f"{file_hash}.{ext}"
+    file_path = os.path.join(UPLOAD_FOLDER, new_filename)
+
+    # 保存
+    with open(file_path, 'wb') as f:
+        f.write(image_bytes)
+
+    # サムネイル生成（500x500）
+    try:
+        image = Image.open(file_path)
+        if image.mode in ('RGBA', 'LA', 'P') and ext == 'jpg':
+            image = image.convert('RGB')
+        small = image.copy()
+        small.thumbnail((500, 500), Image.Resampling.LANCZOS)
+        small_filename = f"s_{new_filename}"
+        small.save(os.path.join(UPLOAD_FOLDER, small_filename))
+    except Exception as e:
+        print(f"サムネイル生成エラー: {str(e)}")
 
     file_url = f"/attach/{new_filename}"
     return jsonify({'url': file_url, 'filename': new_filename})

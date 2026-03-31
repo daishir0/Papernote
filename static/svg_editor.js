@@ -12,6 +12,9 @@ const svgEditor = {
     canvasWidth: 680,
     canvasHeight: 520,
 
+    // Image mode: 'svg' or 'raster'
+    imageMode: 'svg',
+
     // History (Undo/Redo)
     history: [],
     historyIndex: -1,
@@ -54,8 +57,9 @@ const svgEditor = {
     // ============================================
     // エディタを開く
     // ============================================
-    open(svgUrl) {
-        this.originalSvgUrl = svgUrl;
+    open(imageUrl) {
+        this.originalSvgUrl = imageUrl;
+        this.imageMode = /\.(jpg|jpeg|png|gif)(\?|$)/i.test(imageUrl) ? 'raster' : 'svg';
         this.overlay.style.display = 'flex';
         document.body.style.overflow = 'hidden';
 
@@ -72,7 +76,11 @@ const svgEditor = {
         });
 
         this._resetHistory();
-        this._loadSvg(svgUrl);
+        if (this.imageMode === 'raster') {
+            this._loadImage(imageUrl);
+        } else {
+            this._loadSvg(imageUrl);
+        }
         this._bindCanvasEvents();
         this._updatePropsPanel();
         this.setTool('select');
@@ -90,6 +98,32 @@ const svgEditor = {
             this.canvas.dispose();
             this.canvas = null;
         }
+    },
+
+    // ============================================
+    // ラスター画像読み込み
+    // ============================================
+    _loadImage(url) {
+        const self = this;
+        fabric.Image.fromURL(url, function(img) {
+            if (!img || !img.width) {
+                self._showToast('画像の読み込みに失敗しました');
+                return;
+            }
+            self.canvasWidth = img.width;
+            self.canvasHeight = img.height;
+            self.canvas.setDimensions({ width: img.width, height: img.height });
+
+            // 背景画像として設定（選択不可・移動不可）
+            self.canvas.setBackgroundImage(img, function() {
+                self.canvas.requestRenderAll();
+                self._saveHistory();
+                self._fitToScreen();
+            }, {
+                originX: 'left',
+                originY: 'top',
+            });
+        }, { crossOrigin: 'anonymous' });
     },
 
     // ============================================
@@ -116,9 +150,30 @@ const svgEditor = {
             });
 
             // 各オブジェクトを処理してcanvasに追加
+            // Text → IText変換（reviverでは返り値が無視されるためここで行う）
+            // 注意: Fabric.jsのText.fromElementはtext-anchor="middle"を検出し、
+            // left = x - textWidth/2 に自動補正済み。originXは'left'のままで正しい。
             objects.forEach(function(obj) {
                 if (!obj) return;
-                self.canvas.add(obj);
+
+                if (obj.type === 'text') {
+                    var itext = new fabric.IText(obj.text, {
+                        left: obj.left,
+                        top: obj.top,
+                        fontSize: obj.fontSize,
+                        fontFamily: obj.fontFamily || 'sans-serif',
+                        fontWeight: obj.fontWeight || 'normal',
+                        fontStyle: obj.fontStyle || 'normal',
+                        fill: obj.fill || '#000000',
+                        originX: 'left',
+                        originY: obj.originY || 'top',
+                        textAlign: 'left',
+                        strokeWidth: obj.strokeWidth || 0,
+                    });
+                    self.canvas.add(itext);
+                } else {
+                    self.canvas.add(obj);
+                }
             });
 
             self.canvas.renderOnAddRemove = true;
@@ -126,42 +181,14 @@ const svgEditor = {
             self._saveHistory();
             self._fitToScreen();
         }, function(element, obj) {
-            // reviver: SVG要素→Fabricオブジェクト変換時の後処理
+            // reviver: objをin-place変更（返り値は無視される）
             if (!obj) return;
-
-            // Text → IText変換（ダブルクリック編集対応）
-            if (obj.type === 'text') {
-                const itext = new fabric.IText(obj.text, {
-                    left: obj.left,
-                    top: obj.top,
-                    fontSize: obj.fontSize,
-                    fontFamily: obj.fontFamily || 'sans-serif',
-                    fontWeight: obj.fontWeight || 'normal',
-                    fontStyle: obj.fontStyle || 'normal',
-                    fill: obj.fill || '#000000',
-                    originX: obj.originX || 'left',
-                    originY: obj.originY || 'top',
-                    textAlign: obj.textAlign || 'left',
-                });
-
-                // text-anchor対応
-                const textAnchor = element.getAttribute('text-anchor');
-                if (textAnchor === 'middle') {
-                    itext.set({ originX: 'center' });
-                } else if (textAnchor === 'end') {
-                    itext.set({ originX: 'right' });
-                }
-
-                return itext;
-            }
 
             // 線のmarker-end検出 → ArrowLineフラグ
             if ((obj.type === 'line' || obj.type === 'polyline') && element.getAttribute('marker-end')) {
                 obj._isArrow = true;
                 obj._markerStroke = element.getAttribute('stroke') || obj.stroke || '#888780';
             }
-
-            return obj;
         });
     },
 
@@ -777,66 +804,106 @@ const svgEditor = {
     },
 
     // ============================================
-    // サーバーに保存
+    // サーバーに保存（形式別分岐）
     // ============================================
     async save() {
+        try {
+            if (this.imageMode === 'raster') {
+                await this._saveImage();
+            } else {
+                await this._saveSvg();
+            }
+        } catch (e) {
+            this._showToast('保存エラー: ' + e.message);
+            console.error('Save error:', e);
+        }
+    },
+
+    // URL置換＋ページ保存の共通処理
+    async _replaceUrlAndSavePage(originalFilename, newUrl) {
+        const textarea = document.getElementById('content');
+        if (textarea && newUrl !== `/attach/${originalFilename}`) {
+            const oldUrl = `/attach/${originalFilename}`;
+            const oldThumbUrl = `/attach/s_${originalFilename}`;
+            const newFilename = newUrl.split('/').pop();
+            const newThumbUrl = `/attach/s_${newFilename}`;
+
+            textarea.value = textarea.value
+                .replace(new RegExp(oldThumbUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newThumbUrl)
+                .replace(new RegExp(oldUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newUrl);
+
+            textarea.dispatchEvent(new Event('input'));
+            this.originalSvgUrl = newUrl;
+        }
+
+        if (typeof window.saveWithoutRedirect === 'function') {
+            await window.saveWithoutRedirect();
+        }
+
+        this._showToast('保存しました');
+    },
+
+    // SVG保存
+    async _saveSvg() {
         const svgContent = this.exportSvg();
         if (!svgContent) return;
 
         const csrfToken = document.body.dataset.csrfToken;
-        // 元のファイル名をURLから抽出
         const urlParts = this.originalSvgUrl.split('/');
         const originalFilename = urlParts[urlParts.length - 1];
 
-        try {
-            const response = await fetch('/attach_save_svg', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken,
-                },
-                body: JSON.stringify({
-                    svg_content: svgContent,
-                    filename: originalFilename,
-                }),
-            });
+        const response = await fetch('/attach_save_svg', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ svg_content: svgContent, filename: originalFilename }),
+        });
 
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Save failed');
-            }
-
-            const data = await response.json();
-            const newUrl = data.url;
-
-            // マークダウン内のURLを置換
-            const textarea = document.getElementById('content');
-            if (textarea && newUrl !== `/attach/${originalFilename}`) {
-                const oldUrl = `/attach/${originalFilename}`;
-                const oldThumbUrl = `/attach/s_${originalFilename}`;
-                const newFilename = newUrl.split('/').pop();
-                const newThumbUrl = `/attach/s_${newFilename}`;
-
-                textarea.value = textarea.value
-                    .replace(new RegExp(oldThumbUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newThumbUrl)
-                    .replace(new RegExp(oldUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newUrl);
-
-                // プレビュー更新
-                textarea.dispatchEvent(new Event('input'));
-                // 新URLを記憶
-                this.originalSvgUrl = newUrl;
-            }
-
-            // ページ本体も保存
-            if (typeof window.saveWithoutRedirect === 'function') {
-                await window.saveWithoutRedirect();
-            }
-
-            this._showToast('保存しました');
-        } catch (e) {
-            this._showToast('保存エラー: ' + e.message);
-            console.error('SVG save error:', e);
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Save failed');
         }
+
+        const data = await response.json();
+        await this._replaceUrlAndSavePage(originalFilename, data.url);
+    },
+
+    // ラスター画像エクスポート
+    exportImage() {
+        const prevZoom = this.canvas.getZoom();
+        this.canvas.setZoom(1);
+        this.canvas.setDimensions({ width: this.canvasWidth, height: this.canvasHeight });
+
+        const isJpeg = /\.(jpg|jpeg)(\?|$)/i.test(this.originalSvgUrl);
+        const format = isJpeg ? 'jpeg' : 'png';
+        const quality = isJpeg ? 0.92 : undefined;
+        const dataUrl = this.canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
+
+        this.canvas.setZoom(prevZoom);
+        this._resizeCanvasForZoom();
+
+        return { dataUrl, format };
+    },
+
+    // ラスター画像保存
+    async _saveImage() {
+        const { dataUrl, format } = this.exportImage();
+        const csrfToken = document.body.dataset.csrfToken;
+        const urlParts = this.originalSvgUrl.split('/');
+        const originalFilename = urlParts[urlParts.length - 1];
+
+        const response = await fetch('/attach_save_image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ image_data: dataUrl, filename: originalFilename, format: format }),
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Save failed');
+        }
+
+        const data = await response.json();
+        await this._replaceUrlAndSavePage(originalFilename, data.url);
     },
 
     // ============================================
