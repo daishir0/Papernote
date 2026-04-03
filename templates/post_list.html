@@ -1675,7 +1675,7 @@
                     container.addEventListener('touchmove', function(e) {
                         if (!doubleTapDragging) return;
                         e.preventDefault();
-                        var deltaY = dragStartY - e.touches[0].clientY; // 上=正=ズームイン
+                        var deltaY = e.touches[0].clientY - dragStartY; // 下=正=ズームイン、上=ズームアウト
                         var factor = Math.pow(1.01, deltaY); // 1pxあたり1%ズーム
                         cy.zoom({
                             level: dragStartZoom * factor,
