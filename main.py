@@ -1441,8 +1441,24 @@ def api_ui_postlist_preview(filename):
     return jsonify({'preview': preview})
 
 
+def require_login_or_api_key(f):
+    """ログイン認証またはAPI Key認証のいずれかを要求するデコレータ"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.is_authenticated:
+            return f(*args, **kwargs)
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            valid_keys = [k['key'] for k in config.get('api_keys', []) if k.get('enabled', True)]
+            if token in valid_keys:
+                return f(*args, **kwargs)
+        return jsonify({"status": "error", "message": "Authentication required"}), 401
+    return decorated_function
+
+
 @app.route('/api/ui/postlist/graph')
-@login_required
+@require_login_or_api_key
 @limiter.limit("30 per minute")
 @csrf.exempt
 def api_ui_postlist_graph():
@@ -1665,7 +1681,7 @@ def extract_dates_from_line(line, today):
 
 
 @app.route('/api/ui/postlist/graph/timeline', methods=['POST'])
-@login_required
+@require_login_or_api_key
 @limiter.limit("30 per minute")
 @csrf.exempt
 def api_ui_postlist_graph_timeline():
@@ -1718,7 +1734,7 @@ def api_ui_postlist_graph_timeline():
 
 
 @app.route('/api/ui/postlist/graph/achievements', methods=['POST'])
-@login_required
+@require_login_or_api_key
 @limiter.limit("30 per minute")
 @csrf.exempt
 def api_ui_postlist_graph_achievements():
@@ -1782,7 +1798,7 @@ def api_ui_postlist_graph_achievements():
 
 
 @app.route('/api/ui/postlist/graph/layout', methods=['GET'])
-@login_required
+@require_login_or_api_key
 @limiter.limit("60 per minute")
 @csrf.exempt
 def api_ui_postlist_graph_layout_get():
@@ -1798,7 +1814,7 @@ def api_ui_postlist_graph_layout_get():
 
 
 @app.route('/api/ui/postlist/graph/layout', methods=['POST'])
-@login_required
+@require_login_or_api_key
 @limiter.limit("60 per minute")
 @csrf.exempt
 def api_ui_postlist_graph_layout_post():
@@ -3119,6 +3135,91 @@ def api_update_post(filename):
         })
     except Exception as e:
         app.logger.error(f"Error updating file {filename}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error"
+        }), 500
+
+# API 3.3: コメント追加
+@app.route('/api/posts/<filename>/comment', methods=['POST'])
+@require_api_key
+@limiter.limit("60 per minute")
+@csrf.exempt
+def api_add_comment(filename):
+    """投稿にコメントを追加（先頭または末尾）"""
+    # ファイル名検証
+    if not is_valid_api_filename(filename):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid filename or access denied"
+        }), 400
+
+    file_path = os.path.join('./post', filename)
+
+    if not os.path.isfile(file_path):
+        return jsonify({
+            "status": "error",
+            "message": "File not found"
+        }), 404
+
+    # FormData または JSON どちらも受け付ける
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        comment = (request.form.get('comment') or '').strip()
+        position = request.form.get('position', 'top')
+    else:
+        data = request.get_json(silent=True) or {}
+        comment = (data.get('comment') or '').strip()
+        position = data.get('position', 'top')
+
+    if not comment:
+        return jsonify({
+            "status": "error",
+            "message": "Missing or empty 'comment' field"
+        }), 400
+
+    if position not in ('top', 'bottom'):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid position. Must be 'top' or 'bottom'"
+        }), 400
+
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()
+
+        new_comment = f"- {comment}\n"
+
+        if position == 'top':
+            title = lines[0] if len(lines) > 0 else "\n"
+            tags = lines[1] if len(lines) > 1 else "\n"
+            body = lines[2:] if len(lines) > 2 else []
+            new_content = [title, tags, new_comment] + body
+        else:
+            new_content = lines + [new_comment]
+
+        with open(file_path, 'w', encoding='utf-8', errors='replace') as f:
+            f.writelines(new_content)
+
+        # キャッシュ削除
+        cache_file_old = './post/.cache/post_files_info.json'
+        cache_file_all = './post/.cache/post_files_info_all.json'
+        filelist_cache = './post/.cache/filelist.json'
+        for cf in [cache_file_old, cache_file_all, filelist_cache]:
+            if os.path.exists(cf):
+                os.remove(cf)
+
+        app.logger.info(f"API: Added comment to {filename} at {position}")
+
+        return jsonify({
+            "status": "success",
+            "message": "Comment added successfully",
+            "data": {
+                "filename": filename,
+                "position": position
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"Error adding comment to {filename}: {str(e)}")
         return jsonify({
             "status": "error",
             "message": "Internal server error"
