@@ -3187,7 +3187,12 @@ def api_add_comment(filename):
         with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.readlines()
 
-        new_comment = f"- {comment}\n"
+        # 画像（Markdown画像記法）はリストマーカーなし＋後に空行
+        is_image = comment.startswith('![')
+        if is_image:
+            new_comment = f"{comment}\n\n"
+        else:
+            new_comment = f"- {comment}\n"
 
         if position == 'top':
             title = lines[0] if len(lines) > 0 else "\n"
