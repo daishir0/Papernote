@@ -1484,7 +1484,9 @@ def api_ui_postlist_graph():
                         latest_mtime = mtime
             if latest_mtime <= cache_mtime:
                 with open(cache_file, 'r', encoding='utf-8') as f:
-                    return jsonify(json.load(f))
+                    resp = jsonify(json.load(f))
+                    resp.headers['Cache-Control'] = 'no-cache, no-store'
+                    return resp
     except Exception:
         pass
 
@@ -1556,7 +1558,9 @@ def api_ui_postlist_graph():
     except Exception:
         pass
 
-    return jsonify(result)
+    resp = jsonify(result)
+    resp.headers['Cache-Control'] = 'no-cache, no-store'
+    return resp
 
 
 def _parse_date_text(text, today):
@@ -1808,7 +1812,9 @@ def api_ui_postlist_graph_layout_get():
     try:
         with open(layout_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
-        return jsonify(data)
+        resp = jsonify(data)
+        resp.headers['Cache-Control'] = 'no-cache, no-store'
+        return resp
     except Exception:
         return jsonify(None)
 
