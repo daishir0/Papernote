@@ -43,6 +43,20 @@ const svgEditor = {
     gridEnabled: false,
     gridSize: 10,
 
+    // Preset colors for new objects
+    presetFillColor: '#e0e0e0',
+    presetStrokeColor: '#333333',
+    presetTextColor: '#333333',
+    presetStrokeWidth: 2,
+
+    // Arrow size presets
+    arrowSizePresets: {
+        thin:   { strokeWidth: 1.5, headLen: 8 },
+        medium: { strokeWidth: 3,   headLen: 12 },
+        thick:  { strokeWidth: 5,   headLen: 16 },
+    },
+    currentArrowSize: 'thin',
+
     // ============================================
     // 初期化
     // ============================================
@@ -176,6 +190,11 @@ const svgEditor = {
                 }
             });
 
+            // 矢印オブジェクトのtoSVGオーバーライドを適用
+            self.canvas.getObjects().forEach(obj => {
+                if (obj._isArrow) self._applyArrowToSVG(obj);
+            });
+
             self.canvas.renderOnAddRemove = true;
             self.canvas.requestRenderAll();
             self._saveHistory();
@@ -206,6 +225,24 @@ const svgEditor = {
         wrap.className = 'svg-editor-canvas-wrap';
         if (tool !== 'select') {
             wrap.classList.add('tool-' + tool);
+        }
+        // 矢印太さボタン群の表示切替
+        const arrowGroup = this.overlay.querySelector('.arrow-thickness-group');
+        if (arrowGroup) arrowGroup.style.display = (tool === 'arrow') ? 'inline-flex' : 'none';
+        // フリーハンド描画モード
+        if (this.canvas) {
+            const isDrawMode = (tool === 'draw' || tool === 'highlight');
+            this.canvas.isDrawingMode = isDrawMode;
+            if (isDrawMode) {
+                const brush = this.canvas.freeDrawingBrush;
+                if (tool === 'highlight') {
+                    brush.color = 'rgba(255,255,0,0.3)';
+                    brush.width = 20;
+                } else {
+                    brush.color = this.presetStrokeColor;
+                    brush.width = this.presetStrokeWidth;
+                }
+            }
         }
         // 選択ツール以外ではオブジェクト選択を無効化
         if (this.canvas) {
@@ -261,7 +298,7 @@ const svgEditor = {
                 self.drawingObject = new fabric.Rect({
                     left: pointer.x, top: pointer.y,
                     width: 0, height: 0,
-                    fill: '#e0e0e0', stroke: '#333', strokeWidth: 1,
+                    fill: self.presetFillColor, stroke: self.presetStrokeColor, strokeWidth: self.presetStrokeWidth,
                     rx: 0, ry: 0,
                 });
                 c.add(self.drawingObject);
@@ -269,17 +306,21 @@ const svgEditor = {
                 self.drawingObject = new fabric.Ellipse({
                     left: pointer.x, top: pointer.y,
                     rx: 0, ry: 0,
-                    fill: '#e0e0e0', stroke: '#333', strokeWidth: 1,
+                    fill: self.presetFillColor, stroke: self.presetStrokeColor, strokeWidth: self.presetStrokeWidth,
                 });
                 c.add(self.drawingObject);
             } else if (tool === 'line' || tool === 'arrow') {
+                const arrowPreset = self.arrowSizePresets[self.currentArrowSize];
+                const sw = tool === 'arrow' ? arrowPreset.strokeWidth : self.presetStrokeWidth;
                 self.drawingObject = new fabric.Line(
                     [pointer.x, pointer.y, pointer.x, pointer.y],
-                    { stroke: '#333', strokeWidth: 1.5 }
+                    { stroke: self.presetStrokeColor, strokeWidth: sw }
                 );
                 if (tool === 'arrow') {
                     self.drawingObject._isArrow = true;
-                    self.drawingObject._markerStroke = '#333';
+                    self.drawingObject._markerStroke = self.presetStrokeColor;
+                    self.drawingObject._arrowHeadLen = arrowPreset.headLen;
+                    self._applyArrowToSVG(self.drawingObject);
                 }
                 c.add(self.drawingObject);
             } else if (tool === 'text') {
@@ -287,7 +328,7 @@ const svgEditor = {
                     left: pointer.x, top: pointer.y,
                     fontSize: 14,
                     fontFamily: 'sans-serif',
-                    fill: '#333333',
+                    fill: self.presetTextColor,
                 });
                 c.add(itext);
                 c.setActiveObject(itext);
@@ -362,12 +403,17 @@ const svgEditor = {
             c.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
             self.zoomLevel = zoom;
             self._updateZoomDisplay();
+            self._updateGridOverlay();
+        });
+
+        // フリーハンド描画完了
+        c.on('path:created', function() {
+            self._saveHistory();
         });
 
         // 矢印描画（after:render）
         c.on('after:render', function() {
             self._drawArrows();
-            self._drawGrid();
         });
 
         // グリッドスナップ
@@ -383,38 +429,45 @@ const svgEditor = {
     },
 
     // ============================================
-    // 矢印描画（marker代替）
+    // 矢印描画（marker代替 — ビューポート変換対応）
     // ============================================
     _drawArrows() {
         if (!this.canvas) return;
         const ctx = this.canvas.getContext();
+        const vpt = this.canvas.viewportTransform;
+        const zoom = vpt[0];
+
         this.canvas.forEachObject(obj => {
             if (!obj._isArrow || obj.type !== 'line') return;
             const coords = obj.calcLinePoints();
             const p = obj.getCenterPoint();
-            // 線の実際の端点を計算
-            const x1 = p.x + coords.x1;
-            const y1 = p.y + coords.y1;
-            const x2 = p.x + coords.x2;
-            const y2 = p.y + coords.y2;
 
-            const angle = Math.atan2(y2 - y1, x2 - x1);
-            const headLen = 10;
+            // オブジェクト座標をビューポート座標に変換
+            const p1 = fabric.util.transformPoint(
+                new fabric.Point(p.x + coords.x1, p.y + coords.y1), vpt
+            );
+            const p2 = fabric.util.transformPoint(
+                new fabric.Point(p.x + coords.x2, p.y + coords.y2), vpt
+            );
+
+            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            const headLen = (obj._arrowHeadLen || 10) * zoom;
+            const sw = (obj.strokeWidth || 1.5) * zoom;
 
             ctx.save();
             ctx.beginPath();
-            ctx.moveTo(x2, y2);
+            ctx.moveTo(p2.x, p2.y);
             ctx.lineTo(
-                x2 - headLen * Math.cos(angle - Math.PI / 6),
-                y2 - headLen * Math.sin(angle - Math.PI / 6)
+                p2.x - headLen * Math.cos(angle - Math.PI / 6),
+                p2.y - headLen * Math.sin(angle - Math.PI / 6)
             );
-            ctx.moveTo(x2, y2);
+            ctx.moveTo(p2.x, p2.y);
             ctx.lineTo(
-                x2 - headLen * Math.cos(angle + Math.PI / 6),
-                y2 - headLen * Math.sin(angle + Math.PI / 6)
+                p2.x - headLen * Math.cos(angle + Math.PI / 6),
+                p2.y - headLen * Math.sin(angle + Math.PI / 6)
             );
             ctx.strokeStyle = obj._markerStroke || obj.stroke || '#333';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = Math.max(1.5, sw * 0.5);
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
@@ -422,32 +475,32 @@ const svgEditor = {
         });
     },
 
-    // ============================================
-    // グリッド描画
-    // ============================================
-    _drawGrid() {
-        if (!this.gridEnabled || !this.canvas) return;
-        const ctx = this.canvas.getContext();
-        const w = this.canvasWidth;
-        const h = this.canvasHeight;
-        const gs = this.gridSize;
+    // 矢印オブジェクトにtoSVGオーバーライドを適用
+    _applyArrowToSVG(obj) {
+        if (!obj || !obj._isArrow) return;
+        const origToSVG = obj.toSVG.bind(obj);
+        obj.toSVG = function(reviver) {
+            let svg = origToSVG(reviver);
+            svg = svg.replace(/<line /, '<line marker-end="url(#arr2)" ');
+            return svg;
+        };
+    },
 
-        ctx.save();
-        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-        ctx.lineWidth = 0.5;
-        for (let x = gs; x < w; x += gs) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, h);
-            ctx.stroke();
+    // ============================================
+    // グリッド表示（CSS方式 — 重複描画バグ解消）
+    // ============================================
+    _updateGridOverlay() {
+        const wrap = this.canvasWrap;
+        if (!wrap) return;
+        if (!this.gridEnabled) {
+            wrap.style.backgroundImage = 'none';
+            return;
         }
-        for (let y = gs; y < h; y += gs) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(w, y);
-            ctx.stroke();
-        }
-        ctx.restore();
+        const gs = this.gridSize * this.zoomLevel;
+        wrap.style.backgroundImage =
+            `repeating-linear-gradient(0deg, transparent, transparent ${gs - 0.5}px, rgba(0,0,0,0.1) ${gs - 0.5}px, rgba(0,0,0,0.1) ${gs}px),
+             repeating-linear-gradient(90deg, transparent, transparent ${gs - 0.5}px, rgba(0,0,0,0.1) ${gs - 0.5}px, rgba(0,0,0,0.1) ${gs}px)`;
+        wrap.style.backgroundSize = `${gs}px ${gs}px`;
     },
 
     // ============================================
@@ -462,7 +515,7 @@ const svgEditor = {
         if (this.historyLocked || !this.canvas) return;
         // 現在位置より先の履歴を切り捨て
         this.history = this.history.slice(0, this.historyIndex + 1);
-        const json = JSON.stringify(this.canvas.toJSON(['_isArrow', '_markerStroke']));
+        const json = JSON.stringify(this.canvas.toJSON(['_isArrow', '_markerStroke', '_arrowHeadLen']));
         this.history.push(json);
         if (this.history.length > this.historyMax) {
             this.history.shift();
@@ -501,6 +554,10 @@ const svgEditor = {
                 itext._markerStroke = old._markerStroke;
                 self.canvas.remove(old);
                 self.canvas.insertAt(itext, item.index);
+            });
+            // 矢印オブジェクトのtoSVGオーバーライドを再適用
+            self.canvas.getObjects().forEach(obj => {
+                if (obj._isArrow) self._applyArrowToSVG(obj);
             });
             self.canvas.requestRenderAll();
             self.historyLocked = false;
@@ -599,7 +656,7 @@ const svgEditor = {
         if (!active) return;
         active.clone(cloned => {
             this.clipboard = cloned;
-        }, ['_isArrow', '_markerStroke']);
+        }, ['_isArrow', '_markerStroke', '_arrowHeadLen']);
     },
 
     paste() {
@@ -618,10 +675,18 @@ const svgEditor = {
             }
             this.clipboard.top += 15;
             this.clipboard.left += 15;
+            // 矢印のtoSVGオーバーライド再適用
+            if (cloned._isArrow) {
+                this._applyArrowToSVG(cloned);
+            } else if (cloned.type === 'activeSelection') {
+                cloned.forEachObject(obj => {
+                    if (obj._isArrow) this._applyArrowToSVG(obj);
+                });
+            }
             this.canvas.setActiveObject(cloned);
             this.canvas.requestRenderAll();
             this._saveHistory();
-        }, ['_isArrow', '_markerStroke']);
+        }, ['_isArrow', '_markerStroke', '_arrowHeadLen']);
     },
 
     // ============================================
@@ -680,6 +745,7 @@ const svgEditor = {
         this.canvas.setZoom(this.zoomLevel);
         this._resizeCanvasForZoom();
         this._updateZoomDisplay();
+        this._updateGridOverlay();
     },
 
     zoomOut() {
@@ -687,6 +753,7 @@ const svgEditor = {
         this.canvas.setZoom(this.zoomLevel);
         this._resizeCanvasForZoom();
         this._updateZoomDisplay();
+        this._updateGridOverlay();
     },
 
     _fitToScreen() {
@@ -703,6 +770,7 @@ const svgEditor = {
         this.canvas.viewportTransform[4] = 0;
         this.canvas.viewportTransform[5] = 0;
         this.canvas.requestRenderAll();
+        this._updateGridOverlay();
     },
 
     _resizeCanvasForZoom() {
@@ -754,7 +822,7 @@ const svgEditor = {
         this.gridEnabled = !this.gridEnabled;
         const btn = this.overlay.querySelector('[data-action="grid"]');
         if (btn) btn.classList.toggle('active', this.gridEnabled);
-        this.canvas?.requestRenderAll();
+        this._updateGridOverlay();
     },
 
     // ============================================
@@ -782,19 +850,19 @@ const svgEditor = {
         svg = svg.replace(/<!--.*?-->/gs, '');
 
         // 矢印マーカー用defs注入
-        const hasArrows = this.canvas.getObjects().some(o => o._isArrow);
-        if (hasArrows) {
-            const markerDef = `<defs>
-  <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-    <path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-  </marker>
-</defs>`;
-            // 最初の要素の前にdefsを挿入
+        const arrows = this.canvas.getObjects().filter(o => o._isArrow);
+        if (arrows.length > 0) {
+            // 使用されている色ごとにマーカーを生成
+            const colors = [...new Set(arrows.map(o => o._markerStroke || o.stroke || '#333'))];
+            let defsContent = '';
+            colors.forEach((color, i) => {
+                const markerId = i === 0 ? 'arr2' : `arr2_${i}`;
+                defsContent += `  <marker id="${markerId}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  </marker>\n`;
+            });
+            const markerDef = `<defs>\n${defsContent}</defs>`;
             svg = svg.replace(/<svg([^>]*)>/, `<svg$1>\n${markerDef}`);
-
-            // 矢印線にmarker-endを付与
-            // Fabric.jsのline要素を特定してmarker-endを追加
-            // (簡易的：_isArrowフラグ付きの線を検出してmarker-endを追加する後処理)
         }
 
         // 不要な空行を整理
@@ -1051,7 +1119,6 @@ const svgEditor = {
                     case 'ungroup': self.ungroup(); break;
                     case 'grid': self.toggleGrid(); break;
                     case 'resize': self.showResizeDialog(); break;
-                    case 'fit': self._fitToScreen(); break;
                     case 'zoomIn': self.zoomIn(); break;
                     case 'zoomOut': self.zoomOut(); break;
                     case 'save': self.save(); break;
@@ -1083,6 +1150,37 @@ const svgEditor = {
         if (resizeOk) resizeOk.addEventListener('click', () => self.applyResize());
         const resizeCancel = this.overlay.querySelector('#resizeCancel');
         if (resizeCancel) resizeCancel.addEventListener('click', () => self.cancelResize());
+
+        // プリセットカラーピッカー
+        const presetFill = this.overlay.querySelector('#presetFill');
+        if (presetFill) presetFill.addEventListener('input', (e) => { self.presetFillColor = e.target.value; });
+        const presetStroke = this.overlay.querySelector('#presetStroke');
+        if (presetStroke) presetStroke.addEventListener('input', (e) => {
+            self.presetStrokeColor = e.target.value;
+            if (self.canvas && self.canvas.isDrawingMode && self.currentTool === 'draw') {
+                self.canvas.freeDrawingBrush.color = e.target.value;
+            }
+        });
+        const presetText = this.overlay.querySelector('#presetTextColor');
+        if (presetText) presetText.addEventListener('input', (e) => { self.presetTextColor = e.target.value; });
+
+        // プリセット線幅
+        const presetSW = this.overlay.querySelector('#presetStrokeWidth');
+        if (presetSW) presetSW.addEventListener('change', (e) => {
+            self.presetStrokeWidth = parseFloat(e.target.value);
+            if (self.canvas && self.canvas.isDrawingMode && self.currentTool === 'draw') {
+                self.canvas.freeDrawingBrush.width = self.presetStrokeWidth;
+            }
+        });
+
+        // 矢印太さボタン
+        this.overlay.querySelectorAll('.arrow-size').forEach(btn => {
+            btn.addEventListener('click', () => {
+                self.currentArrowSize = btn.dataset.arrowSize;
+                self.overlay.querySelectorAll('.arrow-size').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
     },
 
     // ============================================
