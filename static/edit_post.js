@@ -906,6 +906,23 @@
                     updatePreview();
                 }
 
+                // プレビューペインのH1クリックでセクション名をクリップボードにコピー（post.htmlと同じ挙動）
+                const previewContentEl = document.getElementById('preview-content');
+                if (previewContentEl) {
+                    previewContentEl.addEventListener('click', async function(e) {
+                        const h1 = e.target.closest('h1');
+                        if (!h1 || !previewContentEl.contains(h1)) return;
+                        const filename = document.body.dataset.filename;
+                        const text = ` Papernoteの「${filename}」のセクション「${h1.textContent}」 `;
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            showTemporaryMessage('セクション名をコピーしました');
+                        } catch (error) {
+                            showTemporaryMessage('コピーに失敗しました');
+                        }
+                    });
+                }
+
                 // リサイザーのドラッグ機能
                 let isResizing = false;
                 let startX = 0;
