@@ -1156,7 +1156,7 @@
 
         async function copyFilename(filename) {
             try {
-                var copyText = ' Papernoteの ' + filename + ' ';
+                var copyText = ' Papernoteの「' + filename + '」 ';
                 await navigator.clipboard.writeText(copyText);
                 showTemporaryMessage('ファイル名をコピーしました');
             } catch (error) {
