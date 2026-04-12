@@ -168,7 +168,7 @@
             if (copyFilenameButton) {
                 copyFilenameButton.addEventListener('click', () => {
                     const filename = document.body.dataset.filename;
-                    const copyText = ` Papernoteの ${filename} `;
+                    const copyText = ` Papernoteの「${filename}」 `;
                     document.getElementById('insertOverlay').style.display = 'none';
                     navigator.clipboard.writeText(copyText).then(() => {
                         showTemporaryMessage('ファイル名をコピーしました！');

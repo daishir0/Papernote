@@ -1345,7 +1345,7 @@
             const menu = document.getElementById('options-menu');
             if (menu) menu.classList.remove('show');
             const filename = document.body.dataset.filename;
-            const copyText = ' Papernoteの ' + filename + ' ';
+            const copyText = ' Papernoteの「' + filename + '」 ';
             navigator.clipboard.writeText(copyText).then(function() {
                 showTemporaryMessage('ファイル名をコピーしました！');
             }).catch(function(err) {
