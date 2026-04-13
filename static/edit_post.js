@@ -806,11 +806,11 @@
                     sanitize: true
                 });
 
-                // テーブルのレンダリングをカスタマイズ
+                // テーブルのレンダリングをカスタマイズ（コピーボタン付き）
                 const originalTable = renderer.table;
                 renderer.table = function(header, body) {
                     const table = originalTable.call(this, header, body);
-                    return '<div class="table-responsive">' + table + '</div>';
+                    return '<div class="table-responsive"><button type="button" class="table-copy-btn" title="Markdownでコピー"><i class="fas fa-copy"></i></button>' + table + '</div>';
                 };
 
                 // Mermaid初期化
@@ -910,6 +910,21 @@
                 const previewContentEl = document.getElementById('preview-content');
                 if (previewContentEl) {
                     previewContentEl.addEventListener('click', async function(e) {
+                        // テーブルコピーボタン
+                        const btn = e.target.closest('.table-copy-btn');
+                        if (btn) {
+                            e.stopPropagation();
+                            const table = btn.closest('.table-responsive').querySelector('table');
+                            if (!table) return;
+                            try {
+                                await navigator.clipboard.writeText(tableToMarkdown(table));
+                                showTemporaryMessage('テーブルをコピーしました');
+                            } catch (err) {
+                                showTemporaryMessage('コピーに失敗しました');
+                            }
+                            return;
+                        }
+                        // H1クリックコピー
                         const h1 = e.target.closest('h1');
                         if (!h1 || !previewContentEl.contains(h1)) return;
                         const filename = document.body.dataset.filename;

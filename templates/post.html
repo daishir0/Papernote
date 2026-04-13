@@ -517,11 +517,11 @@
             sanitize: true
         });
 
-        // テーブルのレンダリングをカスタマイズ
+        // テーブルのレンダリングをカスタマイズ（コピーボタン付き）
         const originalTable = renderer.table;
         renderer.table = function(header, body) {
             const table = originalTable.call(this, header, body);
-            return '<div class="table-responsive">' + table + '</div>';
+            return '<div class="table-responsive"><button type="button" class="table-copy-btn" title="Markdownでコピー"><i class="fas fa-copy"></i></button>' + table + '</div>';
         };
 
         // セキュリティフィルタ適用
@@ -690,6 +690,21 @@
                 await navigator.clipboard.writeText(text);
                 showTemporaryMessage('セクション名をコピーしました');
             } catch (error) {
+                showTemporaryMessage('コピーに失敗しました');
+            }
+        });
+
+        // テーブルコピーボタン（Markdownでコピー）
+        document.getElementById('content').addEventListener('click', async function(e) {
+            const btn = e.target.closest('.table-copy-btn');
+            if (!btn) return;
+            e.stopPropagation();
+            const table = btn.closest('.table-responsive').querySelector('table');
+            if (!table) return;
+            try {
+                await navigator.clipboard.writeText(tableToMarkdown(table));
+                showTemporaryMessage('テーブルをコピーしました');
+            } catch (err) {
                 showTemporaryMessage('コピーに失敗しました');
             }
         });
