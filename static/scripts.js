@@ -18,6 +18,22 @@ function showTemporaryMessage(message) {
     }, 3000); // 3秒後にメッセージを消す
 }
 
+// HTMLテーブルをMarkdown形式に変換する関数
+function tableToMarkdown(tableEl) {
+    const rows = tableEl.querySelectorAll('tr');
+    if (rows.length === 0) return '';
+    const lines = [];
+    rows.forEach((row, i) => {
+        const cells = row.querySelectorAll('th, td');
+        const line = '| ' + Array.from(cells).map(c => c.textContent.trim()).join(' | ') + ' |';
+        lines.push(line);
+        if (i === 0) {
+            lines.push('| ' + Array.from(cells).map(() => '---').join(' | ') + ' |');
+        }
+    });
+    return lines.join('\n');
+}
+
 // ページのURLからIDを抽出し、そのIDを使用してテキストデータを非同期で取得する関数。
 async function fetchText() {
     // 現在のページのURLから必要なIDを抽出
