@@ -4,6 +4,9 @@
 let slideshowImages = [];
 let currentSlideIndex = 0;
 
+// ペン状態（ペン関連はファイル末尾のIIFEで実装。ここではフラグのみ共有）
+let slideshowPenActive = false;
+
 // ズーム状態
 let zoomScale = 1;
 let panX = 0;
@@ -83,6 +86,11 @@ function openSlideshowModal(index) {
     document.body.style.overflow = 'hidden';
     resetZoom();
     showCurrentSlide();
+    if (typeof window.slideshowPenSetOff === 'function') window.slideshowPenSetOff();
+    if (typeof window.slideshowPenClear === 'function') window.slideshowPenClear();
+    if (typeof window.slideshowPenResize === 'function') {
+        requestAnimationFrame(window.slideshowPenResize);
+    }
 }
 
 function closeSlideshowModal() {
@@ -92,6 +100,8 @@ function closeSlideshowModal() {
     modal.classList.remove('active');
     document.body.style.overflow = '';
     resetZoom();
+    if (typeof window.slideshowPenSetOff === 'function') window.slideshowPenSetOff();
+    if (typeof window.slideshowPenClear === 'function') window.slideshowPenClear();
 }
 
 // ============================================
@@ -106,6 +116,7 @@ function navigateSlideshow(direction) {
     }
     resetZoom();
     showCurrentSlide();
+    if (typeof window.slideshowPenClear === 'function') window.slideshowPenClear();
 }
 
 function preloadAdjacentImages(index) {
@@ -173,6 +184,8 @@ function resetZoom() {
 function applyTransform() {
     const img = document.getElementById('slideshow-image');
     if (!img) return;
+
+    if (typeof window.slideshowPenClear === 'function') window.slideshowPenClear();
 
     if (zoomScale <= 1.01 && Math.abs(panX) < 1 && Math.abs(panY) < 1) {
         zoomScale = 1;
@@ -248,6 +261,7 @@ function slideshowResetZoom() {
 function handleWheelZoom(e) {
     const modal = document.getElementById('slideshow-modal');
     if (!modal || !modal.classList.contains('active')) return;
+    if (slideshowPenActive) return;
 
     e.preventDefault();
     const factor = e.deltaY > 0 ? 0.9 : 1.1;
@@ -259,6 +273,7 @@ function handleWheelZoom(e) {
 // ダブルクリックでズームトグル
 // ============================================
 function handleImageDoubleClick(e) {
+    if (slideshowPenActive) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -273,6 +288,7 @@ function handleImageDoubleClick(e) {
 // マウスドラッグでパン
 // ============================================
 function handleMouseDown(e) {
+    if (slideshowPenActive) return;
     // 画像上でのみパン開始
     if (e.target.id !== 'slideshow-image') return;
     if (e.button !== 0) return; // 左クリックのみ
@@ -312,6 +328,7 @@ function handleMouseUp(e) {
 // タッチイベント（スワイプ + ピンチズーム + パン）
 // ============================================
 function handleTouchStart(e) {
+    if (slideshowPenActive) return;
     if (e.touches.length === 2) {
         // ピンチ開始
         isPinching = true;
@@ -361,6 +378,7 @@ function handleTouchStart(e) {
 }
 
 function handleTouchMove(e) {
+    if (slideshowPenActive) return;
     if (e.touches.length === 2 && isPinching) {
         e.preventDefault();
         const t1 = e.touches[0];
@@ -470,6 +488,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 resetZoom();
                 break;
+            case 'p':
+            case 'P':
+                e.preventDefault();
+                if (typeof window.slideshowPenToggle === 'function') {
+                    window.slideshowPenToggle();
+                }
+                break;
         }
     });
 
@@ -512,4 +537,147 @@ document.addEventListener('DOMContentLoaded', function() {
         container.addEventListener('touchmove', handleTouchMove, { passive: false });
         container.addEventListener('touchend', handleTouchEnd, { passive: false });
     }
+
+    initSlideshowPen();
 });
+
+// ============================================
+// ペン書き込み機能（スライドショーモーダル用）
+// ============================================
+function initSlideshowPen() {
+    const drawCanvas = document.getElementById('slideshowDrawCanvas');
+    const container = document.getElementById('slideshow-container');
+    if (!drawCanvas || !container) return;
+    const drawCtx = drawCanvas.getContext('2d');
+
+    let penColor = '#e00';
+    let penWidth = 3;
+    let isDrawingPen = false;
+    let lastPenX = 0;
+    let lastPenY = 0;
+
+    function resize() {
+        drawCanvas.width = container.clientWidth;
+        drawCanvas.height = container.clientHeight;
+    }
+
+    function clear() {
+        drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
+
+    function setOff() {
+        slideshowPenActive = false;
+        const btn = document.getElementById('slideshowPenToggle');
+        const colors = document.getElementById('slideshowPenColors');
+        if (btn) btn.classList.remove('active');
+        if (colors) colors.style.display = 'none';
+        drawCanvas.classList.remove('active');
+    }
+
+    function toggle() {
+        slideshowPenActive = !slideshowPenActive;
+        const btn = document.getElementById('slideshowPenToggle');
+        const colors = document.getElementById('slideshowPenColors');
+        if (btn) btn.classList.toggle('active', slideshowPenActive);
+        if (colors) colors.style.display = slideshowPenActive ? 'inline-flex' : 'none';
+        drawCanvas.classList.toggle('active', slideshowPenActive);
+        if (slideshowPenActive) resize();
+    }
+
+    function coords(clientX, clientY) {
+        const rect = drawCanvas.getBoundingClientRect();
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function drawLine(x, y) {
+        drawCtx.beginPath();
+        drawCtx.moveTo(lastPenX, lastPenY);
+        drawCtx.lineTo(x, y);
+        drawCtx.strokeStyle = penColor;
+        drawCtx.lineWidth = penWidth;
+        drawCtx.lineCap = 'round';
+        drawCtx.lineJoin = 'round';
+        drawCtx.stroke();
+        lastPenX = x;
+        lastPenY = y;
+    }
+
+    drawCanvas.addEventListener('mousedown', function(e) {
+        if (!slideshowPenActive) return;
+        e.stopPropagation();
+        isDrawingPen = true;
+        const p = coords(e.clientX, e.clientY);
+        lastPenX = p.x;
+        lastPenY = p.y;
+    });
+    drawCanvas.addEventListener('mousemove', function(e) {
+        if (!isDrawingPen || !slideshowPenActive) return;
+        const p = coords(e.clientX, e.clientY);
+        drawLine(p.x, p.y);
+    });
+    drawCanvas.addEventListener('mouseup', function() { isDrawingPen = false; });
+    drawCanvas.addEventListener('mouseleave', function() { isDrawingPen = false; });
+
+    drawCanvas.addEventListener('touchstart', function(e) {
+        if (!slideshowPenActive) return;
+        e.preventDefault();
+        e.stopPropagation();
+        isDrawingPen = true;
+        const t = e.touches[0];
+        const p = coords(t.clientX, t.clientY);
+        lastPenX = p.x;
+        lastPenY = p.y;
+    }, { passive: false });
+    drawCanvas.addEventListener('touchmove', function(e) {
+        if (!isDrawingPen || !slideshowPenActive) return;
+        e.preventDefault();
+        const t = e.touches[0];
+        const p = coords(t.clientX, t.clientY);
+        drawLine(p.x, p.y);
+    }, { passive: false });
+    drawCanvas.addEventListener('touchend', function() { isDrawingPen = false; });
+
+    const toggleBtn = document.getElementById('slideshowPenToggle');
+    if (toggleBtn) toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggle();
+    });
+
+    const clearBtn = document.getElementById('slideshowPenClear');
+    if (clearBtn) clearBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        clear();
+    });
+
+    const thickBtn = document.getElementById('slideshowPenThick');
+    if (thickBtn) {
+        thickBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            penWidth = penWidth === 3 ? 8 : penWidth === 8 ? 16 : 3;
+            const icon = this.querySelector('i');
+            if (icon) icon.style.fontSize = penWidth === 3 ? '6px' : penWidth === 8 ? '10px' : '16px';
+        });
+    }
+
+    document.querySelectorAll('#slideshowPenColors .slide-pen-color').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            penColor = this.dataset.color;
+            document.querySelectorAll('#slideshowPenColors .slide-pen-color').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    window.addEventListener('resize', function() {
+        if (document.getElementById('slideshow-modal').classList.contains('active')) {
+            resize();
+            clear();
+        }
+    });
+
+    // 公開API
+    window.slideshowPenToggle = toggle;
+    window.slideshowPenSetOff = setOff;
+    window.slideshowPenClear = clear;
+    window.slideshowPenResize = resize;
+}

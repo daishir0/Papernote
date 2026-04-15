@@ -312,10 +312,23 @@
             <i class="fas fa-chevron-left"></i>
         </button>
         <img class="slideshow-image" id="slideshow-image" src="" alt="">
+        <canvas class="slideshow-draw-canvas" id="slideshowDrawCanvas"></canvas>
         <button class="slideshow-nav next" onclick="navigateSlideshow(1)">
             <i class="fas fa-chevron-right"></i>
         </button>
         <div class="slideshow-counter" id="slideshow-counter">1 / 1</div>
+        <div class="slideshow-pen-toolbar" id="slideshowPenToolbar">
+            <button class="slide-pen-btn" id="slideshowPenToggle" title="ペン (P)"><i class="fas fa-pen"></i></button>
+            <span class="slide-pen-colors" id="slideshowPenColors" style="display:none;">
+                <button class="slide-pen-color active" data-color="#e00" title="赤" style="background:#e00;"></button>
+                <button class="slide-pen-color" data-color="#f0c000" title="黄" style="background:#f0c000;"></button>
+                <button class="slide-pen-color" data-color="#08f" title="青" style="background:#08f;"></button>
+                <button class="slide-pen-color" data-color="#fff" title="白" style="background:#fff; border:1px solid #888;"></button>
+                <button class="slide-pen-color" data-color="#222" title="黒" style="background:#222;"></button>
+                <button class="slide-pen-btn" id="slideshowPenThick" title="太さ切替"><i class="fas fa-circle" style="font-size:8px;"></i></button>
+                <button class="slide-pen-btn" id="slideshowPenClear" title="全消去"><i class="fas fa-eraser"></i></button>
+            </span>
+        </div>
         <div class="slideshow-zoom-controls">
             <button class="slideshow-zoom-btn" onclick="slideshowZoomOut()" title="縮小 (-)">
                 <i class="fas fa-minus"></i>
