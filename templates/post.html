@@ -348,6 +348,11 @@
                 <i class="fas fa-plus"></i>
             </button>
             <button class="slideshow-zoom-reset" onclick="slideshowResetZoom()" title="リセット (0)">Reset</button>
+            {% if current_user.is_authenticated %}
+            <button class="slideshow-zoom-btn slideshow-edit-svg-btn" id="slideshowEditSvgBtn" onclick="slideshowOpenSvgEditor()" title="画像を編集" style="display:none; margin-left: 8px; background: #0d6efd; color: #fff; border-color: #0d6efd;">
+                <i class="fas fa-pen"></i>
+            </button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -423,6 +428,12 @@
 <script src="/static/mermaid.min.js"></script>
 <script src="/static/scripts.js"></script>
 <script src="/static/slideshow.js"></script>
+{% if current_user.is_authenticated %}
+<link rel="stylesheet" href="/static/svg_editor.css">
+<script src="/static/fabric.min.js"></script>
+<script src="/static/svg_editor.js"></script>
+{% include '_svg_editor_overlay.html' %}
+{% endif %}
 
 <script>
     // グローバル変数の定義

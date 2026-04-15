@@ -693,6 +693,71 @@ def attach_save_image():
     return jsonify({'url': file_url, 'filename': new_filename})
 
 
+@login_required
+@app.route('/post_replace_image', methods=['POST'])
+def post_replace_image():
+    """投稿本文の画像URLを置換する（/post/ 画面からの画像編集に対応）"""
+    data = request.get_json()
+    if not data or 'filename' not in data or 'old_url' not in data or 'new_url' not in data:
+        return jsonify({'error': 'Missing parameters'}), 400
+
+    filename = data['filename']
+    old_url = data['old_url']
+    new_url = data['new_url']
+
+    # 投稿ファイル名の検証
+    if not is_valid_filename(filename):
+        return jsonify({'error': 'Invalid filename'}), 400
+
+    # 画像URLの厳格な検証（/attach/<sha256>.<ext>）
+    attach_pattern = r'^/attach/[a-f0-9]{64}\.(svg|jpg|jpeg|png|gif)$'
+    if not re.match(attach_pattern, old_url) or not re.match(attach_pattern, new_url):
+        return jsonify({'error': 'Invalid image URL'}), 400
+
+    post_path = os.path.join('./post', filename)
+    if not os.path.exists(post_path):
+        return jsonify({'error': 'Post not found'}), 404
+
+    # 読み込み
+    with open(post_path, 'r', encoding='utf-8', errors='replace') as f:
+        content = f.read()
+
+    # サムネイルURLも併せて置換
+    old_filename = old_url.rsplit('/', 1)[1]
+    new_filename = new_url.rsplit('/', 1)[1]
+    old_thumb = f'/attach/s_{old_filename}'
+    new_thumb = f'/attach/s_{new_filename}'
+
+    if old_url not in content and old_thumb not in content:
+        return jsonify({'error': 'Old image URL not found in post'}), 404
+
+    new_content = content.replace(old_thumb, new_thumb).replace(old_url, new_url)
+
+    # バックアップ作成
+    backup_dir = './post/bk'
+    os.makedirs(backup_dir, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime('%Y%m%d-%H')
+    backup_path = os.path.join(backup_dir, f"{filename}_{timestamp}")
+    with open(backup_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    # 書き込み
+    with open(post_path, 'w', encoding='utf-8', errors='replace') as f:
+        f.write(new_content)
+
+    # キャッシュ削除（/edit_post と同じ3ファイル）
+    for cf in ['./post/.cache/post_files_info.json',
+               './post/.cache/post_files_info_all.json',
+               './post/.cache/filelist.json']:
+        if os.path.exists(cf):
+            try:
+                os.remove(cf)
+            except Exception:
+                pass
+
+    return jsonify({'ok': True})
+
+
 @app.route('/attach/<filename>')
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))

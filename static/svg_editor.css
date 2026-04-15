@@ -317,8 +317,21 @@
 .svg-editor-canvas-wrap.tool-rect,
 .svg-editor-canvas-wrap.tool-ellipse,
 .svg-editor-canvas-wrap.tool-line,
-.svg-editor-canvas-wrap.tool-arrow {
+.svg-editor-canvas-wrap.tool-arrow,
+.svg-editor-canvas-wrap.tool-crop {
     cursor: crosshair;
+}
+
+/* クロップ確定バー */
+.crop-confirm-group {
+    background: rgba(255, 235, 100, 0.25);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+.crop-confirm-group .btn-success {
+    background: #28a745;
+    border-color: #28a745;
+    color: #fff;
 }
 
 .svg-editor-canvas-wrap.tool-draw,

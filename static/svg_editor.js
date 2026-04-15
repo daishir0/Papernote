@@ -30,6 +30,9 @@ const svgEditor = {
     drawStartY: 0,
     drawingObject: null,
 
+    // Crop state
+    cropRect: null,
+
     // Zoom/Pan
     zoomLevel: 1,
     isPanning: false,
@@ -81,6 +84,7 @@ const svgEditor = {
         if (this.canvas) {
             this.canvas.dispose();
         }
+        this.cropRect = null;
 
         // Canvas生成
         this.canvas = new fabric.Canvas('svgEditorCanvas', {
@@ -215,6 +219,11 @@ const svgEditor = {
     // ツール切替
     // ============================================
     setTool(tool) {
+        // クロップから他ツールへ移る場合、置きっぱなしのcropRectを掃除
+        if (this.currentTool === 'crop' && tool !== 'crop' && this.cropRect && this.canvas) {
+            this.canvas.remove(this.cropRect);
+            this.cropRect = null;
+        }
         this.currentTool = tool;
         // ツールバーボタンのアクティブ状態
         this.overlay.querySelectorAll('.tool-btn').forEach(btn => {
@@ -229,6 +238,9 @@ const svgEditor = {
         // 矢印太さボタン群の表示切替
         const arrowGroup = this.overlay.querySelector('.arrow-thickness-group');
         if (arrowGroup) arrowGroup.style.display = (tool === 'arrow') ? 'inline-flex' : 'none';
+        // クロップ確定バーの表示切替
+        const cropGroup = this.overlay.querySelector('.crop-confirm-group');
+        if (cropGroup) cropGroup.style.display = (tool === 'crop') ? 'inline-flex' : 'none';
         // フリーハンド描画モード
         if (this.canvas) {
             const isDrawMode = (tool === 'draw' || tool === 'highlight');
@@ -257,6 +269,131 @@ const svgEditor = {
                 this.canvas.requestRenderAll();
             }
         }
+        // クロップツール起動時：cropRect生成（既存オブジェクト無効化の後で実行）
+        if (tool === 'crop' && this.canvas) {
+            this._initCropRect();
+        }
+    },
+
+    // ============================================
+    // クロップ範囲枠の初期化
+    // ============================================
+    _initCropRect() {
+        if (this.cropRect) {
+            this.canvas.remove(this.cropRect);
+            this.cropRect = null;
+        }
+        // 初期範囲はキャンバス中央70%
+        const margin = 0.15;
+        const left = this.canvasWidth * margin;
+        const top = this.canvasHeight * margin;
+        const width = this.canvasWidth * (1 - 2 * margin);
+        const height = this.canvasHeight * (1 - 2 * margin);
+        this.cropRect = new fabric.Rect({
+            left, top, width, height,
+            fill: 'rgba(255, 235, 100, 0.15)',
+            stroke: '#ffcc00',
+            strokeWidth: 2,
+            strokeDashArray: [6, 6],
+            strokeUniform: true,
+            selectable: true,
+            evented: true,
+            hasControls: true,
+            lockRotation: true,
+            cornerStyle: 'circle',
+            cornerColor: '#ffcc00',
+            cornerStrokeColor: '#aa8800',
+            transparentCorners: false,
+            excludeFromExport: true,
+        });
+        this.cropRect._isCropRect = true;
+        this.canvas.add(this.cropRect);
+        this.canvas.setActiveObject(this.cropRect);
+        this.canvas.requestRenderAll();
+    },
+
+    // ============================================
+    // クロップ適用
+    // ============================================
+    applyCrop() {
+        if (!this.cropRect || !this.canvas) {
+            this._showToast('クロップ範囲が設定されていません');
+            return;
+        }
+        // クロップ範囲（キャンバス座標系、scale含む絶対bounds）
+        const r = this.cropRect.getBoundingRect(true, true);
+        const cx = Math.max(0, Math.round(r.left));
+        const cy = Math.max(0, Math.round(r.top));
+        const cw = Math.min(this.canvasWidth - cx, Math.round(r.width));
+        const ch = Math.min(this.canvasHeight - cy, Math.round(r.height));
+
+        if (cw < 5 || ch < 5) {
+            this._showToast('クロップ範囲が小さすぎます');
+            return;
+        }
+
+        // クロップ枠をキャンバスから削除
+        this.canvas.remove(this.cropRect);
+        this.cropRect = null;
+
+        const self = this;
+
+        if (this.imageMode === 'raster') {
+            // ラスター：toDataURLで矩形指定し新背景画像を生成
+            const prevZoom = this.canvas.getZoom();
+            this.canvas.setZoom(1);
+            this.canvas.setDimensions({ width: this.canvasWidth, height: this.canvasHeight });
+
+            const isJpeg = /\.(jpg|jpeg)(\?|$)/i.test(this.originalSvgUrl);
+            const format = isJpeg ? 'jpeg' : 'png';
+            const quality = isJpeg ? 0.92 : undefined;
+
+            const dataUrl = this.canvas.toDataURL({
+                left: cx, top: cy, width: cw, height: ch,
+                format: format, quality: quality, multiplier: 1,
+            });
+
+            fabric.Image.fromURL(dataUrl, function(img) {
+                // 既存オブジェクトを (-cx, -cy) 平行移動
+                self.canvas.getObjects().forEach(o => {
+                    o.set({ left: o.left - cx, top: o.top - cy });
+                    o.setCoords();
+                });
+                self.canvasWidth = cw;
+                self.canvasHeight = ch;
+                self.canvas.setDimensions({ width: cw, height: ch });
+                self.canvas.setBackgroundImage(img, function() {
+                    self.canvas.requestRenderAll();
+                    self._saveHistory();
+                    self._fitToScreen();
+                    self.setTool('select');
+                }, { originX: 'left', originY: 'top' });
+            });
+        } else {
+            // SVG：オブジェクト平行移動 + canvasサイズ変更（viewBoxはexportSvg時に自動反映）
+            this.canvas.getObjects().forEach(o => {
+                o.set({ left: o.left - cx, top: o.top - cy });
+                o.setCoords();
+            });
+            this.canvasWidth = cw;
+            this.canvasHeight = ch;
+            this.canvas.setDimensions({ width: cw, height: ch });
+            this.canvas.requestRenderAll();
+            this._saveHistory();
+            this._fitToScreen();
+            this.setTool('select');
+        }
+    },
+
+    // ============================================
+    // クロップキャンセル
+    // ============================================
+    cancelCrop() {
+        if (this.cropRect && this.canvas) {
+            this.canvas.remove(this.cropRect);
+            this.cropRect = null;
+        }
+        this.setTool('select');
     },
 
     // ============================================
@@ -889,25 +1026,57 @@ const svgEditor = {
 
     // URL置換＋ページ保存の共通処理
     async _replaceUrlAndSavePage(originalFilename, newUrl) {
+        const isNewFile = (newUrl !== `/attach/${originalFilename}`);
         const textarea = document.getElementById('content');
-        if (textarea && newUrl !== `/attach/${originalFilename}`) {
-            const oldUrl = `/attach/${originalFilename}`;
-            const oldThumbUrl = `/attach/s_${originalFilename}`;
-            const newFilename = newUrl.split('/').pop();
-            const newThumbUrl = `/attach/s_${newFilename}`;
 
-            textarea.value = textarea.value
-                .replace(new RegExp(oldThumbUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newThumbUrl)
-                .replace(new RegExp(oldUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newUrl);
+        if (textarea) {
+            // /edit_post/ 経由：textarea を直接書き換え＋ページ保存
+            if (isNewFile) {
+                const oldUrl = `/attach/${originalFilename}`;
+                const oldThumbUrl = `/attach/s_${originalFilename}`;
+                const newFilename = newUrl.split('/').pop();
+                const newThumbUrl = `/attach/s_${newFilename}`;
 
-            textarea.dispatchEvent(new Event('input'));
+                textarea.value = textarea.value
+                    .replace(new RegExp(oldThumbUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newThumbUrl)
+                    .replace(new RegExp(oldUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newUrl);
+
+                textarea.dispatchEvent(new Event('input'));
+                this.originalSvgUrl = newUrl;
+            }
+            if (typeof window.saveWithoutRedirect === 'function') {
+                await window.saveWithoutRedirect();
+            }
+            this._showToast('保存しました');
+            return;
+        }
+
+        // /post/<filename> 経由：サーバー側エンドポイントで本文を更新
+        const m = window.location.pathname.match(/^\/post\/([^/]+)$/);
+        if (m && isNewFile) {
+            const postFilename = decodeURIComponent(m[1]);
+            const csrfToken = document.body.dataset.csrfToken;
+            const res = await fetch('/post_replace_image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({
+                    filename: postFilename,
+                    old_url: `/attach/${originalFilename}`,
+                    new_url: newUrl,
+                }),
+            });
+            if (!res.ok) {
+                let err = {};
+                try { err = await res.json(); } catch (_) {}
+                throw new Error(err.error || '投稿の更新に失敗しました');
+            }
             this.originalSvgUrl = newUrl;
+            this._showToast('保存しました（リロードで反映）');
+            setTimeout(() => window.location.reload(), 800);
+            return;
         }
 
-        if (typeof window.saveWithoutRedirect === 'function') {
-            await window.saveWithoutRedirect();
-        }
-
+        // フォールバック：保存自体は完了しているのでメッセージのみ
         this._showToast('保存しました');
     },
 
@@ -1123,6 +1292,8 @@ const svgEditor = {
                     case 'zoomOut': self.zoomOut(); break;
                     case 'save': self.save(); break;
                     case 'close': self.close(); break;
+                    case 'cropApply': self.applyCrop(); break;
+                    case 'cropCancel': self.cancelCrop(); break;
                 }
             });
         });
