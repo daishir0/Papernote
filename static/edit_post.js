@@ -786,7 +786,14 @@
                     if (lang === 'mermaid') {
                         return `<div class="mermaid">${codeText}</div>`;
                     } else {
-                        return `<pre><code>${codeText}</code></pre>`;
+                        const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
+                        return `
+                            <div>
+                                <button class="btn btn-dark btn-sm" onclick="toggleCode('${codeId}')">&lt;CodeSection/&gt;...</button>
+                                <button class="btn btn-dark btn-sm" onclick="copyCode('${codeId}')"><i class="fa fa-copy"></i></button>
+                                <pre id="${codeId}" style="display:none;"><code>${codeText}</code></pre>
+                            </div>
+                        `;
                     }
                 };
 
@@ -1945,3 +1952,27 @@
         });
     }
 })();
+
+// コードブロック開閉（プレビューペインのonclickから呼ばれるためグローバルに定義）
+function toggleCode(id) {
+    const codeBlock = document.getElementById(id);
+    if (codeBlock.style.display === 'none') {
+        $(codeBlock).slideDown();
+    } else {
+        $(codeBlock).slideUp();
+    }
+}
+
+function copyCode(id) {
+    const codeBlock = document.getElementById(id);
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(codeBlock.textContent);
+    } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = codeBlock.textContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+    }
+}
