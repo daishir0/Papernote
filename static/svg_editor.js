@@ -94,6 +94,9 @@ const svgEditor = {
         });
 
         this._resetHistory();
+        // 回転ボタンはラスターモードでのみ表示
+        const rotateBtns = this.overlay.querySelectorAll('.tool-btn-rotate');
+        rotateBtns.forEach(b => { b.style.display = this.imageMode === 'raster' ? '' : 'none'; });
         if (this.imageMode === 'raster') {
             this._loadImage(imageUrl);
         } else {
@@ -394,6 +397,64 @@ const svgEditor = {
             this.cropRect = null;
         }
         this.setTool('select');
+    },
+
+    // ============================================
+    // 90°回転（ラスター画像のみ）
+    // direction: -90 (左) / +90 (右)
+    // ============================================
+    rotate90(direction) {
+        if (this.imageMode !== 'raster') {
+            this._showToast('ラスター画像モードでのみ回転できます');
+            return;
+        }
+        if (!this.canvas || !this.canvas.backgroundImage) return;
+
+        if (this.cropRect) this.cancelCrop();
+
+        const oldW = this.canvasWidth;
+        const oldH = this.canvasHeight;
+        const newW = oldH;
+        const newH = oldW;
+        const self = this;
+
+        const prevZoom = this.canvas.getZoom();
+        this.canvas.setZoom(1);
+        this.canvas.setDimensions({ width: oldW, height: oldH });
+        this.canvas.discardActiveObject();
+        this.canvas.requestRenderAll();
+
+        const isJpeg = /\.(jpg|jpeg)(\?|$)/i.test(this.originalSvgUrl);
+        const format = isJpeg ? 'jpeg' : 'png';
+        const quality = isJpeg ? 0.92 : undefined;
+
+        const srcDataUrl = this.canvas.toDataURL({ format: format, quality: quality, multiplier: 1 });
+
+        const tmpImg = new Image();
+        tmpImg.onload = function() {
+            const off = document.createElement('canvas');
+            off.width = newW;
+            off.height = newH;
+            const ctx = off.getContext('2d');
+            ctx.translate(newW / 2, newH / 2);
+            ctx.rotate(direction * Math.PI / 180);
+            ctx.drawImage(tmpImg, -oldW / 2, -oldH / 2);
+            const rotatedDataUrl = off.toDataURL('image/' + format, quality);
+
+            fabric.Image.fromURL(rotatedDataUrl, function(img) {
+                self.canvas.getObjects().slice().forEach(o => self.canvas.remove(o));
+                self.canvasWidth = newW;
+                self.canvasHeight = newH;
+                self.canvas.setDimensions({ width: newW, height: newH });
+                self.canvas.setBackgroundImage(img, function() {
+                    self.canvas.requestRenderAll();
+                    self._saveHistory();
+                    self._fitToScreen();
+                    self.setTool('select');
+                }, { originX: 'left', originY: 'top' });
+            });
+        };
+        tmpImg.src = srcDataUrl;
     },
 
     // ============================================
@@ -1294,6 +1355,8 @@ const svgEditor = {
                     case 'close': self.close(); break;
                     case 'cropApply': self.applyCrop(); break;
                     case 'cropCancel': self.cancelCrop(); break;
+                    case 'rotateLeft': self.rotate90(-90); break;
+                    case 'rotateRight': self.rotate90(90); break;
                 }
             });
         });
