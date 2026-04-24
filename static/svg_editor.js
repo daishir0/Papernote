@@ -1088,7 +1088,9 @@ const svgEditor = {
     // URL置換＋ページ保存の共通処理
     async _replaceUrlAndSavePage(originalFilename, newUrl) {
         const isNewFile = (newUrl !== `/attach/${originalFilename}`);
-        const textarea = document.getElementById('content');
+        const el = document.getElementById('content');
+        // /post/ ページは <div id="content">、/edit_post/ は <textarea id="content">
+        const textarea = (el && el.tagName === 'TEXTAREA') ? el : null;
 
         if (textarea) {
             // /edit_post/ 経由：textarea を直接書き換え＋ページ保存
