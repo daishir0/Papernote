@@ -111,11 +111,17 @@ with open('config.yaml', 'r') as config_file:
 app = Flask(__name__)
 
 # CORS設定（API用）
+# /attach/* も WebView 経由で fetch + Authorization で取得されるため許可
 CORS(app, resources={
     r"/api/*": {
         "origins": "*",
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Authorization", "Content-Type"]
+    },
+    r"/attach/*": {
+        "origins": "*",
+        "methods": ["GET", "OPTIONS"],
+        "allow_headers": ["Authorization"]
     }
 })
 
