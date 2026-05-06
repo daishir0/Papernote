@@ -66,6 +66,50 @@
   --ui-sidebar-link-color: #007bff;
   --ui-preview-pane-bg: #f8f9fa;
   --ui-preview-pane-border: #dee2e6;
+
+  /* 見出しレベル別のコンテンツ字下げ量（PaperHeadingIndent が data-h-level を付ける）。
+     見出し自身には適用せず、非見出し兄弟要素にのみ効く。 */
+  --md-indent-h1: 0;
+  --md-indent-h2: 1em;
+  --md-indent-h3: 2em;
+  --md-indent-h4: 3em;
+  --md-indent-h5: 4em;
+  --md-indent-h6: 5em;
+}
+
+/* タブレット～スマホでは字下げ量を縮小（読みやすさ優先） */
+@media (max-width: 768px) {
+  :root {
+    --md-indent-h2: 0.5em;
+    --md-indent-h3: 1em;
+    --md-indent-h4: 1.5em;
+    --md-indent-h5: 2em;
+    --md-indent-h6: 2.5em;
+  }
+}
+@media (max-width: 480px) {
+  :root {
+    --md-indent-h2: 0.25em;
+    --md-indent-h3: 0.5em;
+    --md-indent-h4: 0.75em;
+    --md-indent-h5: 1em;
+    --md-indent-h6: 1.25em;
+  }
+}
+
+/* 字下げ本体ルール。margin-inline-start を使うことで、
+   <ul>/<ol> の padding-left（bullet位置）、<blockquote>/<pre> の内側 padding、
+   <button> の Bootstrap padding を破壊せず、ブロック全体だけを右へシフトする。 */
+#content [data-h-level="1"], #preview-content [data-h-level="1"] { margin-inline-start: var(--md-indent-h1); }
+#content [data-h-level="2"], #preview-content [data-h-level="2"] { margin-inline-start: var(--md-indent-h2); }
+#content [data-h-level="3"], #preview-content [data-h-level="3"] { margin-inline-start: var(--md-indent-h3); }
+#content [data-h-level="4"], #preview-content [data-h-level="4"] { margin-inline-start: var(--md-indent-h4); }
+#content [data-h-level="5"], #preview-content [data-h-level="5"] { margin-inline-start: var(--md-indent-h5); }
+#content [data-h-level="6"], #preview-content [data-h-level="6"] { margin-inline-start: var(--md-indent-h6); }
+
+/* 印刷時は紙幅を最大限活用するためリセット */
+@media print {
+  #content [data-h-level], #preview-content [data-h-level] { margin-inline-start: 0 !important; }
 }
 
 /* 既存のスタイルはそのまま使用します */

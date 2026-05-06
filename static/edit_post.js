@@ -850,6 +850,9 @@
                             const previewContent = document.getElementById('preview-content');
                             previewContent.innerHTML = escapedHtml;
 
+                            // 見出しレベルに応じた字下げを付与（data-h-level）
+                            if (window.PaperHeadingIndent) window.PaperHeadingIndent.apply(previewContent);
+
                             // Mermaidダイアグラムを再レンダリング
                             const mermaidElements = previewContent.querySelectorAll('.mermaid');
                             mermaidElements.forEach((element, index) => {
