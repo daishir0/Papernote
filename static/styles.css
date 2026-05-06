@@ -187,19 +187,21 @@
     margin-inline-start: 0 !important;
   }
 
-  /* ② テーブルは紙幅に確実に収まるよう table-layout: fixed で均等列分配 */
+  /* ② テーブルは内容幅で自然サイズ、ただし紙幅は超えない。
+     狭い表（2-3列）は内容幅で表示され「まのび」しない。
+     広い表は max-width: 100% で紙幅にキャップされ、cell の word-break で
+     長い単語が折り返されて収まる。 */
   #content table,
   #preview-content table {
-    width: 100% !important;
+    width: auto !important;
     max-width: 100% !important;
-    table-layout: fixed !important;
+    table-layout: auto !important;
   }
   #content th, #content td,
   #preview-content th, #preview-content td {
     min-width: 0 !important;          /* 既存 120px 制約を解除 */
-    word-break: break-all;             /* 長い単語も強制折り返し（fixed と相性◎） */
+    word-break: break-all;             /* 長い単語も強制折り返し（広い表のはみ出し防止） */
     overflow-wrap: anywhere;
-    overflow: hidden;                  /* セル内に収まらない場合は隠す（紙幅優先） */
     padding: 4px 6px !important;      /* 紙面節約 */
     font-size: 0.9em;
   }
