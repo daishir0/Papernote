@@ -108,12 +108,24 @@
 #content [data-h-level="5"], #preview-content [data-h-level="5"] { margin-inline-start: var(--md-indent-h5); }
 #content [data-h-level="6"], #preview-content [data-h-level="6"] { margin-inline-start: var(--md-indent-h6); }
 
+/* @page で印刷時の用紙マージンを最小化（テーブルが紙幅をめいっぱい使えるよう） */
+@page {
+  margin: 0.5cm;
+}
+
 /* 印刷時の幅広要素対応：紙幅に収めるためインデント解除＋列・行の圧縮
    ＋ TOC サイドバーの非表示で実効幅を最大化。
    重要：post-content-style.css の `.index-container { display: block !important }` が
    後から読み込まれるため、ID セレクタ #index（特異性 1,0,0）で確実に上書きする。
    同様に main-content と content-wrapper は body プレフィックスで特異性を上げる。 */
 @media print {
+  /* (0) body/html の margin/padding をリセットして紙幅を最大化 */
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
   /* (a) TOCサイドバー非表示。#index と class を併用、body 経由で
      post-content-style.css の display: block !important を確実に上書き */
   #index,
@@ -122,19 +134,29 @@
   }
 
   /* (b) main-content / content-wrapper を全幅化。body 経由で特異性を上げ、
-     Bootstrap や他のCSSの上書きを確実に */
-  body .main-content {
+     Bootstrap や他のCSSの上書きを確実に。
+     親要素チェーンすべての padding/margin をリセットして table が
+     必ず紙幅 100% に収まるように。 */
+  body .main-content,
+  body .content-wrapper,
+  #content,
+  #preview-content {
     width: 100% !important;
     max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
     padding-right: 0 !important;
-    height: auto !important;
+    box-sizing: border-box !important;
     overflow: visible !important;
+  }
+  body .main-content {
+    height: auto !important;
     flex: 1 1 100% !important;
   }
   body .content-wrapper {
     display: block !important;
     gap: 0 !important;
-    overflow: visible !important;
   }
 
   /* (c) sticky な post-header を解除（紙面で固定する意味なし） */
