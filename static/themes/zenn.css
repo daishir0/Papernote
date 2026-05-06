@@ -1,0 +1,35 @@
+/* Theme: zenn
+   Zenn 風。白背景・淡ブルーアクセント・日本語最適化。 */
+[data-theme="zenn"] {
+  --md-font-family: "YakuHanJPs", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Helvetica Neue", Arial, "Meiryo", sans-serif;
+  --md-code-font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  --color-highEmphasis: #333;
+  --color-mediumEmphasis: #6e7b85;
+
+  --md-pre-border: #d6e3ed;
+  --md-code-bg: #1a2238;
+  --md-code-fg: #e5e7eb;
+
+  --md-inline-code-bg: #f1f5f9;
+  --md-inline-code-fg: #d6336c;
+
+  --md-blockquote-color: #6e7b85;
+  --md-blockquote-border: #3ea8ff;
+
+  --md-img-border: #e6e6e6;
+
+  --md-table-border: #d6e3ed;
+  --md-th-td-border: #d6e3ed;
+  --md-th-bg: #f1f5f9;
+  --md-tr-even-bg: #f8fafc;
+  --md-thead-bg: #f1f5f9;
+  --md-thead-fg: #333;
+  --md-thead-th-bg: #f1f5f9;
+  --md-thead-th-fg: #333;
+  --md-thead-th-border: #d6e3ed;
+  --md-table-wrapper-border: #d6e3ed;
+
+  --md-link-color: #3ea8ff;
+  --md-h1-border-color: #3ea8ff;
+  --md-heading-bullet: "";
+}

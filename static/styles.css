@@ -1,3 +1,73 @@
+/* ============================================
+   テーマ用 CSS変数（基底テーマ = 現状維持）
+   #content / #preview-content 配下の Markdown 描画に関わる値を集約。
+   テーマファイル (static/themes/*.css) が [data-theme="..."] でこの値を上書きする。
+   既存のフォールバック動作中の変数（--color-*, --font-size-body-1,
+   --line-height-body）も実値で初期化する。
+   ============================================ */
+:root {
+  /* 本文 */
+  --md-font-family: "YakuHanJPs", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  --md-code-font-family: 'Courier New', Courier, monospace;
+  --font-size-body-1: 1rem;
+  --line-height-body: 1.6;
+
+  /* 文字色（既存未定義変数を初期化） */
+  --color-highEmphasis: #222222;
+  --color-mediumEmphasis: #666666;
+  --color-gray0: #f0f0f0;
+
+  /* ページ／コンテンツ領域 */
+  --md-bg: transparent;
+
+  /* コードブロック */
+  --md-pre-border: #d3d3d3;
+  --md-code-bg: #1c1b1b;
+  --md-code-fg: #f8f8f2;
+
+  /* インラインコード */
+  --md-inline-code-bg: #f5f5f5;
+  --md-inline-code-fg: #000000;
+
+  /* 引用 */
+  --md-blockquote-color: #666666;
+  --md-blockquote-border: #eee;
+
+  /* 画像 */
+  --md-img-border: #d3d3d3;
+
+  /* テーブル */
+  --md-table-border: #333;
+  --md-th-td-border: #dee2e6;
+  --md-th-bg: #d3d3d3;
+  --md-tr-even-bg: #f6f8fa;
+  --md-thead-bg: #87ceeb;
+  --md-thead-fg: black;
+  --md-thead-th-bg: #55c500;
+  --md-thead-th-fg: white;
+  --md-thead-th-border: #e1e4e8;
+  --md-table-wrapper-border: #dee2e6;
+
+  /* 見出し（テーマで上書き可能。default は既存通り） */
+  --md-heading-color: inherit;
+  --md-heading-bullet: "■";
+  --md-h1-border: solid;
+  --md-h1-border-color: currentColor;
+
+  /* リンク（Markdown内のリンク色） */
+  --md-link-color: #007bff;
+
+  /* UI chrome（ヘッダ／サイドバー／プレビューペイン）。
+     テーマ切り替え時にコンテンツ周辺も追従させるための変数。
+     default はすべて現状色のまま。 */
+  --ui-header-bg: white;
+  --ui-sidebar-bg: #f9f9f9;
+  --ui-sidebar-border: #ddd;
+  --ui-sidebar-link-color: #007bff;
+  --ui-preview-pane-bg: #f8f9fa;
+  --ui-preview-pane-border: #dee2e6;
+}
+
 /* 既存のスタイルはそのまま使用します */
 body, html {
     font-family: "YakuHanJPs", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
@@ -134,10 +204,11 @@ margin: 5px 0; /* 上下のマージンを設定 */
 /* postのスタイル */
 #content,
 #preview-content {
-  font-family: "YakuHanJPs", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  font-family: var(--md-font-family);
   font-size: var(--font-size-body-1);
   line-height: var(--line-height-body);
   color: var(--color-highEmphasis);
+  background-color: var(--md-bg);
   word-break: break-all;
   overflow-wrap: break-word;
 }
@@ -154,7 +225,7 @@ margin: 5px 0; /* 上下のマージンを設定 */
 #preview-content h4::before,
 #preview-content h5::before,
 #preview-content h6::before {
-  content: "■";
+  content: var(--md-heading-bullet);
 }
 
 #content h1,
@@ -177,7 +248,8 @@ margin: 5px 0; /* 上下のマージンを設定 */
 #content h1,
 #preview-content h1 {
   font-size: 2em;
-  border-bottom: solid;
+  border-bottom: var(--md-h1-border);
+  border-bottom-color: var(--md-h1-border-color);
   margin-top: 50px; /* 上のマージンを設定 */
   margin-bottom: 20px; /* 下のマージンを設定 */
 }
@@ -227,13 +299,13 @@ margin: 5px 0; /* 上下のマージンを設定 */
   font-size: inherit;
   font-family: inherit;
   overflow-x: auto;
-  border: 1px solid #d3d3d3; /* 灰色の枠 */
+  border: 1px solid var(--md-pre-border); /* 灰色の枠 */
 }
 
 #content pre code,
 #preview-content pre code {
-  background-color: #1c1b1b;
-  color: #f8f8f2;
+  background-color: var(--md-code-bg);
+  color: var(--md-code-fg);
   padding: 16px;
   display: block;
   border-radius: 4px;
@@ -272,10 +344,10 @@ margin: 5px 0; /* 上下のマージンを設定 */
 }
 
 blockquote {
-    color: #666666;
+    color: var(--md-blockquote-color);
     margin: 0;
     padding-left: 10px;
-    border-left: 0.5em #eee solid;
+    border-left: 0.5em var(--md-blockquote-border) solid;
   }
 
 #content ul,
@@ -299,7 +371,7 @@ blockquote {
 #content img,
 #preview-content img {
   background-color: var(--color-gray0);
-  border: 2px solid #d3d3d3; /* 薄いグレーの枠を追加 */
+  border: 2px solid var(--md-img-border); /* 薄いグレーの枠を追加 */
   max-width: 100%;
 }
 
@@ -324,14 +396,14 @@ blockquote {
 #content th,
 #preview-content th {
     padding: 0.75rem;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--md-th-td-border);
     min-width: 120px;  /* 最小幅を設定 */
 }
 
 #content td,
 #preview-content td {
     padding: 0.75rem;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--md-th-td-border);
     min-width: 120px;  /* 最小幅を設定 */
 }
 
@@ -358,10 +430,10 @@ blockquote {
 }
 
 p code {
-  background-color: #f5f5f5; /* 灰色の背景色 */
+  background-color: var(--md-inline-code-bg); /* 灰色の背景色 */
   border-radius: 3px; /* 角を少し丸くする */
   padding: 0.2em 0.4em; /* 内側の余白 */
-  font-family: 'Courier New', Courier, monospace; /* プログラムコードっぽいフォント */
+  font-family: var(--md-code-font-family); /* プログラムコードっぽいフォント */
   font-size: 0.95em; /* 文字サイズを少し小さくする */
 }
 
@@ -372,7 +444,7 @@ table {
 }
 
 table, th, td {
-  border: 1px solid #333; /* 境界線を太くして色を濃くする */
+  border: 1px solid var(--md-table-border); /* 境界線を太くして色を濃くする */
 }
 
 th, td {
@@ -381,35 +453,35 @@ th, td {
 }
 
 th {
-  background-color: #d3d3d3; /* タイトル行の背景色をライトグレーに変更 */
+  background-color: var(--md-th-bg); /* タイトル行の背景色をライトグレーに変更 */
   font-weight: bold; /* タイトル行のフォントを太字に */
   text-align: center; /* タイトル行のテキストを中央揃えに */
 }
 
 tr:nth-child(even) {
-  background-color: #f6f8fa;
+  background-color: var(--md-tr-even-bg);
 }
 
 /* テーブルのタイトル行のスタイル */
 table thead tr {
-  background-color: #87ceeb; /* スカイブルー */
-  color: black; /* タイトル行の文字色 */
+  background-color: var(--md-thead-bg); /* スカイブルー */
+  color: var(--md-thead-fg); /* タイトル行の文字色 */
   font-weight: bold; /* タイトル行のフォントを太字に */
   text-align: center; /* タイトル行のテキストを中央揃えに */
 }
 
 code {
     font-size: .875em;
-    color: #000000;
+    color: var(--md-inline-code-fg);
     word-wrap: break-word;
 }
 
 /* Qiita風のテーブルヘッダースタイル */
 table thead th {
-  background-color: #55c500;
-  color: white;
+  background-color: var(--md-thead-th-bg);
+  color: var(--md-thead-th-fg);
   padding: 10px;
-  border: 1px solid #e1e4e8;
+  border: 1px solid var(--md-thead-th-border);
   font-weight: normal;
   text-align: center; /* 中央揃えを追加 */
 }
@@ -551,7 +623,7 @@ body.permalink-page .content {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     margin: 16px 0;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--md-table-wrapper-border);
     border-radius: 4px;
 }
 

@@ -240,9 +240,9 @@
                 flex: 1;
                 min-width: 200px;
                 padding: 20px;
-                background: #f8f9fa;
+                background: var(--ui-preview-pane-bg, #f8f9fa);
                 overflow-y: auto;
-                border-left: 1px solid #dee2e6;
+                border-left: 1px solid var(--ui-preview-pane-border, #dee2e6);
             }
 
             .preview-pane.hidden {

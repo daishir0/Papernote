@@ -1,0 +1,35 @@
+/* Theme: formal
+   官公庁・契約書風。游明朝/MS明朝、白黒のみ、装飾最小。 */
+[data-theme="formal"] {
+  --md-font-family: "Yu Mincho", "游明朝", "Hiragino Mincho ProN", "MS Mincho", "Times New Roman", serif;
+  --md-code-font-family: "MS Gothic", "Yu Gothic", "Courier New", monospace;
+  --color-highEmphasis: #000;
+  --color-mediumEmphasis: #333;
+
+  --md-pre-border: #000;
+  --md-code-bg: #ffffff;
+  --md-code-fg: #000;
+
+  --md-inline-code-bg: #ffffff;
+  --md-inline-code-fg: #000;
+
+  --md-blockquote-color: #333;
+  --md-blockquote-border: #000;
+
+  --md-img-border: #000;
+
+  --md-table-border: #000;
+  --md-th-td-border: #000;
+  --md-th-bg: #ffffff;
+  --md-tr-even-bg: transparent;
+  --md-thead-bg: #ffffff;
+  --md-thead-fg: #000;
+  --md-thead-th-bg: #ffffff;
+  --md-thead-th-fg: #000;
+  --md-thead-th-border: #000;
+  --md-table-wrapper-border: #000;
+
+  --md-link-color: #000;
+  --md-h1-border-color: #000;
+  --md-heading-bullet: "";
+}

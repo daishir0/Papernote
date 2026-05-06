@@ -1,0 +1,41 @@
+/* Theme: mono
+   モノクロ。白×黒のみ、印刷向け、情報密度高め。 */
+[data-theme="mono"] {
+  --md-font-family: "Yu Gothic", "游ゴシック", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  --md-code-font-family: "Courier New", Courier, monospace;
+  --color-highEmphasis: #000;
+  --color-mediumEmphasis: #555;
+  --color-gray0: #f0f0f0;
+
+  --md-pre-border: #000;
+  --md-code-bg: #ffffff;
+  --md-code-fg: #000;
+
+  --md-inline-code-bg: #ffffff;
+  --md-inline-code-fg: #000;
+
+  --md-blockquote-color: #555;
+  --md-blockquote-border: #000;
+
+  --md-img-border: #000;
+
+  --md-table-border: #000;
+  --md-th-td-border: #000;
+  --md-th-bg: #ffffff;
+  --md-tr-even-bg: #f4f4f4;
+  --md-thead-bg: #000;
+  --md-thead-fg: #ffffff;
+  --md-thead-th-bg: #000;
+  --md-thead-th-fg: #ffffff;
+  --md-thead-th-border: #000;
+  --md-table-wrapper-border: #000;
+
+  --md-link-color: #000;
+  --md-h1-border-color: #000;
+  --md-heading-bullet: "■";
+}
+
+[data-theme="mono"] #content a,
+[data-theme="mono"] #preview-content a {
+  text-decoration: underline;
+}

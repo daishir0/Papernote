@@ -1,0 +1,36 @@
+/* Theme: notion
+   Notion 風。装飾少なめ・余白広め・見出しは控えめ。 */
+[data-theme="notion"] {
+  --md-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Hiragino Sans", "Meiryo", sans-serif;
+  --md-code-font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  --color-highEmphasis: #37352f;
+  --color-mediumEmphasis: #787774;
+
+  --md-pre-border: #e9e9e7;
+  --md-code-bg: #f7f6f3;
+  --md-code-fg: #eb5757;
+
+  --md-inline-code-bg: rgba(135,131,120,0.15);
+  --md-inline-code-fg: #eb5757;
+
+  --md-blockquote-color: #787774;
+  --md-blockquote-border: #37352f;
+
+  --md-img-border: #e9e9e7;
+
+  --md-table-border: #e9e9e7;
+  --md-th-td-border: #e9e9e7;
+  --md-th-bg: #f7f6f3;
+  --md-tr-even-bg: transparent;
+  --md-thead-bg: #f7f6f3;
+  --md-thead-fg: #37352f;
+  --md-thead-th-bg: #f7f6f3;
+  --md-thead-th-fg: #37352f;
+  --md-thead-th-border: #e9e9e7;
+  --md-table-wrapper-border: #e9e9e7;
+
+  --md-link-color: #2383e2;
+  --md-h1-border-color: transparent;
+  --md-h1-border: none;
+  --md-heading-bullet: "";
+}

@@ -15,12 +15,26 @@
     <link rel="manifest" href="/static/manifest.json">
 
     <link rel="stylesheet" href="/static/styles.css">
+    <link id="theme-css" rel="stylesheet" href="/static/themes/mono.css">
     <link rel="stylesheet" href="/static/bootstrap.min.css">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.5.2/css/all.css">
     <link rel="stylesheet" href="/static/post-content-style.css">
     <link rel="stylesheet" href="/static/slideshow.css">
     <link rel="stylesheet" href="/static/edit_post.css">
     <link rel="stylesheet" href="/static/svg_editor.css">
+    <script>
+      /* テーマを <head> 段階で適用しチラつき防止（FOUC回避） */
+      (function() {
+        try {
+          var t = localStorage.getItem('paperTheme') || 'mono';
+          var allow = ['default','github','zenn','qiita','notion','business','academic','formal','dark','sepia','mono'];
+          if (allow.indexOf(t) === -1) t = 'mono';
+          document.documentElement.setAttribute('data-theme', t);
+          var link = document.getElementById('theme-css');
+          if (link) link.href = '/static/themes/' + t + '.css';
+        } catch (e) { /* localStorage 無効環境は mono */ }
+      })();
+    </script>
 </head>
 <body data-filename="{{ filename }}" data-csrf-token="{{ form.csrf_token._value() }}" data-post-url="{{ url_for('post', filename=request.view_args['filename']) }}" data-claude-code-url="{{ claude_code_url }}">
 
@@ -118,6 +132,15 @@
             <button id="lineButton" type="button" class="btn btn-primary btn-block mb-2" title="チャット入力モードを開く">
                 💬 チャット入力
             </button>
+
+            <!-- スタイル変更（プレビューのMarkdown表示テーマ） -->
+            <div style="border-top: 1px solid #dee2e6; margin: 10px 0 6px; padding-top: 8px;">
+                <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 4px;">
+                    🎨 スタイル（プレビュー表示）
+                </div>
+                <div data-theme-menu style="border: 1px solid #dee2e6; border-radius: 4px; max-height: 220px; overflow-y: auto;"></div>
+            </div>
+
             <button id="deletePostButton" type="button" class="btn btn-danger btn-block mb-2" title="この投稿を削除">
                 🗑️ 削除
             </button>
@@ -303,6 +326,7 @@
     <script src="/static/fabric.min.js"></script>
     <script src="/static/svg_editor.js"></script>
     <script src="/static/edit_post.js"></script>
+    <script src="/static/theme-switcher.js"></script>
 
 <!-- スライドショーモーダル -->
 <div class="slideshow-modal" id="slideshow-modal">

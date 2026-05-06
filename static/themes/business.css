@@ -1,0 +1,52 @@
+/* Theme: business
+   MS Word 風ビジネス文書。Calibri/游明朝、ネイビー見出し、罫線のみのテーブル。
+   フォーマルな業務文書向け。 */
+[data-theme="business"] {
+  --md-font-family: Calibri, "Yu Gothic", "Yu Gothic Medium", "游ゴシック", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  --md-code-font-family: Consolas, "Courier New", monospace;
+  --color-highEmphasis: #1f1f1f;
+  --color-mediumEmphasis: #4a4a4a;
+
+  --md-pre-border: #bfbfbf;
+  --md-code-bg: #f3f3f3;
+  --md-code-fg: #1f1f1f;
+
+  --md-inline-code-bg: #f3f3f3;
+  --md-inline-code-fg: #1f1f1f;
+
+  --md-blockquote-color: #4a4a4a;
+  --md-blockquote-border: #1f3864;
+
+  --md-img-border: #bfbfbf;
+
+  --md-table-border: #1f3864;
+  --md-th-td-border: #1f3864;
+  --md-th-bg: #d9e2f3;
+  --md-tr-even-bg: transparent;
+  --md-thead-bg: #1f3864;
+  --md-thead-fg: white;
+  --md-thead-th-bg: #1f3864;
+  --md-thead-th-fg: white;
+  --md-thead-th-border: #1f3864;
+  --md-table-wrapper-border: #1f3864;
+
+  --md-link-color: #0563c1;
+  --md-h1-border-color: #1f3864;
+  --md-heading-bullet: "";
+  --md-heading-color: #1f3864;
+}
+
+[data-theme="business"] #content h1,
+[data-theme="business"] #preview-content h1,
+[data-theme="business"] #content h2,
+[data-theme="business"] #preview-content h2,
+[data-theme="business"] #content h3,
+[data-theme="business"] #preview-content h3,
+[data-theme="business"] #content h4,
+[data-theme="business"] #preview-content h4,
+[data-theme="business"] #content h5,
+[data-theme="business"] #preview-content h5,
+[data-theme="business"] #content h6,
+[data-theme="business"] #preview-content h6 {
+  color: var(--md-heading-color);
+}

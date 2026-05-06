@@ -1,0 +1,40 @@
+/* Theme: academic
+   学術論文風（LaTeX article）。Times 系セリフ。 */
+[data-theme="academic"] {
+  --md-font-family: "Times New Roman", "Yu Mincho", "游明朝", "Hiragino Mincho ProN", "MS Mincho", serif;
+  --md-code-font-family: "Latin Modern Mono", "Courier New", Courier, monospace;
+  --color-highEmphasis: #111;
+  --color-mediumEmphasis: #444;
+
+  --md-pre-border: #cccccc;
+  --md-code-bg: #fafafa;
+  --md-code-fg: #111;
+
+  --md-inline-code-bg: #f5f5f5;
+  --md-inline-code-fg: #111;
+
+  --md-blockquote-color: #444;
+  --md-blockquote-border: #888;
+
+  --md-img-border: #cccccc;
+
+  --md-table-border: #111;
+  --md-th-td-border: #111;
+  --md-th-bg: #ffffff;
+  --md-tr-even-bg: transparent;
+  --md-thead-bg: #ffffff;
+  --md-thead-fg: #111;
+  --md-thead-th-bg: #ffffff;
+  --md-thead-th-fg: #111;
+  --md-thead-th-border: #111;
+  --md-table-wrapper-border: #111;
+
+  --md-link-color: #0033cc;
+  --md-h1-border-color: #111;
+  --md-heading-bullet: "";
+}
+
+[data-theme="academic"] #content,
+[data-theme="academic"] #preview-content {
+  text-align: justify;
+}

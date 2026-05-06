@@ -1,0 +1,35 @@
+/* Theme: github
+   GitHub README 風。淡いグレー罫線、明るいコードブロック背景。 */
+[data-theme="github"] {
+  --md-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --md-code-font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --color-highEmphasis: #1f2328;
+  --color-mediumEmphasis: #59636e;
+
+  --md-pre-border: #d0d7de;
+  --md-code-bg: #f6f8fa;
+  --md-code-fg: #1f2328;
+
+  --md-inline-code-bg: rgba(175,184,193,0.2);
+  --md-inline-code-fg: #1f2328;
+
+  --md-blockquote-color: #59636e;
+  --md-blockquote-border: #d0d7de;
+
+  --md-img-border: #d0d7de;
+
+  --md-table-border: #d0d7de;
+  --md-th-td-border: #d0d7de;
+  --md-th-bg: #f6f8fa;
+  --md-tr-even-bg: #f6f8fa;
+  --md-thead-bg: #f6f8fa;
+  --md-thead-fg: #1f2328;
+  --md-thead-th-bg: #f6f8fa;
+  --md-thead-th-fg: #1f2328;
+  --md-thead-th-border: #d0d7de;
+  --md-table-wrapper-border: #d0d7de;
+
+  --md-link-color: #0969da;
+  --md-h1-border-color: #d0d7de;
+  --md-heading-bullet: "";
+}

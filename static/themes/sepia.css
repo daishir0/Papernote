@@ -1,0 +1,50 @@
+/* Theme: sepia
+   クリーム背景×濃茶テキスト。読書向け。 */
+[data-theme="sepia"] {
+  --md-font-family: "Iowan Old Style", "Yu Mincho", "游明朝", "Hiragino Mincho ProN", "Georgia", serif;
+  --md-code-font-family: "Courier New", Courier, monospace;
+  --color-highEmphasis: #5b4636;
+  --color-mediumEmphasis: #7d6552;
+  --color-gray0: #efe6d3;
+
+  --md-bg: #f4ecd8;
+
+  --md-pre-border: #d6c9a8;
+  --md-code-bg: #efe6d3;
+  --md-code-fg: #5b4636;
+
+  --md-inline-code-bg: #efe6d3;
+  --md-inline-code-fg: #5b4636;
+
+  --md-blockquote-color: #7d6552;
+  --md-blockquote-border: #c9b78f;
+
+  --md-img-border: #d6c9a8;
+
+  --md-table-border: #c9b78f;
+  --md-th-td-border: #c9b78f;
+  --md-th-bg: #efe6d3;
+  --md-tr-even-bg: #efe6d3;
+  --md-thead-bg: #efe6d3;
+  --md-thead-fg: #5b4636;
+  --md-thead-th-bg: #efe6d3;
+  --md-thead-th-fg: #5b4636;
+  --md-thead-th-border: #c9b78f;
+  --md-table-wrapper-border: #c9b78f;
+
+  --md-link-color: #9a6b3f;
+  --md-h1-border-color: #c9b78f;
+  --md-heading-bullet: "❦";
+
+  --ui-header-bg: #f4ecd8;
+  --ui-sidebar-bg: #efe6d3;
+  --ui-sidebar-border: #c9b78f;
+  --ui-sidebar-link-color: #9a6b3f;
+  --ui-preview-pane-bg: #efe6d3;
+  --ui-preview-pane-border: #c9b78f;
+}
+
+[data-theme="sepia"] body {
+  background-color: #f4ecd8;
+  color: #5b4636;
+}

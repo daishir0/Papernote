@@ -1,0 +1,35 @@
+/* Theme: qiita
+   Qiita 風。緑(#55c500) アクセント、テーブルヘッダ緑。 */
+[data-theme="qiita"] {
+  --md-font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Helvetica Neue", Arial, "Meiryo", sans-serif;
+  --md-code-font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  --color-highEmphasis: #2e3338;
+  --color-mediumEmphasis: #6c757d;
+
+  --md-pre-border: #e1e4e8;
+  --md-code-bg: #2e3338;
+  --md-code-fg: #ffffff;
+
+  --md-inline-code-bg: #f7f6f3;
+  --md-inline-code-fg: #d6336c;
+
+  --md-blockquote-color: #6c757d;
+  --md-blockquote-border: #d6d6d6;
+
+  --md-img-border: #e1e4e8;
+
+  --md-table-border: #e1e4e8;
+  --md-th-td-border: #e1e4e8;
+  --md-th-bg: #55c500;
+  --md-tr-even-bg: #f6f8fa;
+  --md-thead-bg: #55c500;
+  --md-thead-fg: white;
+  --md-thead-th-bg: #55c500;
+  --md-thead-th-fg: white;
+  --md-thead-th-border: #e1e4e8;
+  --md-table-wrapper-border: #e1e4e8;
+
+  --md-link-color: #55c500;
+  --md-h1-border-color: #55c500;
+  --md-heading-bullet: "";
+}
