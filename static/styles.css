@@ -109,25 +109,48 @@
 #content [data-h-level="6"], #preview-content [data-h-level="6"] { margin-inline-start: var(--md-indent-h6); }
 
 /* 印刷時の幅広要素対応：紙幅に収めるためインデント解除＋列・行の圧縮
-   ＋ TOC サイドバーの非表示で実効幅を最大化 */
+   ＋ TOC サイドバーの非表示で実効幅を最大化。
+   重要：post-content-style.css の `.index-container { display: block !important }` が
+   後から読み込まれるため、ID セレクタ #index（特異性 1,0,0）で確実に上書きする。
+   同様に main-content と content-wrapper は body プレフィックスで特異性を上げる。 */
 @media print {
-  /* (a) TOCサイドバーを非表示にして main-content を全幅に。
-     既存の .main-content { width: calc(100% - 250px); padding-right: 20px } を解除し、
-     .index-container { display: block !important } を上書きする。 */
-  .index-container { display: none !important; }
-  .main-content {
+  /* (a) TOCサイドバー非表示。#index と class を併用、body 経由で
+     post-content-style.css の display: block !important を確実に上書き */
+  #index,
+  body .index-container {
+    display: none !important;
+  }
+
+  /* (b) main-content / content-wrapper を全幅化。body 経由で特異性を上げ、
+     Bootstrap や他のCSSの上書きを確実に */
+  body .main-content {
     width: 100% !important;
     max-width: 100% !important;
     padding-right: 0 !important;
     height: auto !important;
     overflow: visible !important;
+    flex: 1 1 100% !important;
   }
-  .content-wrapper { display: block !important; gap: 0 !important; }
+  body .content-wrapper {
+    display: block !important;
+    gap: 0 !important;
+    overflow: visible !important;
+  }
 
-  /* (b) sticky な post-header を解除（紙面で固定する意味なし） */
+  /* (c) sticky な post-header を解除（紙面で固定する意味なし） */
   .post-header {
     position: static !important;
     box-shadow: none !important;
+  }
+
+  /* (d) Bootstrap .table-responsive の overflow-x: auto を無効化。
+     印刷時はスクロールバー出ず、内容がクリップされる原因 */
+  .table-responsive,
+  .table-wrapper {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   /* ① 幅広要素は印刷時のみインデント解除して紙幅を最大利用 */
@@ -146,6 +169,7 @@
   #content table,
   #preview-content table {
     width: 100% !important;
+    max-width: 100% !important;
     table-layout: fixed !important;
   }
   #content th, #content td,
@@ -153,6 +177,7 @@
     min-width: 0 !important;          /* 既存 120px 制約を解除 */
     word-break: break-all;             /* 長い単語も強制折り返し（fixed と相性◎） */
     overflow-wrap: anywhere;
+    overflow: hidden;                  /* セル内に収まらない場合は隠す（紙幅優先） */
     padding: 4px 6px !important;      /* 紙面節約 */
     font-size: 0.9em;
   }
@@ -161,6 +186,7 @@
   #content pre, #preview-content pre {
     white-space: pre-wrap;
     word-break: break-all;
+    overflow: visible !important;
   }
 }
 
