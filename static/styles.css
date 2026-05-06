@@ -108,8 +108,28 @@
 #content [data-h-level="5"], #preview-content [data-h-level="5"] { margin-inline-start: var(--md-indent-h5); }
 #content [data-h-level="6"], #preview-content [data-h-level="6"] { margin-inline-start: var(--md-indent-h6); }
 
-/* 印刷時の幅広要素対応：紙幅に収めるためインデント解除＋列・行の圧縮 */
+/* 印刷時の幅広要素対応：紙幅に収めるためインデント解除＋列・行の圧縮
+   ＋ TOC サイドバーの非表示で実効幅を最大化 */
 @media print {
+  /* (a) TOCサイドバーを非表示にして main-content を全幅に。
+     既存の .main-content { width: calc(100% - 250px); padding-right: 20px } を解除し、
+     .index-container { display: block !important } を上書きする。 */
+  .index-container { display: none !important; }
+  .main-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-right: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .content-wrapper { display: block !important; gap: 0 !important; }
+
+  /* (b) sticky な post-header を解除（紙面で固定する意味なし） */
+  .post-header {
+    position: static !important;
+    box-shadow: none !important;
+  }
+
   /* ① 幅広要素は印刷時のみインデント解除して紙幅を最大利用 */
   #content table[data-h-level],
   #content .table-responsive[data-h-level],
@@ -122,16 +142,16 @@
     margin-inline-start: 0 !important;
   }
 
-  /* ② テーブルは紙幅に収まるよう列を自動圧縮 */
+  /* ② テーブルは紙幅に確実に収まるよう table-layout: fixed で均等列分配 */
   #content table,
   #preview-content table {
     width: 100% !important;
-    table-layout: auto;
+    table-layout: fixed !important;
   }
   #content th, #content td,
   #preview-content th, #preview-content td {
     min-width: 0 !important;          /* 既存 120px 制約を解除 */
-    word-break: break-word;
+    word-break: break-all;             /* 長い単語も強制折り返し（fixed と相性◎） */
     overflow-wrap: anywhere;
     padding: 4px 6px !important;      /* 紙面節約 */
     font-size: 0.9em;
