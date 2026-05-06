@@ -99,7 +99,8 @@
 
 /* 字下げ本体ルール。margin-inline-start を使うことで、
    <ul>/<ol> の padding-left（bullet位置）、<blockquote>/<pre> の内側 padding、
-   <button> の Bootstrap padding を破壊せず、ブロック全体だけを右へシフトする。 */
+   <button> の Bootstrap padding を破壊せず、ブロック全体だけを右へシフトする。
+   印刷時も同じインデントを適用（画面の見た目と一貫させる）。 */
 #content [data-h-level="1"], #preview-content [data-h-level="1"] { margin-inline-start: var(--md-indent-h1); }
 #content [data-h-level="2"], #preview-content [data-h-level="2"] { margin-inline-start: var(--md-indent-h2); }
 #content [data-h-level="3"], #preview-content [data-h-level="3"] { margin-inline-start: var(--md-indent-h3); }
@@ -107,9 +108,40 @@
 #content [data-h-level="5"], #preview-content [data-h-level="5"] { margin-inline-start: var(--md-indent-h5); }
 #content [data-h-level="6"], #preview-content [data-h-level="6"] { margin-inline-start: var(--md-indent-h6); }
 
-/* 印刷時は紙幅を最大限活用するためリセット */
+/* 印刷時の幅広要素対応：紙幅に収めるためインデント解除＋列・行の圧縮 */
 @media print {
-  #content [data-h-level], #preview-content [data-h-level] { margin-inline-start: 0 !important; }
+  /* ① 幅広要素は印刷時のみインデント解除して紙幅を最大利用 */
+  #content table[data-h-level],
+  #content .table-responsive[data-h-level],
+  #content .table-wrapper[data-h-level],
+  #content pre[data-h-level],
+  #preview-content table[data-h-level],
+  #preview-content .table-responsive[data-h-level],
+  #preview-content .table-wrapper[data-h-level],
+  #preview-content pre[data-h-level] {
+    margin-inline-start: 0 !important;
+  }
+
+  /* ② テーブルは紙幅に収まるよう列を自動圧縮 */
+  #content table,
+  #preview-content table {
+    width: 100% !important;
+    table-layout: auto;
+  }
+  #content th, #content td,
+  #preview-content th, #preview-content td {
+    min-width: 0 !important;          /* 既存 120px 制約を解除 */
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    padding: 4px 6px !important;      /* 紙面節約 */
+    font-size: 0.9em;
+  }
+
+  /* ③ コードブロックも折り返して右端切れを防ぐ */
+  #content pre, #preview-content pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
 }
 
 /* 既存のスタイルはそのまま使用します */
