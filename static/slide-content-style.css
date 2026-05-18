@@ -1,0 +1,301 @@
+/* slide-content-style.css
+   このファイルは static/styles.css から #content / #preview-content 規則を抽出し、
+   #slide-content 版として再エクスポートしたもの。
+   生成元: scripts/append_slide_css.py（手動メンテ禁止）
+   目的: スライドモード (.slide-modal #slide-content) 内の Markdown 描画に、
+   通常 #content と同じテーマ CSS（色・字下げ・テーブル・hr 等）を適用する。
+*/
+
+#slide-content [data-h-level="1"] {
+ margin-inline-start: var(--md-indent-h1); 
+}
+
+#slide-content [data-h-level="2"] {
+ margin-inline-start: var(--md-indent-h2); 
+}
+
+#slide-content [data-h-level="3"] {
+ margin-inline-start: var(--md-indent-h3); 
+}
+
+#slide-content [data-h-level="4"] {
+ margin-inline-start: var(--md-indent-h4); 
+}
+
+#slide-content [data-h-level="5"] {
+ margin-inline-start: var(--md-indent-h5); 
+}
+
+#slide-content [data-h-level="6"] {
+ margin-inline-start: var(--md-indent-h6); 
+}
+
+@media print {
+  #slide-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  
+  }
+  #slide-content table[data-h-level],
+  #slide-content .table-responsive[data-h-level],
+  #slide-content .table-wrapper[data-h-level],
+  #slide-content pre[data-h-level] {
+    margin-inline-start: 0 !important;
+  
+  }
+  #slide-content table {
+    width: auto !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+  
+  }
+  #slide-content th,
+  #slide-content td {
+    min-width: 0 !important;          /* 既存 120px 制約を解除 */
+    word-break: break-all;             /* 長い単語も強制折り返し（広い表のはみ出し防止） */
+    overflow-wrap: anywhere;
+    padding: 4px 6px !important;      /* 紙面節約 */
+    font-size: 0.9em;
+  
+  }
+  #slide-content pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow: visible !important;
+  
+  }
+}
+
+#slide-content {
+  font-family: var(--md-font-family);
+  font-size: var(--font-size-body-1);
+  line-height: var(--line-height-body);
+  color: var(--color-highEmphasis);
+  /* background-color は意図的に継承しない:
+     #content では --md-bg=transparent でも親 body の白背景が透けるが、
+     slide-modal の暗いオーバーレイ上では透けてしまうため、
+     .slide-content { background: white } を生かす。
+     dark/sepia テーマのみ、別途 [data-theme=...] で上書きする。 */
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+/* dark/sepia テーマでは #content と同じ背景色をスライド背面にも反映 */
+[data-theme="dark"] #slide-content,
+[data-theme="sepia"] #slide-content {
+  background-color: var(--md-bg);
+}
+
+/* mono テーマ: リンク下線（テーマファイルの #content/#preview-content と同じ振舞いを再現） */
+[data-theme="mono"] #slide-content a {
+  text-decoration: underline;
+}
+
+#slide-content h1::before,
+#slide-content h2::before,
+#slide-content h3::before,
+#slide-content h4::before,
+#slide-content h5::before,
+#slide-content h6::before {
+  content: var(--md-heading-bullet);
+}
+
+#slide-content h1,
+#slide-content h2,
+#slide-content h3,
+#slide-content h4,
+#slide-content h5,
+#slide-content h6 {
+  font-weight: bold;
+  font-feature-settings: "palt";
+  margin-top: 30px; /* 上のマージンを設定 */
+}
+
+#slide-content h1 {
+  font-size: 2em;
+  border-bottom: var(--md-h1-border);
+  border-bottom-color: var(--md-h1-border-color);
+  margin-top: 50px; /* 上のマージンを設定 */
+  margin-bottom: 20px; /* 下のマージンを設定 */
+}
+
+#slide-content h2 {
+  font-size: 1.5em;
+}
+
+#slide-content h3 {
+  font-size: 1.25em;
+}
+
+#slide-content h4 {
+  font-size: 1.2em;
+}
+
+#slide-content h5 {
+  font-size: 1.1em;
+}
+
+#slide-content h6 {
+  font-size: 1.0em;
+}
+
+#slide-content p {
+  margin: 16px 0;
+}
+
+#slide-content li p {
+  margin: 0;
+}
+
+#slide-content pre {
+  padding: 16px;
+  display: block;
+  border-radius: 4px;
+  font-size: inherit;
+  font-family: inherit;
+  overflow-x: auto;
+  border: 1px solid var(--md-pre-border); /* 灰色の枠 */
+}
+
+#slide-content pre code {
+  background-color: var(--md-code-bg);
+  color: var(--md-code-fg);
+  padding: 16px;
+  display: block;
+  border-radius: 4px;
+  font-size: inherit;
+  font-family: inherit;
+  overflow-x: auto;
+}
+
+#slide-content pre:has(> code) {
+  padding: 0; /* pre内にcodeがある場合のpaddingを0に設定 */
+}
+
+#slide-content strong {
+  font-weight: bold;
+}
+
+#slide-content em {
+  font-style: italic;
+}
+
+#slide-content del {
+  text-decoration: line-through;
+}
+
+#slide-content blockquote {
+  color: var(--color-mediumEmphasis);
+  padding: 8px 16px;
+  position: relative;
+  margin: 24px 0;
+}
+
+#slide-content ul,
+#slide-content ol {
+  padding-left: 1.5em;
+  margin: 2px 0;
+}
+
+#slide-content ul {
+  list-style-type: disc;
+}
+
+#slide-content ol {
+  list-style-type: decimal;
+}
+
+#slide-content img {
+  background-color: var(--color-gray0);
+  border: 2px solid var(--md-img-border); /* 薄いグレーの枠を追加 */
+  max-width: 100%;
+}
+
+#slide-content a img {
+  max-width: 500px;
+  max-height: 500px;
+  width: auto;
+  height: auto;
+  object-fit: contain; /* アスペクト比を維持 */
+}
+
+#slide-content table {
+    width: auto;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+}
+
+#slide-content th {
+    padding: 0.75rem;
+    border: 1px solid var(--md-th-td-border);
+    min-width: 120px;  /* 最小幅を設定 */
+}
+
+#slide-content td {
+    padding: 0.75rem;
+    border: 1px solid var(--md-th-td-border);
+    min-width: 120px;  /* 最小幅を設定 */
+}
+
+#slide-content hr {
+  height: 2px;
+}
+
+@media screen and (max-width: 768px) {
+  #slide-content h1 {
+        font-size: 1.5em;
+        margin-top: 30px;
+    
+  }
+  #slide-content h2 {
+        font-size: 1.25em;
+    
+  }
+  #slide-content h3 {
+        font-size: 1.1em;
+    
+  }
+  #slide-content img {
+        max-width: 100%;
+        height: auto;
+    
+  }
+  #slide-content a img {
+        max-width: 100%;
+        max-height: none;
+    
+  }
+  #slide-content th,
+  #slide-content td {
+        min-width: auto;
+        padding: 0.5rem;
+        font-size: 0.9em;
+    
+  }
+  #slide-content pre {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    
+  }
+}
+
+@media screen and (max-width: 480px) {
+  #slide-content h1 {
+        font-size: 1.3em;
+    
+  }
+  #slide-content h2 {
+        font-size: 1.15em;
+    
+  }
+  #slide-content h3 {
+        font-size: 1.05em;
+    
+  }
+}
