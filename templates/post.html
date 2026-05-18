@@ -236,6 +236,7 @@
         <i class="fas fa-arrow-left"></i><span class="d-none d-sm-inline ms-1">一覧</span>
     </a>
     {% endif %}
+    <h1 class="post-header-title" title="{{ content['title'].lstrip('#').strip() }}">{{ content['title'].lstrip('#').strip() }}</h1>
     <div class="align-right">
         <!-- セクション進捗バッジ -->
         <button id="section-badge-btn" class="btn btn-outline-secondary btn-sm none_print" style="display:none;" title="残りのセクションをすべて表示">
