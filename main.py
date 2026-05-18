@@ -1236,6 +1236,20 @@ def split_markdown_by_sections(text):
         sections.append('\n'.join(current))
     return sections
 
+def find_section_by_h1_title(sections, target_title):
+    """H1見出し名（# を除いた文字列）が完全一致するセクションを返す。
+       見つからない場合は (None, None)。"""
+    target = (target_title or '').strip()
+    if not target:
+        return None, None
+    for i, sec in enumerate(sections):
+        first_line = sec.split('\n', 1)[0].strip()
+        if first_line.startswith('# '):
+            h1 = first_line[2:].strip()
+            if h1 == target:
+                return i, sec
+    return None, None
+
 @app.route('/post/<filename>')
 def post(filename):
     authenticated = current_user.is_authenticated
@@ -1268,7 +1282,21 @@ def post(filename):
 
     sections       = split_markdown_by_sections(full_markdown)
     total_sections = len(sections)
-    initial_count  = min(INITIAL_SECTION_COUNT, total_sections)
+
+    # ?section=<H1名> による単独セクション表示モード
+    requested_section = request.args.get('section', '').strip()
+    single_section_mode = False
+    single_section_title = None
+    if requested_section:
+        _, sec = find_section_by_h1_title(sections, requested_section)
+        if sec is not None:
+            sections = [sec]
+            total_sections = 1
+            single_section_mode = True
+            single_section_title = requested_section
+        # 見つからない場合は通常表示にフォールバック（既存メモ全体ルールを継承）
+
+    initial_count  = total_sections if single_section_mode else min(INITIAL_SECTION_COUNT, total_sections)
     initial_markdown = html.escape('\n'.join(sections[:initial_count]))
 
     content = {
@@ -1288,6 +1316,8 @@ def post(filename):
         claude_code_url=config.get('claude_code_url', ''),
         total_sections=total_sections,
         initial_sections_count=initial_count,
+        single_section_mode=single_section_mode,
+        single_section_title=single_section_title,
     )
 
 @app.route('/postmd/<filename>')

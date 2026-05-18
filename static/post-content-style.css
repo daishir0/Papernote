@@ -73,6 +73,53 @@ pre{
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.single-section-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+    padding: 2px 10px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #d97706;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 12px;
+    text-decoration: none;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.single-section-badge:hover {
+    background: #ffedd5;
+    color: #b45309;
+}
+.single-section-badge-link {
+    color: #2563eb;
+    font-weight: 600;
+}
+/* H1見出し横「セクションURLコピー」アイコン */
+.section-link-icon {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 2px 6px;
+    font-size: 0.55em;
+    color: #b0b0b0;
+    text-decoration: none;
+    vertical-align: middle;
+    border-radius: 4px;
+    opacity: 0.55;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.section-link-icon:hover {
+    opacity: 1;
+    color: #2563eb;
+    background: #eef2ff;
+}
+@media print {
+    .section-link-icon {
+        display: none !important;
+    }
+}
 @media (max-width: 768px) {
     .post-header {
         flex-wrap: wrap;

@@ -236,7 +236,12 @@
         <i class="fas fa-arrow-left"></i><span class="d-none d-sm-inline ms-1">一覧</span>
     </a>
     {% endif %}
-    <h1 class="post-header-title" title="{{ content['title'].lstrip('#').strip() }}">{{ content['title'].lstrip('#').strip() }}</h1>
+    <h1 class="post-header-title" title="{{ content['title'].lstrip('#').strip() }}">
+        {{ content['title'].lstrip('#').strip() }}
+        {% if single_section_mode %}
+        <a class="single-section-badge none_print" href="/post/{{ content.filename }}" title="メモ全体を表示">📌 単独表示中: {{ single_section_title }} <span class="single-section-badge-link">全体を表示 ▸</span></a>
+        {% endif %}
+    </h1>
     <div class="align-right">
         <!-- セクション進捗バッジ -->
         <button id="section-badge-btn" class="btn btn-outline-secondary btn-sm none_print" style="display:none;" title="残りのセクションをすべて表示">
@@ -585,6 +590,35 @@
             return escaped;
         }
 
+        // 各H1見出しの末尾に「セクションURLコピー」🔗アイコンを付与する関数
+        function addSectionLinkIcons() {
+            const filename = document.body.dataset.filename;
+            const headings = document.querySelectorAll('#content h1');
+            headings.forEach(heading => {
+                if (heading.querySelector('.section-link-icon')) return; // 既に付与済みならスキップ
+                const sectionTitle = heading.textContent.trim();
+                heading.dataset.sectionTitle = sectionTitle;
+                const icon = document.createElement('a');
+                icon.className = 'section-link-icon none_print';
+                icon.href = '/post/' + filename + '?section=' + encodeURIComponent(sectionTitle);
+                icon.title = 'このセクションのURLをコピー';
+                icon.setAttribute('aria-label', 'セクションURLをコピー');
+                icon.innerHTML = '<i class="fas fa-link"></i>';
+                icon.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const url = window.location.origin + '/post/' + filename + '?section=' + encodeURIComponent(sectionTitle);
+                    try {
+                        await navigator.clipboard.writeText(url);
+                        showTemporaryMessage('セクションURLをコピーしました');
+                    } catch (err) {
+                        showTemporaryMessage('コピーに失敗しました');
+                    }
+                });
+                heading.appendChild(icon);
+            });
+        }
+
         // 目次生成関数（追加レンダリング後にも呼び出す）
         function buildTableOfContents() {
             const index = document.getElementById('index');
@@ -672,6 +706,7 @@
                 if (newMermaids.length > 0) mermaid.init(undefined, newMermaids);
 
                 buildTableOfContents();
+                addSectionLinkIcons();
                 updateLoadMoreUI();
 
                 // 見出しレベルに応じた字下げを再適用（追加セクションを含む全体）
@@ -734,13 +769,17 @@
 
         // インデックス生成
         buildTableOfContents();
+        addSectionLinkIcons();
 
         // H1クリックでセクション名をクリップボードにコピー
         document.getElementById('content').addEventListener('click', async function(e) {
+            // 🔗 アイコンクリック時は H1 のテキストコピー処理をスキップ（アイコン側で stopPropagation 済み）
+            if (e.target.closest('.section-link-icon')) return;
             const h1 = e.target.closest('#content > h1, #content div > h1');
             if (!h1 || h1.tagName !== 'H1') return;
             const filename = document.body.dataset.filename;
-            const text = ` Papernoteの「${filename}」のセクション「${h1.textContent}」 `;
+            const sectionTitle = h1.dataset.sectionTitle || h1.textContent.trim();
+            const text = ` Papernoteの「${filename}」のセクション「${sectionTitle}」 `;
             try {
                 await navigator.clipboard.writeText(text);
                 showTemporaryMessage('セクション名をコピーしました');
