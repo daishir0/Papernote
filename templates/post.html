@@ -1607,8 +1607,8 @@
             const contentDiv = document.getElementById('content');
             const html = contentDiv.innerHTML;
 
-            // <hr>タグで分割
-            const parts = html.split('<hr>');
+            // <hr>タグで分割（heading-indent.js により data-h-level 等の属性が付くケースも吸収）
+            const parts = html.split(/<hr\b[^>]*>/);
             slides = parts.map(part => part.trim()).filter(part => part.length > 0);
 
             return slides.length;
