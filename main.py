@@ -2552,11 +2552,44 @@ def webtomd():
     
     return render_template('webtomd.html', form=form, message=message)
 
+def _get_latest_visible_post_filename(authenticated):
+    """mtime 降順で投稿ディレクトリをスキャンし、最初の閲覧可能ファイル名を返す。
+    認証なしユーザーには 1行目が '##' で始まるプライベートメモを除外する
+    （/post/<filename> の既存ガードと同じ判定）。該当なしなら None。"""
+    post_dir = './post'
+    candidates = []
+    for f in os.listdir(post_dir):
+        path = os.path.join(post_dir, f)
+        if not os.path.isfile(path) or f.endswith('.gitkeep'):
+            continue
+        candidates.append((os.path.getmtime(path), f))
+    candidates.sort(reverse=True)  # mtime 降順
+
+    for _mtime, filename in candidates:
+        if authenticated:
+            return filename
+        # 認証なし: ## で始まるプライベートメモはスキップ
+        try:
+            with open(os.path.join(post_dir, filename), 'r', encoding='utf-8', errors='ignore') as fp:
+                title = fp.readline().strip()
+        except Exception:
+            continue
+        if not title.startswith('##'):
+            return filename
+    return None
+
 @app.route('/postlist')
 def post_list():
     """コンパクトリスト形式の投稿一覧（日付順/カテゴリ別切り替え対応）"""
     form = LoginForm()
     authenticated = current_user.is_authenticated
+
+    # ?latest=1|true で最新ポストの閲覧画面 /post/<filename> へ 302 リダイレクト
+    if request.args.get('latest', '').lower() in ('1', 'true'):
+        latest = _get_latest_visible_post_filename(authenticated)
+        if latest:
+            return redirect(url_for('post', filename=latest))
+        # 該当ファイルなし → 通常一覧へフォールバック
 
     # 認証なしユーザーは強制的にカテゴリ別表示
     if authenticated:
