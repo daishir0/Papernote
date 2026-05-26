@@ -307,6 +307,10 @@
                 <button class="options-menu-item" id="slideModeMenuButton">
                     <i class="fas fa-chart-bar"></i> スライドモード
                 </button>
+                <!-- ダウンロード（メモ＋添付一式 ZIP） -->
+                <button class="options-menu-item" id="downloadZipMenuButton">
+                    <i class="fas fa-download"></i> ダウンロード
+                </button>
                 <!-- Claude Code -->
                 <button class="options-menu-item" id="ccMenuButton">
                     <i class="fas fa-bolt"></i> Claude Code
@@ -1396,6 +1400,17 @@
                 if (typeof openSlideMode === 'function') {
                     openSlideMode();
                 }
+            });
+        }
+
+        // ダウンロード（ZIP）ボタン
+        const downloadZipMenuButton = document.getElementById('downloadZipMenuButton');
+        if (downloadZipMenuButton) {
+            downloadZipMenuButton.addEventListener('click', function() {
+                closeMenu();
+                const filename = document.body.dataset.filename;
+                if (!filename) return;
+                window.location.href = '/post/' + encodeURIComponent(filename) + '/download';
             });
         }
 

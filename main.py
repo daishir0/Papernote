@@ -20,6 +20,7 @@ from pillow_heif import register_heif_opener
 import string
 import hashlib
 import base64
+import zipfile
 
 # HEIFフォーマット（HEIC）のサポートを有効化
 register_heif_opener()
@@ -1250,10 +1251,65 @@ def find_section_by_h1_title(sections, target_title):
                 return i, sec
     return None, None
 
+ATTACH_REF_PATTERN = re.compile(r'/attach/((?:s_)?[a-f0-9]{64}\.[A-Za-z0-9]+)')
+
+@app.route('/post/<filename>/download')
+@limiter.limit("10 per minute")
+def download_post_zip(filename):
+    """メモ本体 + 参照添付一式を ZIP で返す。
+    認可は /post/<filename> と同等:
+      - is_valid_filename() で path traversal 防止
+      - 1行目が ## で始まるプライベートメモは未認証なら 404
+    Markdown 内の /attach/<hash>.<ext> は ZIP 内のフラットパスに書き換える。"""
+    if not is_valid_filename(filename):
+        abort(400)
+    path = os.path.join('./post', filename)
+    if not os.path.exists(path):
+        abort(404)
+
+    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+        text = f.read()
+
+    first_line = text.split('\n', 1)[0].strip() if text else ''
+    if first_line.startswith('##') and not current_user.is_authenticated:
+        abort(404)
+
+    # 参照添付を順序保持しつつ重複排除
+    seen = set()
+    referenced = []
+    for m in ATTACH_REF_PATTERN.finditer(text):
+        name = m.group(1)
+        if name not in seen:
+            seen.add(name)
+            referenced.append(name)
+
+    # Markdown 内パスをフラット化（/attach/xxx → xxx）
+    rewritten = ATTACH_REF_PATTERN.sub(lambda m: m.group(1), text)
+
+    from io import BytesIO
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(filename, rewritten)
+        for name in referenced:
+            src = os.path.join(UPLOAD_FOLDER, name)
+            if os.path.isfile(src):
+                zf.write(src, arcname=name)
+            else:
+                app.logger.warning(f"download_post_zip: missing attach {name} for {filename}")
+    buf.seek(0)
+
+    # ZIP名: 元 .txt を .zip に置換。is_valid_filename が
+    # `^[^/\\:*?"<>|]+\.txt$` を保証しているので危険文字は混入しない。
+    # secure_filename は日本語と []/_ を壊すため使わない。
+    zip_name = (filename[:-4] if filename.lower().endswith('.txt') else filename) + '.zip'
+
+    return send_file(buf, as_attachment=True, download_name=zip_name,
+                     mimetype='application/zip')
+
 @app.route('/post/<filename>')
 def post(filename):
     authenticated = current_user.is_authenticated
-    
+
     # ファイル名の安全性を手動で確認
     if not is_valid_filename(filename):
         abort(400)  # 無効なファイル名の場合は400エラーを返す

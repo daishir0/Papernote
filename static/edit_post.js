@@ -300,6 +300,17 @@
                         insertOverlay.style.display = 'none';
                     });
                 }
+
+                // ダウンロード（ZIP）ボタン
+                const downloadZipButton = document.getElementById('downloadZipButton');
+                if (downloadZipButton) {
+                    downloadZipButton.addEventListener('click', () => {
+                        insertOverlay.style.display = 'none';
+                        const filename = document.body.dataset.filename;
+                        if (!filename) return;
+                        window.location.href = '/post/' + encodeURIComponent(filename) + '/download';
+                    });
+                }
             }
 
             // ESCキーが押されたときにオーバーレイを非表示にする
