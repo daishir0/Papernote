@@ -595,7 +595,7 @@
             return escaped;
         }
 
-        // 各H1見出しの末尾に「セクションURLコピー」🔗アイコンを付与する関数
+        // 各H1見出しの末尾に「セクションURLコピー🔗 / ZIP📦 / PDF📄」アイコンを付与
         function addSectionLinkIcons() {
             const filename = document.body.dataset.filename;
             const headings = document.querySelectorAll('#content h1');
@@ -603,16 +603,20 @@
                 if (heading.querySelector('.section-link-icon')) return; // 既に付与済みならスキップ
                 const sectionTitle = heading.textContent.trim();
                 heading.dataset.sectionTitle = sectionTitle;
-                const icon = document.createElement('a');
-                icon.className = 'section-link-icon none_print';
-                icon.href = '/post/' + filename + '?section=' + encodeURIComponent(sectionTitle);
-                icon.title = 'このセクションのURLをコピー';
-                icon.setAttribute('aria-label', 'セクションURLをコピー');
-                icon.innerHTML = '<i class="fas fa-link"></i>';
-                icon.addEventListener('click', async function(e) {
+                const encodedSection = encodeURIComponent(sectionTitle);
+                const encodedFilename = encodeURIComponent(filename);
+
+                // 1) URL コピー
+                const copyIcon = document.createElement('a');
+                copyIcon.className = 'section-link-icon none_print';
+                copyIcon.href = '/post/' + filename + '?section=' + encodedSection;
+                copyIcon.title = 'このセクションのURLをコピー';
+                copyIcon.setAttribute('aria-label', 'セクションURLをコピー');
+                copyIcon.innerHTML = '<i class="fas fa-link"></i>';
+                copyIcon.addEventListener('click', async function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const url = window.location.origin + '/post/' + filename + '?section=' + encodeURIComponent(sectionTitle);
+                    const url = window.location.origin + '/post/' + filename + '?section=' + encodedSection;
                     try {
                         await navigator.clipboard.writeText(url);
                         showTemporaryMessage('セクションURLをコピーしました');
@@ -620,7 +624,31 @@
                         showTemporaryMessage('コピーに失敗しました');
                     }
                 });
-                heading.appendChild(icon);
+                heading.appendChild(copyIcon);
+
+                // 2) ZIP ダウンロード
+                const zipIcon = document.createElement('a');
+                zipIcon.className = 'section-link-icon none_print';
+                zipIcon.href = '/post/' + encodedFilename + '/download?section=' + encodedSection;
+                zipIcon.title = 'このセクションをZIPでダウンロード';
+                zipIcon.setAttribute('aria-label', 'セクションをZIPでダウンロード');
+                zipIcon.innerHTML = '<i class="fas fa-file-zipper"></i>';
+                zipIcon.addEventListener('click', function(e) {
+                    e.stopPropagation(); // H1 のセクション名コピー処理を抑止
+                });
+                heading.appendChild(zipIcon);
+
+                // 3) PDF ダウンロード
+                const pdfIcon = document.createElement('a');
+                pdfIcon.className = 'section-link-icon none_print';
+                pdfIcon.href = '/post/' + encodedFilename + '/download_pdf?section=' + encodedSection;
+                pdfIcon.title = 'このセクションをPDFでダウンロード';
+                pdfIcon.setAttribute('aria-label', 'セクションをPDFでダウンロード');
+                pdfIcon.innerHTML = '<i class="fas fa-file-pdf"></i>';
+                pdfIcon.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+                heading.appendChild(pdfIcon);
             });
         }
 

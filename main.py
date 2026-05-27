@@ -1253,14 +1253,22 @@ def find_section_by_h1_title(sections, target_title):
 
 ATTACH_REF_PATTERN = re.compile(r'/attach/((?:s_)?[a-f0-9]{64}\.[A-Za-z0-9]+)')
 
-@app.route('/post/<filename>/download')
-@limiter.limit("10 per minute")
-def download_post_zip(filename):
-    """メモ本体 + 参照添付一式を ZIP で返す。
-    認可は /post/<filename> と同等:
-      - is_valid_filename() で path traversal 防止
-      - 1行目が ## で始まるプライベートメモは未認証なら 404
-    Markdown 内の /attach/<hash>.<ext> は ZIP 内のフラットパスに書き換える。"""
+def _sanitize_section_for_filename(section_title):
+    """セクション名をファイル名に使える安全な形に変換する。
+    - is_valid_filename の除外文字 / \ : * ? " < > | と制御文字を _ に置換
+    - 先頭末尾の空白を削除、長さは 80 文字に制限
+    - 空になったら 'section' フォールバック"""
+    cleaned = re.sub(r'[\\/:*?"<>|\r\n\t\x00-\x1f]', '_', section_title or '').strip()
+    cleaned = cleaned[:80].rstrip(' .')  # Windows末尾「.」「 」は不可
+    return cleaned or 'section'
+
+def _resolve_post_and_section(filename):
+    """download_post_zip / download_post_pdf 共通の前処理:
+    1. ファイル名/存在/認可ガード
+    2. ?section= 指定があれば該当セクションだけに絞り込む
+    返り値: (full_text_or_section_text, display_title, section_or_None)
+            text は ZIP/PDF 化対象の Markdown 本文（title/tags 行を含む）
+            section_or_None は ?section が解決できたときのセクションタイトル文字列"""
     if not is_valid_filename(filename):
         abort(400)
     path = os.path.join('./post', filename)
@@ -1268,11 +1276,41 @@ def download_post_zip(filename):
         abort(404)
 
     with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-        text = f.read()
+        full_text = f.read()
 
-    first_line = text.split('\n', 1)[0].strip() if text else ''
+    first_line = full_text.split('\n', 1)[0].strip() if full_text else ''
     if first_line.startswith('##') and not current_user.is_authenticated:
         abort(404)
+
+    requested_section = request.args.get('section', '').strip()
+    if not requested_section:
+        return full_text, None
+
+    # 1〜2行目（title / tags）+ 本文 に分解
+    lines = full_text.split('\n', 2)
+    title_line = lines[0] if len(lines) > 0 else ''
+    tags_line = lines[1] if len(lines) > 1 else ''
+    body_md = lines[2] if len(lines) > 2 else ''
+
+    sections = split_markdown_by_sections(body_md)
+    _, sec = find_section_by_h1_title(sections, requested_section)
+    if sec is None:
+        # セクションが見つからない場合は全体にフォールバック（既存ルールと整合）
+        return full_text, None
+
+    scoped_text = f"{title_line}\n{tags_line}\n{sec}"
+    return scoped_text, requested_section
+
+@app.route('/post/<filename>/download')
+@limiter.limit("10 per minute")
+def download_post_zip(filename):
+    """メモ本体 + 参照添付一式を ZIP で返す。
+    ?section=<H1名> 指定時は該当セクションだけを ZIP 化する。
+    認可は /post/<filename> と同等:
+      - is_valid_filename() で path traversal 防止
+      - 1行目が ## で始まるプライベートメモは未認証なら 404
+    Markdown 内の /attach/<hash>.<ext> は ZIP 内のフラットパスに書き換える。"""
+    text, section = _resolve_post_and_section(filename)
 
     # 参照添付を順序保持しつつ重複排除
     seen = set()
@@ -1286,10 +1324,17 @@ def download_post_zip(filename):
     # Markdown 内パスをフラット化（/attach/xxx → xxx）
     rewritten = ATTACH_REF_PATTERN.sub(lambda m: m.group(1), text)
 
+    # ファイル名（ZIP内 .txt + ZIP自体）
+    base = filename[:-4] if filename.lower().endswith('.txt') else filename
+    if section:
+        base = f"{base}_{_sanitize_section_for_filename(section)}"
+    inner_filename = base + '.txt'
+    zip_name = base + '.zip'
+
     from io import BytesIO
     buf = BytesIO()
     with zipfile.ZipFile(buf, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(filename, rewritten)
+        zf.writestr(inner_filename, rewritten)
         for name in referenced:
             src = os.path.join(UPLOAD_FOLDER, name)
             if os.path.isfile(src):
@@ -1298,13 +1343,132 @@ def download_post_zip(filename):
                 app.logger.warning(f"download_post_zip: missing attach {name} for {filename}")
     buf.seek(0)
 
-    # ZIP名: 元 .txt を .zip に置換。is_valid_filename が
-    # `^[^/\\:*?"<>|]+\.txt$` を保証しているので危険文字は混入しない。
-    # secure_filename は日本語と []/_ を壊すため使わない。
-    zip_name = (filename[:-4] if filename.lower().endswith('.txt') else filename) + '.zip'
-
     return send_file(buf, as_attachment=True, download_name=zip_name,
                      mimetype='application/zip')
+
+# PDF 印刷用 HTML テンプレート（テーマ非依存・軽量・印刷向け）
+_PDF_HTML_CSS = """
+@page { size: A4; margin: 18mm 14mm; }
+body {
+  font-family: "Yu Gothic", "游ゴシック", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  font-size: 11pt; line-height: 1.7; color: #111; margin: 0;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+h1, h2, h3, h4, h5, h6 { font-weight: bold; line-height: 1.3; break-after: avoid; }
+h1 { font-size: 1.6em; border-bottom: 2px solid #111; padding-bottom: 4px; margin: 1.4em 0 0.6em; }
+h2 { font-size: 1.35em; margin: 1.2em 0 0.5em; }
+h3 { font-size: 1.15em; margin: 1em 0 0.4em; }
+h4, h5, h6 { font-size: 1em; margin: 0.8em 0 0.3em; }
+p { margin: 0.5em 0; }
+ul, ol { padding-left: 1.6em; margin: 0.4em 0; }
+li { margin: 0.15em 0; }
+hr { border: none; border-top: 1px solid #aaa; margin: 1.2em 0; }
+strong { font-weight: bold; }
+em { font-style: italic; }
+del { text-decoration: line-through; }
+blockquote {
+  border-left: 4px solid #666; padding: 4px 12px; margin: 0.8em 0; color: #444;
+  background: #f6f6f6; break-inside: avoid;
+}
+img { max-width: 100%; height: auto; break-inside: avoid; }
+table {
+  border-collapse: collapse; margin: 0.6em 0; width: auto; max-width: 100%;
+  break-inside: avoid;
+}
+th, td { border: 1px solid #333; padding: 4px 8px; vertical-align: top; font-size: 0.95em; }
+th { background: #efefef; }
+pre {
+  background: #f5f5f5; padding: 10px 12px; border: 1px solid #ddd;
+  border-radius: 4px; overflow: hidden; white-space: pre-wrap;
+  word-break: break-all; font-family: "Courier New", monospace; font-size: 0.9em;
+  break-inside: avoid;
+}
+code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px;
+       font-family: "Courier New", monospace; font-size: 0.92em; }
+a { color: #06c; text-decoration: underline; }
+"""
+
+def _find_chromium_executable():
+    """Playwright が起動する Chromium 実行ファイルを探す。
+    playwright install で入る headless_shell が無い環境でも、
+    既存の chromium / system Chrome にフォールバックさせる。"""
+    import glob
+    candidates = sorted(glob.glob(os.path.expanduser(
+        '~/.cache/ms-playwright/chromium-*/chrome-linux/chrome')))
+    if candidates:
+        return candidates[-1]  # 最新バージョンを優先
+    for p in ('/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium'):
+        if os.path.isfile(p):
+            return p
+    return None
+
+def _render_post_pdf_bytes(text, base_url):
+    """Markdown 本文（title/tags 行を含む raw text）を A4 PDF にレンダリング。
+    base_url は <base href> として埋め込み、/attach/xxx 等の相対パスを
+    実画像 URL に解決させる（Playwright が同一サーバから取得する）。"""
+    import markdown as md_lib
+    from playwright.sync_api import sync_playwright
+
+    # 1〜2行目（title / tags）を分離 — title は <h1>、tags は <small>
+    lines = text.split('\n', 2)
+    title = (lines[0] if len(lines) > 0 else '').lstrip('#').strip()
+    tags = (lines[1] if len(lines) > 1 else '').strip()
+    body_md = lines[2] if len(lines) > 2 else ''
+
+    body_html = md_lib.markdown(body_md, extensions=['tables', 'fenced_code', 'nl2br', 'sane_lists'])
+    title_html = f'<h1 class="doc-title">{html.escape(title) if title else ""}</h1>' if title else ''
+    tags_html = f'<p style="color:#666;font-size:0.9em;margin-top:-6px;">{html.escape(tags)}</p>' if tags else ''
+
+    full_html = (
+        '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+        f'<base href="{html.escape(base_url)}">'
+        f'<style>{_PDF_HTML_CSS}</style></head><body>'
+        f'{title_html}{tags_html}{body_html}'
+        '</body></html>'
+    )
+
+    launch_kwargs = {'args': ['--no-sandbox']}
+    exec_path = _find_chromium_executable()
+    if exec_path:
+        launch_kwargs['executable_path'] = exec_path
+
+    from io import BytesIO
+    with sync_playwright() as p:
+        browser = p.chromium.launch(**launch_kwargs)
+        try:
+            page = browser.new_page()
+            # set_content + networkidle で <img> ロード完了まで待機
+            page.set_content(full_html, wait_until='networkidle', timeout=20000)
+            pdf_bytes = page.pdf(format='A4', print_background=True,
+                                 margin={'top': '18mm', 'right': '14mm',
+                                         'bottom': '18mm', 'left': '14mm'})
+        finally:
+            browser.close()
+    return pdf_bytes
+
+@app.route('/post/<filename>/download_pdf')
+@limiter.limit("5 per minute")
+def download_post_pdf(filename):
+    """メモを Markdown → HTML → A4 PDF に変換して返す。
+    ?section=<H1名> 指定時は該当セクションだけを PDF 化する。
+    認可ガードは download_post_zip と同等。"""
+    text, section = _resolve_post_and_section(filename)
+    base_url = request.url_root  # http://host/ — <img src="/attach/xxx"> 解決用
+
+    try:
+        pdf_bytes = _render_post_pdf_bytes(text, base_url)
+    except Exception as e:
+        app.logger.exception(f"download_post_pdf failed for {filename} section={section}: {e}")
+        abort(500)
+
+    base = filename[:-4] if filename.lower().endswith('.txt') else filename
+    if section:
+        base = f"{base}_{_sanitize_section_for_filename(section)}"
+    pdf_name = base + '.pdf'
+
+    from io import BytesIO
+    return send_file(BytesIO(pdf_bytes), as_attachment=True,
+                     download_name=pdf_name, mimetype='application/pdf')
 
 @app.route('/post/<filename>')
 def post(filename):
