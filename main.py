@@ -1253,6 +1253,33 @@ def find_section_by_h1_title(sections, target_title):
 
 ATTACH_REF_PATTERN = re.compile(r'/attach/((?:s_)?[a-f0-9]{64}\.[A-Za-z0-9]+)')
 
+# サムネ画像 + フル画像へのリンクの2階層 Markdown 記法
+#   [![alt](s_thumb "t1")](full "t2")
+# を ZIP 用 Markdown では ![alt](full "t2") のシンプルな画像参照に置き換える。
+# VSCode / Obsidian / Typora など多くのオフラインビューワは <a> でラップ
+# された <img> 内のサムネ参照を解決できず画像が表示されないため。
+THUMBNAIL_LINK_PATTERN = re.compile(
+    r'\['                                            # 外側リンク開始
+    r'\s*!\[([^\]]*)\]'                              # 内側画像 ![alt]
+    r'\(\s*([^\s)]+)(?:\s+"([^"]*)")?\s*\)'          # (thumb_src ["thumb_title"])
+    r'\s*\]'                                         # 外側リンク内側終了
+    r'\(\s*([^\s)]+)(?:\s+"([^"]*)")?\s*\)'          # (full_url ["full_title"])
+)
+
+def _simplify_thumbnail_link(md):
+    """[![alt](thumb)](full) → ![alt](full) に変換。"""
+    def repl(m):
+        alt = m.group(1)
+        full_url = m.group(4)
+        full_title = m.group(5)
+        if full_title:
+            return f'![{alt}]({full_url} "{full_title}")'
+        return f'![{alt}]({full_url})'
+    return THUMBNAIL_LINK_PATTERN.sub(repl, md)
+
+# 書き換え後 Markdown から（s_)?ハッシュ.拡張子 形式の参照を抽出する補助パターン
+REWRITTEN_REF_PATTERN = re.compile(r'((?:s_)?[a-f0-9]{64}\.[A-Za-z0-9]+)')
+
 def _sanitize_section_for_filename(section_title):
     """セクション名をファイル名に使える安全な形に変換する。
     - is_valid_filename の除外文字 / \ : * ? " < > | と制御文字を _ に置換
@@ -1302,20 +1329,29 @@ def _resolve_post_and_section(filename):
     return scoped_text, requested_section
 
 def _download_post_zip_impl(filename):
-    """ZIP 生成のコア処理。レート制限デコレータは呼び出し側で付与する。"""
+    """ZIP 生成のコア処理。レート制限デコレータは呼び出し側で付与する。
+    ZIP 内 Markdown は VSCode / Obsidian 等のオフラインビューワで
+    そのまま画像表示できるよう以下の変換を行う:
+      - /attach/xxx → xxx（同ディレクトリのフラット相対パスに）
+      - [![alt](thumb)](full) → ![alt](full)（リンク内画像を解除）
+    変換後 Markdown が参照しなくなったサムネファイル s_xxx は ZIP に
+    含めない（容量削減）。"""
     text, section = _resolve_post_and_section(filename)
 
-    # 参照添付を順序保持しつつ重複排除
+    # 1) /attach/ プレフィックス除去
+    rewritten = ATTACH_REF_PATTERN.sub(lambda m: m.group(1), text)
+    # 2) サムネ→フル画像のリンク記法を素のサムネなし image 参照に簡略化
+    rewritten = _simplify_thumbnail_link(rewritten)
+
+    # 簡略化後の Markdown から実際に参照されているファイル名を順序保持で抽出
+    # （サムネ s_xxx は簡略化で消える → ZIPに含まれなくなる）
     seen = set()
     referenced = []
-    for m in ATTACH_REF_PATTERN.finditer(text):
+    for m in REWRITTEN_REF_PATTERN.finditer(rewritten):
         name = m.group(1)
         if name not in seen:
             seen.add(name)
             referenced.append(name)
-
-    # Markdown 内パスをフラット化（/attach/xxx → xxx）
-    rewritten = ATTACH_REF_PATTERN.sub(lambda m: m.group(1), text)
 
     # ファイル名（ZIP内 .txt + ZIP自体）
     base = filename[:-4] if filename.lower().endswith('.txt') else filename
