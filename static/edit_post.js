@@ -882,6 +882,7 @@
                                 closeMenu();
                             });
                             menu.appendChild(item);
+                            return item;
                         }
 
                         addItem('fas fa-quote-right', 'セクション参照文字をコピー', async function() {
@@ -902,8 +903,10 @@
                         });
                         // PDF はサーバ側でレンダリングするため、現在のプレビュー設定
                         // （画像サイズ・コード表示・テーマ）をクエリパラメータで渡す。
-                        // localStorage 未設定/不正値ならパラメータ省略してサーバデフォルト挙動。
-                        const pdfParamsForEdit = (function() {
+                        // href は ⋮ クリック時点の localStorage 値で毎回再構築する
+                        // （ページロード時固定だとその後の設定変更が反映されないため）。
+                        const pdfBaseHref = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf';
+                        function buildPdfParams() {
                             const params = [];
                             try {
                                 const sz = localStorage.getItem('paperImgSize');
@@ -915,15 +918,17 @@
                                 if (th) params.push('theme=' + encodeURIComponent(th));
                             } catch (e) { /* ignore */ }
                             return params.length ? '&' + params.join('&') : '';
-                        })();
-                        addItem('fas fa-file-pdf', 'セクションをPDFで表示', null, {
-                            href: '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf' + pdfParamsForEdit,
-                            target: '_blank', allowDefault: true,
+                        }
+                        const pdfItem = addItem('fas fa-file-pdf', 'セクションをPDFで表示', null, {
+                            href: pdfBaseHref + buildPdfParams(), target: '_blank', allowDefault: true,
                         });
 
                         trigger.addEventListener('click', function(e) {
                             e.preventDefault();
                             e.stopPropagation();
+                            // ⋮ クリック時点で PDF項目 href を最新の localStorage 値に更新
+                            // （右クリック「新しいタブで開く」も最新値で機能する）
+                            if (pdfItem) pdfItem.href = pdfBaseHref + buildPdfParams();
                             const wasOpen = menu.classList.contains('show');
                             document.querySelectorAll('.section-menu.show').forEach(m => m.classList.remove('show'));
                             if (!wasOpen) menu.classList.add('show');

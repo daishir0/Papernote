@@ -678,8 +678,10 @@
                 // 4) PDFをブラウザに表示（新タブ）
                 //    現在の閲覧設定（画像サイズ・コード表示・テーマ）をクエリで渡し、
                 //    サーバ側 PDF レンダリングに反映させる。
-                //    localStorage が空 / 不正値の場合は付与せず、サーバ側はデフォルト挙動。
-                const pdfParams = (function() {
+                //    href は ⋮ クリック時点の localStorage 値で毎回再構築する
+                //    （ページロード時点で固定すると、その後の設定変更が反映されない）。
+                const pdfBaseHref = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf';
+                function buildPdfParams() {
                     const params = [];
                     try {
                         const sz = localStorage.getItem('paperImgSize');
@@ -691,16 +693,17 @@
                         if (th) params.push('theme=' + encodeURIComponent(th));
                     } catch (e) { /* ignore */ }
                     return params.length ? '&' + params.join('&') : '';
-                })();
-                const pdfHref = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf' + pdfParams;
-                addItem('fas fa-file-pdf', 'セクションをPDFで表示', null, {
-                    href: pdfHref, target: '_blank', allowDefault: true,
+                }
+                const pdfItem = addItem('fas fa-file-pdf', 'セクションをPDFで表示', null, {
+                    href: pdfBaseHref + buildPdfParams(), target: '_blank', allowDefault: true,
                 });
 
-                // ⋮ クリックでメニュー開閉（他のメニューは閉じる）
+                // ⋮ クリックでメニュー開閉。開く瞬間に PDF項目 href を最新化
+                // （右クリックで「新しいタブで開く」も最新値で動くように、handler ではなく href を更新）
                 trigger.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (pdfItem) pdfItem.href = pdfBaseHref + buildPdfParams();
                     const wasOpen = menu.classList.contains('show');
                     document.querySelectorAll('.section-menu.show').forEach(m => m.classList.remove('show'));
                     if (!wasOpen) menu.classList.add('show');
