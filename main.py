@@ -1301,15 +1301,8 @@ def _resolve_post_and_section(filename):
     scoped_text = f"{title_line}\n{tags_line}\n{sec}"
     return scoped_text, requested_section
 
-@app.route('/post/<filename>/download')
-@limiter.limit("10 per minute")
-def download_post_zip(filename):
-    """メモ本体 + 参照添付一式を ZIP で返す。
-    ?section=<H1名> 指定時は該当セクションだけを ZIP 化する。
-    認可は /post/<filename> と同等:
-      - is_valid_filename() で path traversal 防止
-      - 1行目が ## で始まるプライベートメモは未認証なら 404
-    Markdown 内の /attach/<hash>.<ext> は ZIP 内のフラットパスに書き換える。"""
+def _download_post_zip_impl(filename):
+    """ZIP 生成のコア処理。レート制限デコレータは呼び出し側で付与する。"""
     text, section = _resolve_post_and_section(filename)
 
     # 参照添付を順序保持しつつ重複排除
@@ -1345,6 +1338,14 @@ def download_post_zip(filename):
 
     return send_file(buf, as_attachment=True, download_name=zip_name,
                      mimetype='application/zip')
+
+@app.route('/post/<filename>/download')
+@limiter.limit("10 per minute")
+def download_post_zip(filename):
+    """メモ本体 + 参照添付一式を ZIP で返す（後方互換ルート）。
+    新しい UI からは /post/<filename>?downloadtype=zip&section=... が使われるが、
+    こちらも引き続き利用可能。"""
+    return _download_post_zip_impl(filename)
 
 # PDF 印刷用 HTML テンプレート（テーマ非依存・軽量・印刷向け）
 _PDF_HTML_CSS = """
@@ -1402,10 +1403,12 @@ def _find_chromium_executable():
             return p
     return None
 
-def _render_post_pdf_bytes(text, base_url):
+def _render_post_pdf_bytes(text, base_url, include_title=True):
     """Markdown 本文（title/tags 行を含む raw text）を A4 PDF にレンダリング。
     base_url は <base href> として埋め込み、/attach/xxx 等の相対パスを
-    実画像 URL に解決させる（Playwright が同一サーバから取得する）。"""
+    実画像 URL に解決させる（Playwright が同一サーバから取得する）。
+    include_title=False の場合、1行目のタイトル行と 2行目のタグ行を出力しない
+    （セクション単独 PDF 化用）。"""
     import markdown as md_lib
     from playwright.sync_api import sync_playwright
 
@@ -1416,8 +1419,12 @@ def _render_post_pdf_bytes(text, base_url):
     body_md = lines[2] if len(lines) > 2 else ''
 
     body_html = md_lib.markdown(body_md, extensions=['tables', 'fenced_code', 'nl2br', 'sane_lists'])
-    title_html = f'<h1 class="doc-title">{html.escape(title) if title else ""}</h1>' if title else ''
-    tags_html = f'<p style="color:#666;font-size:0.9em;margin-top:-6px;">{html.escape(tags)}</p>' if tags else ''
+    if include_title:
+        title_html = f'<h1 class="doc-title">{html.escape(title) if title else ""}</h1>' if title else ''
+        tags_html = f'<p style="color:#666;font-size:0.9em;margin-top:-6px;">{html.escape(tags)}</p>' if tags else ''
+    else:
+        title_html = ''
+        tags_html = ''
 
     full_html = (
         '<!DOCTYPE html><html><head><meta charset="UTF-8">'
@@ -1446,17 +1453,14 @@ def _render_post_pdf_bytes(text, base_url):
             browser.close()
     return pdf_bytes
 
-@app.route('/post/<filename>/download_pdf')
-@limiter.limit("5 per minute")
-def download_post_pdf(filename):
-    """メモを Markdown → HTML → A4 PDF に変換して返す。
-    ?section=<H1名> 指定時は該当セクションだけを PDF 化する。
-    認可ガードは download_post_zip と同等。"""
+def _download_post_pdf_impl(filename):
+    """PDF 生成のコア処理。レート制限デコレータは呼び出し側で付与する。
+    ?section= 指定時は 1行目タイトル/2行目タグを出力せず、当該セクションのみ。"""
     text, section = _resolve_post_and_section(filename)
     base_url = request.url_root  # http://host/ — <img src="/attach/xxx"> 解決用
 
     try:
-        pdf_bytes = _render_post_pdf_bytes(text, base_url)
+        pdf_bytes = _render_post_pdf_bytes(text, base_url, include_title=(section is None))
     except Exception as e:
         app.logger.exception(f"download_post_pdf failed for {filename} section={section}: {e}")
         abort(500)
@@ -1470,8 +1474,35 @@ def download_post_pdf(filename):
     return send_file(BytesIO(pdf_bytes), as_attachment=True,
                      download_name=pdf_name, mimetype='application/pdf')
 
+@app.route('/post/<filename>/download_pdf')
+@limiter.limit("5 per minute")
+def download_post_pdf(filename):
+    """メモを Markdown → HTML → A4 PDF に変換して返す（後方互換ルート）。
+    新しい UI からは /post/<filename>?downloadtype=pdf&section=... が使われるが、
+    こちらも引き続き利用可能。"""
+    return _download_post_pdf_impl(filename)
+
+def _is_downloadtype(kind):
+    """request.args の downloadtype が指定種別かを判定する exempt_when 用ヘルパ。
+    is_downloadtype('zip') -> downloadtype が 'zip' のときのみ False（=制限を適用する）。"""
+    def _check():
+        return (request.args.get('downloadtype', '') or '').strip().lower() != kind
+    return _check
+
 @app.route('/post/<filename>')
+# downloadtype=zip / =pdf のときだけ、各々の重い処理に対応するレート制限を適用する。
+# それ以外（通常の閲覧）では両方の exempt_when が True を返し、制限は発動しない。
+@limiter.limit("10 per minute", exempt_when=_is_downloadtype('zip'))
+@limiter.limit("5 per minute", exempt_when=_is_downloadtype('pdf'))
 def post(filename):
+    # downloadtype= による ZIP/PDF ダウンロードへのディスパッチ
+    # （セクション横アイコンが /post/<file>?section=...&downloadtype=zip|pdf を叩く）
+    dt = (request.args.get('downloadtype', '') or '').strip().lower()
+    if dt == 'zip':
+        return _download_post_zip_impl(filename)
+    if dt == 'pdf':
+        return _download_post_pdf_impl(filename)
+
     authenticated = current_user.is_authenticated
 
     # ファイル名の安全性を手動で確認

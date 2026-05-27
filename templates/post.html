@@ -627,9 +627,10 @@
                 heading.appendChild(copyIcon);
 
                 // 2) ZIP ダウンロード
+                //    URL 形式: /post/<file>?section=<title>&downloadtype=zip
                 const zipIcon = document.createElement('a');
                 zipIcon.className = 'section-link-icon none_print';
-                zipIcon.href = '/post/' + encodedFilename + '/download?section=' + encodedSection;
+                zipIcon.href = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=zip';
                 zipIcon.title = 'このセクションをZIPでダウンロード';
                 zipIcon.setAttribute('aria-label', 'セクションをZIPでダウンロード');
                 zipIcon.innerHTML = '<i class="fas fa-file-zipper"></i>';
@@ -639,9 +640,10 @@
                 heading.appendChild(zipIcon);
 
                 // 3) PDF ダウンロード
+                //    URL 形式: /post/<file>?section=<title>&downloadtype=pdf
                 const pdfIcon = document.createElement('a');
                 pdfIcon.className = 'section-link-icon none_print';
-                pdfIcon.href = '/post/' + encodedFilename + '/download_pdf?section=' + encodedSection;
+                pdfIcon.href = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf';
                 pdfIcon.title = 'このセクションをPDFでダウンロード';
                 pdfIcon.setAttribute('aria-label', 'セクションをPDFでダウンロード');
                 pdfIcon.innerHTML = '<i class="fas fa-file-pdf"></i>';
