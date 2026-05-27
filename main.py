@@ -1563,6 +1563,38 @@ def _render_post_pdf_bytes(text, base_url, include_title=True,
     body_md = lines[2] if len(lines) > 2 else ''
 
     body_html = md_lib.markdown(body_md, extensions=['tables', 'fenced_code', 'nl2br', 'sane_lists'])
+
+    # imgsize 指定時: 各 <img src="/attach/..."> の元画像を開いて自然幅を取得し、
+    # style="width: <natural*N/100>px; max-width: 100%; height: auto" を埋め込む。
+    # 閲覧画面の setImageSize() と同等の「元画像の自然幅 × N%」を PDF で再現する。
+    # （単なる CSS max-width: N% では元画像が紙幅より小さい場合に効かない問題への対処）
+    if imgsize is not None:
+        def _resize_img(m):
+            tag = m.group(0)
+            src = m.group(1)
+            am = re.match(r'/?attach/((?:s_)?[a-f0-9]{64}\.[A-Za-z0-9]+)$', src)
+            if not am:
+                return tag
+            path = os.path.join(UPLOAD_FOLDER, am.group(1))
+            if not os.path.isfile(path):
+                return tag
+            try:
+                with Image.open(path) as im:
+                    natural_w = im.width
+            except Exception:
+                return tag
+            new_w = max(1, int(natural_w * imgsize / 100))
+            style_decl = f'width: {new_w}px; max-width: 100%; height: auto;'
+            # 既存 style 属性があれば末尾に追記、なければ新規追加
+            if 'style="' in tag:
+                tag = re.sub(r'style="([^"]*)"',
+                             lambda mm: f'style="{mm.group(1)}; {style_decl}"', tag, count=1)
+            else:
+                # 自閉タグ ( /> ) / 通常タグ ( > ) どちらにも対応
+                tag = re.sub(r'(/?)>$', rf' style="{style_decl}"\1>', tag, count=1)
+            return tag
+        body_html = re.sub(r'<img\s+[^>]*?src="([^"]+)"[^>]*/?>', _resize_img, body_html)
+
     if include_title:
         title_html = f'<h1 class="doc-title">{html.escape(title) if title else ""}</h1>' if title else ''
         tags_html = f'<p style="color:#666;font-size:0.9em;margin-top:-6px;">{html.escape(tags)}</p>' if tags else ''
@@ -1574,17 +1606,8 @@ def _render_post_pdf_bytes(text, base_url, include_title=True,
     theme_css = _get_theme_css(theme) if theme else ''
     html_attr = f' data-theme="{html.escape(theme)}"' if theme else ''
 
-    # 動的 CSS（画像サイズ・コード表示の上書き）
+    # 動的 CSS（コード表示制御のみ。画像は上で個別に style 注入済み）
     extra_css_parts = []
-    if imgsize is not None:
-        # 画像幅を「コンテンツ幅の N%」で上限指定（縮小は max-width で、拡大は width で）
-        # 100% を超えるなら width: N% を指定して原寸以上に拡大
-        if imgsize > 100:
-            extra_css_parts.append(
-                f'#content img {{ width: {imgsize}% !important; max-width: none !important; height: auto !important; }}')
-        else:
-            extra_css_parts.append(
-                f'#content img {{ max-width: {imgsize}% !important; height: auto !important; }}')
     if codes == 'hide':
         # Markdown のフェンスコードブロック (<pre>) を非表示
         extra_css_parts.append('#content pre { display: none !important; }')
