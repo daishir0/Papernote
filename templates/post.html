@@ -676,7 +676,23 @@
                 });
 
                 // 4) PDFをブラウザに表示（新タブ）
-                const pdfHref = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf';
+                //    現在の閲覧設定（画像サイズ・コード表示・テーマ）をクエリで渡し、
+                //    サーバ側 PDF レンダリングに反映させる。
+                //    localStorage が空 / 不正値の場合は付与せず、サーバ側はデフォルト挙動。
+                const pdfParams = (function() {
+                    const params = [];
+                    try {
+                        const sz = localStorage.getItem('paperImgSize');
+                        if (sz && /^\d+$/.test(sz) && sz !== '100') params.push('imgsize=' + encodeURIComponent(sz));
+                        const cd = localStorage.getItem('paperCodesOpen');
+                        if (cd === 'true') params.push('codes=show');
+                        else if (cd === 'false') params.push('codes=hide');
+                        const th = localStorage.getItem('paperTheme');
+                        if (th) params.push('theme=' + encodeURIComponent(th));
+                    } catch (e) { /* ignore */ }
+                    return params.length ? '&' + params.join('&') : '';
+                })();
+                const pdfHref = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf' + pdfParams;
                 addItem('fas fa-file-pdf', 'セクションをPDFで表示', null, {
                     href: pdfHref, target: '_blank', allowDefault: true,
                 });
@@ -894,9 +910,19 @@
                     });
                     allCodesOpen = true;
                 }
+                // PDF出力にも反映できるよう LocalStorage に保存
+                try { localStorage.setItem('paperCodesOpen', String(allCodesOpen)); } catch (e) { /* ignore */ }
                 return false;
             };
         }
+
+        // ページロード後、LocalStorage に保存された「コード全表示」状態を復元
+        try {
+            if (localStorage.getItem('paperCodesOpen') === 'true' && !allCodesOpen) {
+                // クリックと同等の挙動でトグル
+                if (toggleAllCodesButton) toggleAllCodesButton.click();
+            }
+        } catch (e) { /* ignore */ }
 
         // 目次の折りたたみ機能
         const toggleIndex = document.getElementById('toggle-index');
@@ -1122,6 +1148,9 @@
     // サイズを設定
     function setImageSize(size) {
         currentImageSize = size;
+        // PDF出力時にも反映できるよう LocalStorage に保存
+        try { localStorage.setItem('paperImgSize', String(size)); } catch (e) { /* private mode 等は無視 */ }
+
         const images = document.querySelectorAll('#content img');
         images.forEach(img => {
             let originalWidth = imageOriginalSizes.get(img);
@@ -1150,6 +1179,19 @@
             if (btnSize === size) btn.classList.add('active');
         });
     }
+
+    // ページロード後、LocalStorage に保存された画像サイズを復元
+    // （setImageSize は image の original width 取得を要求するので画像ロード後に実行）
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+            try {
+                const saved = parseInt(localStorage.getItem('paperImgSize') || '100', 10);
+                if (saved !== 100 && [70, 100, 150, 200].includes(saved)) {
+                    setImageSize(saved);
+                }
+            } catch (e) { /* ignore */ }
+        }, 600); // 画像 naturalWidth が確定する 500ms 直後
+    });
 
     // リセット
     function resetImageSize() {

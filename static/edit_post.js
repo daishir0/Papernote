@@ -900,8 +900,24 @@
                             href: '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=zip',
                             allowDefault: true,
                         });
+                        // PDF はサーバ側でレンダリングするため、現在のプレビュー設定
+                        // （画像サイズ・コード表示・テーマ）をクエリパラメータで渡す。
+                        // localStorage 未設定/不正値ならパラメータ省略してサーバデフォルト挙動。
+                        const pdfParamsForEdit = (function() {
+                            const params = [];
+                            try {
+                                const sz = localStorage.getItem('paperImgSize');
+                                if (sz && /^\d+$/.test(sz) && sz !== '100') params.push('imgsize=' + encodeURIComponent(sz));
+                                const cd = localStorage.getItem('paperCodesOpen');
+                                if (cd === 'true') params.push('codes=show');
+                                else if (cd === 'false') params.push('codes=hide');
+                                const th = localStorage.getItem('paperTheme');
+                                if (th) params.push('theme=' + encodeURIComponent(th));
+                            } catch (e) { /* ignore */ }
+                            return params.length ? '&' + params.join('&') : '';
+                        })();
                         addItem('fas fa-file-pdf', 'セクションをPDFで表示', null, {
-                            href: '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf',
+                            href: '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf' + pdfParamsForEdit,
                             target: '_blank', allowDefault: true,
                         });
 

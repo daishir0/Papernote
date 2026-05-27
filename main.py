@@ -1347,56 +1347,184 @@ def download_post_zip(filename):
     こちらも引き続き利用可能。"""
     return _download_post_zip_impl(filename)
 
-# PDF 印刷用 HTML テンプレート（テーマ非依存・軽量・印刷向け）
+# テーマ ホワイトリスト（path traversal 防止＋static/themes/<name>.css が実在するもの）
+ALLOWED_PDF_THEMES = {
+    'academic', 'business', 'dark', 'default', 'formal', 'github',
+    'mono', 'notion', 'qiita', 'sepia', 'zenn',
+}
+
+_THEME_CSS_CACHE = {}
+def _get_theme_css(theme):
+    """static/themes/<theme>.css の中身をキャッシュ付きで返す。
+    theme は ALLOWED_PDF_THEMES で検証済み前提。"""
+    if theme not in _THEME_CSS_CACHE:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'static', 'themes', f'{theme}.css')
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                _THEME_CSS_CACHE[theme] = f.read()
+        except (OSError, IOError):
+            _THEME_CSS_CACHE[theme] = ''
+    return _THEME_CSS_CACHE[theme]
+
+# PDF 印刷用 HTML テンプレート（テーマCSSと同じ #content スコープで描画する）
+# - styles.css の :root デフォルト変数を取り込み、テーマCSSの [data-theme="X"] が
+#   それらを上書きする想定。
+# - HTML 構造は <body><div id="content">...</div></body> として、テーマCSSの
+#   #content / [data-theme="X"] #content スコープ規則がそのまま効くようにする。
 _PDF_HTML_CSS = """
-@page { size: A4; margin: 18mm 14mm; }
-body {
-  /* Chromium のフォントマッチングは「最初に見つかったフォントで描画 →
-     当該グリフが無ければ次のフォントへ」の Per-Character フォールバック方式。
-     EC2 (Linux) では Noto 系が拾われ、Windows/Mac で開く場合は Yu Gothic 等が拾われる。
+:root {
+  /* Chromium のフォントマッチングは Per-Character フォールバック。
      ◎ ✓ ✗ ⚠ ※ → ℃ 等の記号と 📦 📄 等の絵文字も欠落しないよう Symbols/Color Emoji を含める。 */
-  font-family:
+  --md-font-family:
     "Noto Sans CJK JP", "Noto Sans JP",
     "Noto Sans Symbols 2", "Noto Sans Symbols",
     "Noto Color Emoji",
     "Yu Gothic", "游ゴシック",
     "Hiragino Kaku Gothic ProN", "Meiryo",
     sans-serif;
-  font-size: 11pt; line-height: 1.7; color: #111; margin: 0;
-  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  --md-code-font-family: "Courier New", Courier, monospace;
+  --font-size-body-1: 11pt;
+  --line-height-body: 1.7;
+  --color-highEmphasis: #222;
+  --color-mediumEmphasis: #666;
+  --color-gray0: #f0f0f0;
+  /* 紙背景は白固定（PDF用; テーマで dark に変えたい場合は [data-theme] で上書き可） */
+  --md-bg: #ffffff;
+  --md-pre-border: #d3d3d3;
+  --md-code-bg: #f5f5f5;
+  --md-code-fg: #000;
+  --md-inline-code-bg: #f5f5f5;
+  --md-inline-code-fg: #000;
+  --md-blockquote-color: #666;
+  --md-blockquote-border: #cccccc;
+  --md-img-border: #d3d3d3;
+  --md-table-border: #333;
+  --md-th-td-border: #333;
+  --md-th-bg: #efefef;
+  --md-tr-even-bg: transparent;
+  --md-thead-bg: transparent;
+  --md-thead-fg: inherit;
+  --md-thead-th-bg: #efefef;
+  --md-thead-th-fg: inherit;
+  --md-thead-th-border: #333;
+  --md-table-wrapper-border: transparent;
+  --md-link-color: #06c;
+  --md-h1-border: 2px solid;
+  --md-h1-border-color: #111;
+  --md-heading-bullet: "";
+  --md-indent-h1: 0;
+  --md-indent-h2: 0;
+  --md-indent-h3: 0;
+  --md-indent-h4: 0;
+  --md-indent-h5: 0;
+  --md-indent-h6: 0;
 }
-h1, h2, h3, h4, h5, h6 { font-weight: bold; line-height: 1.3; break-after: avoid; }
-h1 { font-size: 1.6em; border-bottom: 2px solid #111; padding-bottom: 4px; margin: 1.4em 0 0.6em; }
-h2 { font-size: 1.35em; margin: 1.2em 0 0.5em; }
-h3 { font-size: 1.15em; margin: 1em 0 0.4em; }
-h4, h5, h6 { font-size: 1em; margin: 0.8em 0 0.3em; }
-p { margin: 0.5em 0; }
-ul, ol { padding-left: 1.6em; margin: 0.4em 0; }
-li { margin: 0.15em 0; }
-hr { border: none; border-top: 1px solid #aaa; margin: 1.2em 0; }
-strong { font-weight: bold; }
-em { font-style: italic; }
-del { text-decoration: line-through; }
-blockquote {
-  border-left: 4px solid #666; padding: 4px 12px; margin: 0.8em 0; color: #444;
-  background: #f6f6f6; break-inside: avoid;
+
+@page { size: A4; margin: 18mm 14mm; }
+html, body { margin: 0; padding: 0; background: var(--md-bg); }
+body {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
-img { max-width: 100%; height: auto; break-inside: avoid; }
-table {
-  border-collapse: collapse; margin: 0.6em 0; width: auto; max-width: 100%;
+
+#content {
+  font-family: var(--md-font-family);
+  font-size: var(--font-size-body-1);
+  line-height: var(--line-height-body);
+  color: var(--color-highEmphasis);
+  background-color: var(--md-bg);
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+#content h1, #content h2, #content h3, #content h4, #content h5, #content h6 {
+  font-weight: bold;
+  line-height: 1.3;
+  break-after: avoid;
+  margin-top: 1.4em;
+  margin-bottom: 0.6em;
+}
+#content h1 {
+  font-size: 1.6em;
+  border-bottom: var(--md-h1-border);
+  border-bottom-color: var(--md-h1-border-color);
+  padding-bottom: 4px;
+}
+#content h2 { font-size: 1.35em; }
+#content h3 { font-size: 1.15em; }
+#content h4, #content h5, #content h6 { font-size: 1em; }
+
+#content p { margin: 0.5em 0; }
+#content ul, #content ol { padding-left: 1.6em; margin: 0.4em 0; }
+#content li { margin: 0.15em 0; }
+#content hr { border: none; border-top: 1px solid #aaa; margin: 1.2em 0; }
+#content strong { font-weight: bold; }
+#content em { font-style: italic; }
+#content del { text-decoration: line-through; }
+#content blockquote {
+  color: var(--md-blockquote-color);
+  border-left: 0.5em solid var(--md-blockquote-border);
+  padding: 4px 12px;
+  margin: 0.8em 0;
+  background: #f6f6f6;
   break-inside: avoid;
 }
-th, td { border: 1px solid #333; padding: 4px 8px; vertical-align: top; font-size: 0.95em; }
-th { background: #efefef; }
-pre {
-  background: #f5f5f5; padding: 10px 12px; border: 1px solid #ddd;
-  border-radius: 4px; overflow: hidden; white-space: pre-wrap;
-  word-break: break-all; font-family: "Courier New", monospace; font-size: 0.9em;
+#content img {
+  max-width: 100%;
+  height: auto;
+  break-inside: avoid;
+  border: 1px solid var(--md-img-border);
+}
+#content table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  width: auto;
+  max-width: 100%;
+  break-inside: avoid;
+  border: 1px solid var(--md-table-border);
+}
+#content th, #content td {
+  border: 1px solid var(--md-th-td-border);
+  padding: 4px 8px;
+  vertical-align: top;
+  font-size: 0.95em;
+}
+#content th {
+  background: var(--md-th-bg);
+  font-weight: bold;
+}
+#content tr:nth-child(even) { background-color: var(--md-tr-even-bg); }
+#content pre {
+  background: var(--md-code-bg);
+  color: var(--md-code-fg);
+  padding: 10px 12px;
+  border: 1px solid var(--md-pre-border);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: var(--md-code-font-family);
+  font-size: 0.9em;
   break-inside: avoid;
 }
-code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px;
-       font-family: "Courier New", monospace; font-size: 0.92em; }
-a { color: #06c; text-decoration: underline; }
+#content code {
+  background: var(--md-inline-code-bg);
+  color: var(--md-inline-code-fg);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--md-code-font-family);
+  font-size: 0.92em;
+}
+#content pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+#content a { color: var(--md-link-color); text-decoration: underline; }
+#content h1::before, #content h2::before, #content h3::before,
+#content h4::before, #content h5::before, #content h6::before {
+  content: var(--md-heading-bullet);
+}
 """
 
 def _find_chromium_executable():
@@ -1413,12 +1541,18 @@ def _find_chromium_executable():
             return p
     return None
 
-def _render_post_pdf_bytes(text, base_url, include_title=True):
+def _render_post_pdf_bytes(text, base_url, include_title=True,
+                           imgsize=None, codes=None, theme=None):
     """Markdown 本文（title/tags 行を含む raw text）を A4 PDF にレンダリング。
     base_url は <base href> として埋め込み、/attach/xxx 等の相対パスを
     実画像 URL に解決させる（Playwright が同一サーバから取得する）。
     include_title=False の場合、1行目のタイトル行と 2行目のタグ行を出力しない
-    （セクション単独 PDF 化用）。"""
+    （セクション単独 PDF 化用）。
+
+    オプション設定（呼び出し側で検証済み前提）:
+      imgsize : int | None  -- 画像幅% (例 70=小, 100=中, 150=大, 200=特大)
+      codes   : 'hide' | 'show' | None  -- コードブロックの表示制御
+      theme   : ALLOWED_PDF_THEMES の文字列 | None  -- テーマ名"""
     import markdown as md_lib
     from playwright.sync_api import sync_playwright
 
@@ -1436,12 +1570,33 @@ def _render_post_pdf_bytes(text, base_url, include_title=True):
         title_html = ''
         tags_html = ''
 
+    # テーマCSS（[data-theme="X"] スコープの規則を取り込み、`<html data-theme="X">` で発動）
+    theme_css = _get_theme_css(theme) if theme else ''
+    html_attr = f' data-theme="{html.escape(theme)}"' if theme else ''
+
+    # 動的 CSS（画像サイズ・コード表示の上書き）
+    extra_css_parts = []
+    if imgsize is not None:
+        # 画像幅を「コンテンツ幅の N%」で上限指定（縮小は max-width で、拡大は width で）
+        # 100% を超えるなら width: N% を指定して原寸以上に拡大
+        if imgsize > 100:
+            extra_css_parts.append(
+                f'#content img {{ width: {imgsize}% !important; max-width: none !important; height: auto !important; }}')
+        else:
+            extra_css_parts.append(
+                f'#content img {{ max-width: {imgsize}% !important; height: auto !important; }}')
+    if codes == 'hide':
+        # Markdown のフェンスコードブロック (<pre>) を非表示
+        extra_css_parts.append('#content pre { display: none !important; }')
+    extra_css = '\n'.join(extra_css_parts)
+
     full_html = (
-        '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+        f'<!DOCTYPE html><html{html_attr}><head><meta charset="UTF-8">'
         f'<base href="{html.escape(base_url)}">'
-        f'<style>{_PDF_HTML_CSS}</style></head><body>'
+        f'<style>{_PDF_HTML_CSS}\n{theme_css}\n{extra_css}</style></head>'
+        f'<body><div id="content">'
         f'{title_html}{tags_html}{body_html}'
-        '</body></html>'
+        '</div></body></html>'
     )
 
     launch_kwargs = {'args': ['--no-sandbox']}
@@ -1465,12 +1620,31 @@ def _render_post_pdf_bytes(text, base_url, include_title=True):
 
 def _download_post_pdf_impl(filename):
     """PDF 生成のコア処理。レート制限デコレータは呼び出し側で付与する。
-    ?section= 指定時は 1行目タイトル/2行目タグを出力せず、当該セクションのみ。"""
+    ?section= 指定時は 1行目タイトル/2行目タグを出力せず、当該セクションのみ。
+    クエリパラメータで現在画面の閲覧設定を反映:
+      ?imgsize=N (70/100/150/200 のいずれか)
+      ?codes=show|hide
+      ?theme=<ALLOWED_PDF_THEMES のいずれか>
+    指定なし/不正値はサーバデフォルトにフォールバック。"""
     text, section = _resolve_post_and_section(filename)
     base_url = request.url_root  # http://host/ — <img src="/attach/xxx"> 解決用
 
+    # クエリパラメータの検証
+    imgsize_arg = (request.args.get('imgsize', '') or '').strip()
+    imgsize = None
+    if imgsize_arg.isdigit():
+        n = int(imgsize_arg)
+        if 10 <= n <= 500:
+            imgsize = n
+    codes_arg = (request.args.get('codes', '') or '').strip().lower()
+    codes = codes_arg if codes_arg in ('show', 'hide') else None
+    theme_arg = (request.args.get('theme', '') or '').strip()
+    theme = theme_arg if theme_arg in ALLOWED_PDF_THEMES else None
+
     try:
-        pdf_bytes = _render_post_pdf_bytes(text, base_url, include_title=(section is None))
+        pdf_bytes = _render_post_pdf_bytes(text, base_url,
+                                           include_title=(section is None),
+                                           imgsize=imgsize, codes=codes, theme=theme)
     except Exception as e:
         app.logger.exception(f"download_post_pdf failed for {filename} section={section}: {e}")
         abort(500)
