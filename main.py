@@ -1351,7 +1351,17 @@ def download_post_zip(filename):
 _PDF_HTML_CSS = """
 @page { size: A4; margin: 18mm 14mm; }
 body {
-  font-family: "Yu Gothic", "游ゴシック", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  /* Chromium のフォントマッチングは「最初に見つかったフォントで描画 →
+     当該グリフが無ければ次のフォントへ」の Per-Character フォールバック方式。
+     EC2 (Linux) では Noto 系が拾われ、Windows/Mac で開く場合は Yu Gothic 等が拾われる。
+     ◎ ✓ ✗ ⚠ ※ → ℃ 等の記号と 📦 📄 等の絵文字も欠落しないよう Symbols/Color Emoji を含める。 */
+  font-family:
+    "Noto Sans CJK JP", "Noto Sans JP",
+    "Noto Sans Symbols 2", "Noto Sans Symbols",
+    "Noto Color Emoji",
+    "Yu Gothic", "游ゴシック",
+    "Hiragino Kaku Gothic ProN", "Meiryo",
+    sans-serif;
   font-size: 11pt; line-height: 1.7; color: #111; margin: 0;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
