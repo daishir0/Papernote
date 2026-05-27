@@ -1480,8 +1480,11 @@ def _download_post_pdf_impl(filename):
         base = f"{base}_{_sanitize_section_for_filename(section)}"
     pdf_name = base + '.pdf'
 
+    # ブラウザ内表示 (inline) — タブで PDF ビューワが起動し、必要に応じて
+    # ユーザーが手動でダウンロード可能。download_name はビューワ保存時の
+    # ヒントとして使われる。
     from io import BytesIO
-    return send_file(BytesIO(pdf_bytes), as_attachment=True,
+    return send_file(BytesIO(pdf_bytes), as_attachment=False,
                      download_name=pdf_name, mimetype='application/pdf')
 
 @app.route('/post/<filename>/download_pdf')

@@ -97,7 +97,7 @@ pre{
     color: #2563eb;
     font-weight: 600;
 }
-/* H1見出し横「セクションURLコピー」アイコン */
+/* H1見出し横「セクションURLコピー」アイコン（旧UI・互換のため残置） */
 .section-link-icon {
     display: inline-block;
     margin-left: 10px;
@@ -117,6 +117,99 @@ pre{
 }
 @media print {
     .section-link-icon {
+        display: none !important;
+    }
+}
+
+/* H1見出し行の右端に薄く配置する「⋮」セクションメニュー
+   #content (閲覧) / #preview-content (編集画面プレビュー) 双方に同じUI */
+#content h1,
+#preview-content h1 {
+    position: relative;
+    padding-right: 36px; /* ⋮ボタンとの干渉防止スペース */
+}
+.section-menu-wrap {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-block;
+}
+.section-menu-trigger {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #b0b0b0;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.7em;
+    line-height: 1;
+    opacity: 0.55;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.section-menu-trigger:hover,
+.section-menu-trigger:focus {
+    opacity: 1;
+    color: #2563eb;
+    background: #eef2ff;
+    outline: none;
+}
+.section-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    min-width: 280px;
+    padding: 4px 0;
+    font-weight: normal;
+    white-space: nowrap;
+}
+.section-menu.show {
+    display: block;
+}
+/* テーマCSS（例: [data-theme="mono"] #content a の text-decoration: underline）に
+   負けないよう、ID セレクタとの組み合わせで specificity を上げる */
+#content .section-menu-item,
+#content .section-menu-item:link,
+#content .section-menu-item:visited,
+#preview-content .section-menu-item,
+#preview-content .section-menu-item:link,
+#preview-content .section-menu-item:visited {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    font-size: 0.85em;
+    color: #333;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s;
+}
+#content .section-menu-item:hover,
+#preview-content .section-menu-item:hover {
+    background: #f5f5f5;
+    color: #2563eb;
+    text-decoration: none;
+}
+.section-menu-item i {
+    width: 16px;
+    text-align: center;
+    color: #666;
+}
+.section-menu-item:hover i {
+    color: #2563eb;
+}
+@media print {
+    .section-menu-wrap {
         display: none !important;
     }
 }

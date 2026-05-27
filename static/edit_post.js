@@ -834,6 +834,103 @@
                 // Mermaid初期化
                 mermaid.initialize({ startOnLoad: false });
 
+                // プレビューの各 H1 右端に「⋮」セクションメニューを付与する。
+                // 4項目: 参照文字コピー / URL コピー / ZIP DL / PDF 表示。
+                // 閲覧画面 post.html の addSectionLinkIcons と同等の挙動だが、
+                // 編集中のセクション名は textarea 由来でリアルタイムに変わるので
+                // updatePreview のたびに丸ごと再生成する。
+                function addSectionMenuToPreview(root) {
+                    const filename = document.body.dataset.filename;
+                    if (!filename) return;
+                    const headings = root.querySelectorAll('h1');
+                    headings.forEach(heading => {
+                        if (heading.querySelector('.section-menu-trigger')) return;
+                        const sectionTitle = heading.textContent.trim();
+                        heading.dataset.sectionTitle = sectionTitle;
+                        const encodedSection = encodeURIComponent(sectionTitle);
+                        const encodedFilename = encodeURIComponent(filename);
+                        const sectionUrl = window.location.origin + '/post/' + filename + '?section=' + encodedSection;
+                        const refText = ` Papernoteの「${filename}」のセクション「${sectionTitle}」 `;
+
+                        const wrap = document.createElement('span');
+                        wrap.className = 'section-menu-wrap none_print';
+
+                        const trigger = document.createElement('button');
+                        trigger.type = 'button';
+                        trigger.className = 'section-menu-trigger';
+                        trigger.title = 'セクションのメニュー';
+                        trigger.setAttribute('aria-label', 'セクションのメニュー');
+                        trigger.innerHTML = '<i class="fas fa-ellipsis-vertical"></i>';
+                        wrap.appendChild(trigger);
+
+                        const menu = document.createElement('div');
+                        menu.className = 'section-menu';
+                        wrap.appendChild(menu);
+
+                        function closeMenu() { menu.classList.remove('show'); }
+
+                        function addItem(iconClass, label, handler, opts) {
+                            const item = document.createElement('a');
+                            item.className = 'section-menu-item';
+                            item.href = (opts && opts.href) || '#';
+                            if (opts && opts.target) item.target = opts.target;
+                            item.innerHTML = `<i class="${iconClass}"></i><span>${label}</span>`;
+                            item.addEventListener('click', function(e) {
+                                if (!opts || !opts.allowDefault) e.preventDefault();
+                                e.stopPropagation();
+                                if (handler) handler(e);
+                                closeMenu();
+                            });
+                            menu.appendChild(item);
+                        }
+
+                        addItem('fas fa-quote-right', 'セクション参照文字をコピー', async function() {
+                            try {
+                                await navigator.clipboard.writeText(refText);
+                                showTemporaryMessage('セクション参照文字をコピーしました');
+                            } catch (err) { showTemporaryMessage('コピーに失敗しました'); }
+                        });
+                        addItem('fas fa-link', 'セクションURLをコピー', async function() {
+                            try {
+                                await navigator.clipboard.writeText(sectionUrl);
+                                showTemporaryMessage('セクションURLをコピーしました');
+                            } catch (err) { showTemporaryMessage('コピーに失敗しました'); }
+                        });
+                        addItem('fas fa-file-zipper', 'セクションをZIPでダウンロード', null, {
+                            href: '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=zip',
+                            allowDefault: true,
+                        });
+                        addItem('fas fa-file-pdf', 'セクションをPDFで表示', null, {
+                            href: '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf',
+                            target: '_blank', allowDefault: true,
+                        });
+
+                        trigger.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const wasOpen = menu.classList.contains('show');
+                            document.querySelectorAll('.section-menu.show').forEach(m => m.classList.remove('show'));
+                            if (!wasOpen) menu.classList.add('show');
+                        });
+
+                        heading.appendChild(wrap);
+                    });
+
+                    if (!window.__sectionMenuGlobalBound) {
+                        document.addEventListener('click', function(e) {
+                            if (!e.target.closest('.section-menu-wrap')) {
+                                document.querySelectorAll('.section-menu.show').forEach(m => m.classList.remove('show'));
+                            }
+                        });
+                        document.addEventListener('keydown', function(e) {
+                            if (e.key === 'Escape') {
+                                document.querySelectorAll('.section-menu.show').forEach(m => m.classList.remove('show'));
+                            }
+                        });
+                        window.__sectionMenuGlobalBound = true;
+                    }
+                }
+
                 // プレビュー更新関数
                 let updateTimeout;
                 function updatePreview() {
@@ -880,6 +977,9 @@
                             if (typeof initializeSlideshowImages === 'function') {
                                 initializeSlideshowImages('#preview-content');
                             }
+
+                            // セクション ⋮ メニューを各H1に付与（閲覧画面の addSectionLinkIcons と同等）
+                            addSectionMenuToPreview(previewContent);
 
                         } catch (error) {
                             console.error('Markdown rendering error:', error);
@@ -945,11 +1045,15 @@
                             }
                             return;
                         }
+                        // ⋮ メニュー内クリック時は H1 のコピー処理をスキップ
+                        if (e.target.closest('.section-menu-wrap')) return;
                         // H1クリックコピー
                         const h1 = e.target.closest('h1');
                         if (!h1 || !previewContentEl.contains(h1)) return;
                         const filename = document.body.dataset.filename;
-                        const text = ` Papernoteの「${filename}」のセクション「${h1.textContent}」 `;
+                        // ⋮ ボタンを含むので textContent をそのまま使うと余計なものが入る
+                        const sectionTitle = h1.dataset.sectionTitle || h1.textContent.trim();
+                        const text = ` Papernoteの「${filename}」のセクション「${sectionTitle}」 `;
                         try {
                             await navigator.clipboard.writeText(text);
                             showTemporaryMessage('セクション名をコピーしました');

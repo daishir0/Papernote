@@ -595,63 +595,118 @@
             return escaped;
         }
 
-        // 各H1見出しの末尾に「セクションURLコピー🔗 / ZIP📦 / PDF📄」アイコンを付与
+        // 各H1見出しの行右端に「⋮」ドロップダウンを付与。
+        //   4項目: 参照文字コピー / URL コピー / ZIP DL / PDF 表示
+        // H1 本体クリック時のセクション参照文字コピーの既存挙動も保持する。
         function addSectionLinkIcons() {
             const filename = document.body.dataset.filename;
             const headings = document.querySelectorAll('#content h1');
             headings.forEach(heading => {
-                if (heading.querySelector('.section-link-icon')) return; // 既に付与済みならスキップ
+                if (heading.querySelector('.section-menu-trigger')) return; // 重複生成防止
                 const sectionTitle = heading.textContent.trim();
                 heading.dataset.sectionTitle = sectionTitle;
                 const encodedSection = encodeURIComponent(sectionTitle);
                 const encodedFilename = encodeURIComponent(filename);
+                const sectionUrl = window.location.origin + '/post/' + filename + '?section=' + encodedSection;
+                const refText = ` Papernoteの「${filename}」のセクション「${sectionTitle}」 `;
 
-                // 1) URL コピー
-                const copyIcon = document.createElement('a');
-                copyIcon.className = 'section-link-icon none_print';
-                copyIcon.href = '/post/' + filename + '?section=' + encodedSection;
-                copyIcon.title = 'このセクションのURLをコピー';
-                copyIcon.setAttribute('aria-label', 'セクションURLをコピー');
-                copyIcon.innerHTML = '<i class="fas fa-link"></i>';
-                copyIcon.addEventListener('click', async function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const url = window.location.origin + '/post/' + filename + '?section=' + encodedSection;
+                // ⋮トリガとドロップダウンをまとめるラッパ
+                const wrap = document.createElement('span');
+                wrap.className = 'section-menu-wrap none_print';
+
+                // ⋮ トリガ
+                const trigger = document.createElement('button');
+                trigger.type = 'button';
+                trigger.className = 'section-menu-trigger';
+                trigger.title = 'セクションのメニュー';
+                trigger.setAttribute('aria-label', 'セクションのメニュー');
+                trigger.innerHTML = '<i class="fas fa-ellipsis-vertical"></i>';
+                wrap.appendChild(trigger);
+
+                // ドロップダウン本体
+                const menu = document.createElement('div');
+                menu.className = 'section-menu';
+                wrap.appendChild(menu);
+
+                // 共通: アクション後にメニューを閉じる
+                function closeMenu() { menu.classList.remove('show'); }
+
+                // メニュー項目生成ヘルパ
+                function addItem(iconClass, label, handler, opts) {
+                    const item = document.createElement('a');
+                    item.className = 'section-menu-item';
+                    item.href = (opts && opts.href) || '#';
+                    if (opts && opts.target) item.target = opts.target;
+                    item.innerHTML = `<i class="${iconClass}"></i><span>${label}</span>`;
+                    item.addEventListener('click', function(e) {
+                        // href がダウンロード/ナビゲーション系のときは preventDefault せず
+                        if (!opts || !opts.allowDefault) e.preventDefault();
+                        e.stopPropagation();
+                        if (handler) handler(e);
+                        closeMenu();
+                    });
+                    menu.appendChild(item);
+                    return item;
+                }
+
+                // 1) セクション参照文字をコピー
+                addItem('fas fa-quote-right', 'セクション参照文字をコピー', async function() {
                     try {
-                        await navigator.clipboard.writeText(url);
+                        await navigator.clipboard.writeText(refText);
+                        showTemporaryMessage('セクション参照文字をコピーしました');
+                    } catch (err) {
+                        showTemporaryMessage('コピーに失敗しました');
+                    }
+                });
+
+                // 2) セクションURLをコピー
+                addItem('fas fa-link', 'セクションURLをコピー', async function() {
+                    try {
+                        await navigator.clipboard.writeText(sectionUrl);
                         showTemporaryMessage('セクションURLをコピーしました');
                     } catch (err) {
                         showTemporaryMessage('コピーに失敗しました');
                     }
                 });
-                heading.appendChild(copyIcon);
 
-                // 2) ZIP ダウンロード
-                //    URL 形式: /post/<file>?section=<title>&downloadtype=zip
-                const zipIcon = document.createElement('a');
-                zipIcon.className = 'section-link-icon none_print';
-                zipIcon.href = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=zip';
-                zipIcon.title = 'このセクションをZIPでダウンロード';
-                zipIcon.setAttribute('aria-label', 'セクションをZIPでダウンロード');
-                zipIcon.innerHTML = '<i class="fas fa-file-zipper"></i>';
-                zipIcon.addEventListener('click', function(e) {
-                    e.stopPropagation(); // H1 のセクション名コピー処理を抑止
+                // 3) ZIP ダウンロード
+                const zipHref = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=zip';
+                addItem('fas fa-file-zipper', 'セクションをZIPでダウンロード', null, {
+                    href: zipHref, allowDefault: true,
                 });
-                heading.appendChild(zipIcon);
 
-                // 3) PDF ダウンロード
-                //    URL 形式: /post/<file>?section=<title>&downloadtype=pdf
-                const pdfIcon = document.createElement('a');
-                pdfIcon.className = 'section-link-icon none_print';
-                pdfIcon.href = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf';
-                pdfIcon.title = 'このセクションをPDFでダウンロード';
-                pdfIcon.setAttribute('aria-label', 'セクションをPDFでダウンロード');
-                pdfIcon.innerHTML = '<i class="fas fa-file-pdf"></i>';
-                pdfIcon.addEventListener('click', function(e) {
+                // 4) PDFをブラウザに表示（新タブ）
+                const pdfHref = '/post/' + encodedFilename + '?section=' + encodedSection + '&downloadtype=pdf';
+                addItem('fas fa-file-pdf', 'セクションをPDFで表示', null, {
+                    href: pdfHref, target: '_blank', allowDefault: true,
+                });
+
+                // ⋮ クリックでメニュー開閉（他のメニューは閉じる）
+                trigger.addEventListener('click', function(e) {
+                    e.preventDefault();
                     e.stopPropagation();
+                    const wasOpen = menu.classList.contains('show');
+                    document.querySelectorAll('.section-menu.show').forEach(m => m.classList.remove('show'));
+                    if (!wasOpen) menu.classList.add('show');
                 });
-                heading.appendChild(pdfIcon);
+
+                heading.appendChild(wrap);
             });
+
+            // メニュー外クリック/Escape で閉じる（初回だけバインド）
+            if (!window.__sectionMenuGlobalBound) {
+                document.addEventListener('click', function(e) {
+                    if (!e.target.closest('.section-menu-wrap')) {
+                        document.querySelectorAll('.section-menu.show').forEach(m => m.classList.remove('show'));
+                    }
+                });
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        document.querySelectorAll('.section-menu.show').forEach(m => m.classList.remove('show'));
+                    }
+                });
+                window.__sectionMenuGlobalBound = true;
+            }
         }
 
         // 目次生成関数（追加レンダリング後にも呼び出す）
@@ -808,8 +863,10 @@
 
         // H1クリックでセクション名をクリップボードにコピー
         document.getElementById('content').addEventListener('click', async function(e) {
-            // 🔗 アイコンクリック時は H1 のテキストコピー処理をスキップ（アイコン側で stopPropagation 済み）
+            // 🔗 アイコン / ⋮ メニュークリック時は H1 のテキストコピー処理をスキップ
+            //   （アイコン/メニュー側で stopPropagation 済みだが念のため二重防御）
             if (e.target.closest('.section-link-icon')) return;
+            if (e.target.closest('.section-menu-wrap')) return;
             const h1 = e.target.closest('#content > h1, #content div > h1');
             if (!h1 || h1.tagName !== 'H1') return;
             const filename = document.body.dataset.filename;
