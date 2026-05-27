@@ -168,12 +168,16 @@ pre{
     padding: 4px 0;
     font-weight: normal;
     white-space: nowrap;
+    /* 親 H1 の font-size: 2em が継承されないよう、ここで絶対サイズにリセット
+       （他の三点リーダー .options-menu-item と同等の見た目に揃える） */
+    font-size: 0.9rem;
 }
 .section-menu.show {
     display: block;
 }
 /* テーマCSS（例: [data-theme="mono"] #content a の text-decoration: underline）に
-   負けないよう、ID セレクタとの組み合わせで specificity を上げる */
+   負けないよう、ID セレクタとの組み合わせで specificity を上げる。
+   font-size は親 .section-menu (0.9rem) を継承（H1 の 2em 継承を断ち切る） */
 #content .section-menu-item,
 #content .section-menu-item:link,
 #content .section-menu-item:visited,
@@ -184,7 +188,6 @@ pre{
     align-items: center;
     gap: 10px;
     padding: 8px 14px;
-    font-size: 0.85em;
     color: #333;
     text-decoration: none;
     cursor: pointer;
