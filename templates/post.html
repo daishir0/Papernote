@@ -861,25 +861,6 @@
         buildTableOfContents();
         addSectionLinkIcons();
 
-        // H1クリックでセクション名をクリップボードにコピー
-        document.getElementById('content').addEventListener('click', async function(e) {
-            // 🔗 アイコン / ⋮ メニュークリック時は H1 のテキストコピー処理をスキップ
-            //   （アイコン/メニュー側で stopPropagation 済みだが念のため二重防御）
-            if (e.target.closest('.section-link-icon')) return;
-            if (e.target.closest('.section-menu-wrap')) return;
-            const h1 = e.target.closest('#content > h1, #content div > h1');
-            if (!h1 || h1.tagName !== 'H1') return;
-            const filename = document.body.dataset.filename;
-            const sectionTitle = h1.dataset.sectionTitle || h1.textContent.trim();
-            const text = ` Papernoteの「${filename}」のセクション「${sectionTitle}」 `;
-            try {
-                await navigator.clipboard.writeText(text);
-                showTemporaryMessage('セクション名をコピーしました');
-            } catch (error) {
-                showTemporaryMessage('コピーに失敗しました');
-            }
-        });
-
         // テーブルコピーボタン（Markdownでコピー）
         document.getElementById('content').addEventListener('click', async function(e) {
             const btn = e.target.closest('.table-copy-btn');

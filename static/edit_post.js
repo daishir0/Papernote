@@ -1027,37 +1027,20 @@
                     updatePreview();
                 }
 
-                // プレビューペインのH1クリックでセクション名をクリップボードにコピー（post.htmlと同じ挙動）
+                // プレビューペインのテーブルコピーボタン（Markdownでコピー）
+                //   ※ H1 タップでのセクション名コピーは ⋮ メニューに移行したため削除済み
                 const previewContentEl = document.getElementById('preview-content');
                 if (previewContentEl) {
                     previewContentEl.addEventListener('click', async function(e) {
-                        // テーブルコピーボタン
                         const btn = e.target.closest('.table-copy-btn');
-                        if (btn) {
-                            e.stopPropagation();
-                            const table = btn.closest('.table-responsive').querySelector('table');
-                            if (!table) return;
-                            try {
-                                await navigator.clipboard.writeText(tableToMarkdown(table));
-                                showTemporaryMessage('テーブルをコピーしました');
-                            } catch (err) {
-                                showTemporaryMessage('コピーに失敗しました');
-                            }
-                            return;
-                        }
-                        // ⋮ メニュー内クリック時は H1 のコピー処理をスキップ
-                        if (e.target.closest('.section-menu-wrap')) return;
-                        // H1クリックコピー
-                        const h1 = e.target.closest('h1');
-                        if (!h1 || !previewContentEl.contains(h1)) return;
-                        const filename = document.body.dataset.filename;
-                        // ⋮ ボタンを含むので textContent をそのまま使うと余計なものが入る
-                        const sectionTitle = h1.dataset.sectionTitle || h1.textContent.trim();
-                        const text = ` Papernoteの「${filename}」のセクション「${sectionTitle}」 `;
+                        if (!btn) return;
+                        e.stopPropagation();
+                        const table = btn.closest('.table-responsive').querySelector('table');
+                        if (!table) return;
                         try {
-                            await navigator.clipboard.writeText(text);
-                            showTemporaryMessage('セクション名をコピーしました');
-                        } catch (error) {
+                            await navigator.clipboard.writeText(tableToMarkdown(table));
+                            showTemporaryMessage('テーブルをコピーしました');
+                        } catch (err) {
                             showTemporaryMessage('コピーに失敗しました');
                         }
                     });
