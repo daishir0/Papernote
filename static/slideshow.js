@@ -43,31 +43,50 @@ const ZOOM_STEP = 0.25;
 // 初期化
 // ============================================
 function initializeSlideshowImages(containerSelector) {
+    // 再呼び出し対応: 配列は毎回作り直し、クリックハンドラは要素マーカーで重複防止。
+    // ハンドラ内では closure ではなく click 時の img を slideshowImages 配列から
+    // 探して index を取り直す（後から画像が追加されて配列順序が変わっても破綻しない）。
     containerSelector = containerSelector || '#content';
     const contentImages = document.querySelectorAll(containerSelector + ' img');
     slideshowImages = [];
 
-    contentImages.forEach((img, index) => {
+    contentImages.forEach((img) => {
         const parent = img.parentElement;
         let fullSizeUrl = img.src;
-
-        if (parent.tagName === 'A' && parent.href.match(/\.(jpg|jpeg|png|gif|svg)$/i)) {
+        const isLinkedFull = (parent && parent.tagName === 'A' &&
+            parent.href && parent.href.match(/\.(jpg|jpeg|png|gif|svg)$/i));
+        if (isLinkedFull) {
             fullSizeUrl = parent.href;
-            parent.addEventListener('click', function(e) {
+        }
+
+        // 配列インデックスを毎回計算 — 既存画像のハンドラも追加画像も同じロジックで動作
+        function openForThisImg(e) {
+            if (e) {
                 e.preventDefault();
-                openSlideshowModal(index);
-            });
+                e.stopPropagation();
+            }
+            const idx = slideshowImages.findIndex(entry => entry.imgRef === img);
+            if (idx >= 0) openSlideshowModal(idx);
+        }
+
+        if (isLinkedFull) {
+            if (!parent.dataset.slideshowBound) {
+                parent.dataset.slideshowBound = '1';
+                parent.addEventListener('click', openForThisImg);
+            }
         } else {
-            img.style.cursor = 'pointer';
-            img.addEventListener('click', function() {
-                openSlideshowModal(index);
-            });
+            if (!img.dataset.slideshowBound) {
+                img.dataset.slideshowBound = '1';
+                img.style.cursor = 'pointer';
+                img.addEventListener('click', openForThisImg);
+            }
         }
 
         slideshowImages.push({
             thumb: img.src,
             full: fullSizeUrl,
-            alt: img.alt || ''
+            alt: img.alt || '',
+            imgRef: img,  // findIndex 用の DOM 参照
         });
     });
 }

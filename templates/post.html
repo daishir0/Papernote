@@ -821,6 +821,11 @@
                 // 見出しレベルに応じた字下げを再適用（追加セクションを含む全体）
                 if (window.PaperHeadingIndent) window.PaperHeadingIndent.apply(contentDiv);
 
+                // 追加された画像も既存スライドショー配列に統合する（矢印キー連続閲覧）
+                if (typeof initializeSlideshowImages === 'function') {
+                    initializeSlideshowImages('#content');
+                }
+
             } catch (err) {
                 console.error('セクション取得エラー:', err);
                 showTemporaryMessage('セクションの読み込みに失敗しました');
