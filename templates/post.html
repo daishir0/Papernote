@@ -728,6 +728,21 @@
             }
         }
 
+        // H1 内部の ⋮メニュー要素を除外して見出しタイトル文字列を取得
+        // （addSectionLinkIcons 後に呼ばれると、textContent はメニュー項目文字列まで拾ってしまう）
+        function getHeadingTitleText(heading) {
+            let title = '';
+            heading.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    title += node.textContent;
+                } else if (node.nodeType === Node.ELEMENT_NODE &&
+                           !node.classList.contains('section-menu-wrap')) {
+                    title += node.textContent;
+                }
+            });
+            return title.trim();
+        }
+
         // 目次生成関数（追加レンダリング後にも呼び出す）
         function buildTableOfContents() {
             const index = document.getElementById('index');
@@ -750,10 +765,11 @@
                     const listItem = document.createElement('li');
                     listItem.style.marginLeft = (level - 1) * 20 + 'px'; // インデントを設定
                     const link = document.createElement('a');
-                    const id = heading.textContent.replace(/\s+/g, '-').toLowerCase();
+                    const titleText = getHeadingTitleText(heading);
+                    const id = titleText.replace(/\s+/g, '-').toLowerCase();
                     heading.id = id; // HタグにIDを設定
                     link.href = `#${id}`;
-                    link.textContent = heading.textContent;
+                    link.textContent = titleText;
 
                     // 目次内のリンクにクリックイベントを追加（モバイル表示時のみ動作）
                     link.addEventListener('click', function(e) {
