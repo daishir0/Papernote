@@ -1846,13 +1846,30 @@
                 mermaid.init(undefined, mermaidElements);
             }
 
-            // 画像のインラインスタイルをリセット（画像サイズ調整機能の影響を除去）
+            // 画像のインラインスタイルを一旦リセットし（コピー元#content由来のpx値を除去）、
+            // 画像サイズ設定（小/中/大/特大）が100%以外ならスライド内にも適用する
             const slideImages = slideContent.querySelectorAll('img');
             slideImages.forEach(img => {
                 img.style.width = '';
                 img.style.height = '';
                 img.style.maxWidth = '';
                 img.style.maxHeight = '';
+
+                if (currentImageSize === 100) return;
+
+                const applySize = () => {
+                    if (img.naturalWidth > 10) {
+                        img.style.width = (img.naturalWidth * currentImageSize / 100) + 'px';
+                        img.style.height = 'auto';
+                        // a img の max-width:500px 制限を上書きしつつ、スライド幅は超えない
+                        img.style.maxWidth = '100%';
+                    }
+                };
+                if (img.complete) {
+                    applySize();
+                } else {
+                    img.addEventListener('load', applySize, { once: true });
+                }
             });
 
             // canvasをスクロール領域全体にリサイズ
