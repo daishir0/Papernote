@@ -134,6 +134,10 @@ pre{
     top: 50%;
     transform: translateY(-50%);
     display: inline-block;
+    /* transform でスタッキングコンテキストを作るため、内側の .section-menu の
+       z-index がローカル化される。ラッパ自身に z-index を与え、後続の
+       .table-responsive(position:relative) よりメニューを前面に出す */
+    z-index: 50;
 }
 .section-menu-trigger {
     background: transparent;
